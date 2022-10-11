@@ -1,0 +1,255 @@
+---
+title: "microarray data analysis (2)"
+author: "Frank"
+date: "July 16, 2015"
+output: html_document
+---
+
+# MEF data 
+
+## Read the whole data: 
+
+Set up the folder:
+```{r}
+setwd("~/Dropbox/Current/4. IFN/IFNb_Expression_2015/figs_code/R/")
+datafolder = "../../data/"
+```
+
+Read the whole data:
+```{r,eval=FALSE,echo=F}
+file = paste(datafolder,'mef_microarray.csv',sep = "")
+a<- read.csv(file)
+samples <- colnames(a)
+a[1:10,1:8]
+samples
+
+```
+
+Select data for wt, acko, ac50ko (3ko), abcko @ LPS stimulation: 
+
+```{r,echo =F}
+load(file=paste(datafolder,"mef.RData",sep = ""))
+idx <- c(3,6,7,23:26,15:18,9:12,19:22)
+a1<- a[,idx]
+names(a1)
+times <- c(0,1,3,8)
+genotypes <- c("wt","acko","3ko","abcko")
+samples <-c("symbol","entrez_gene_id","accession",sapply(genotypes,function(x) paste(x,times)))
+colnames(a1)<-samples
+```
+
+
+## Select Interferon 
+```{r,echo = F}
+target <- "ifnb1"
+wt_cols <- 4:7
+acko_cols <- wt_cols+4
+tko_cols <- acko_cols+4
+abcko_cols <- tko_cols+4
+plotdata <- subset(a1,tolower(symbol)%in% target)
+
+nf <- layout(matrix(c(1,2), 1, 2, byrow = TRUE), widths = c(2,2),heights = c(3,1),respect = F)
+#1
+plot(times,plotdata[,wt_cols],type = "b",
+     ylab = "Number",main="IFNb1")
+lines(times,plotdata[,acko_cols],type = "b",col="red")
+lines(times,plotdata[,tko_cols],type = "b",col="blue3")
+lines(times,plotdata[,abcko_cols],type = "b",col="green3")
+legend(5,250,legend =genotypes,pch = rep(1,4),lty = rep(1,4),col = c("black","red","blue3","green3"))
+#2
+plot(times,plotdata[,wt_cols]/plotdata[,wt_cols[1]],type = "b",
+     ylab = "fold-induction",main="IFNb1")
+lines(times,plotdata[,acko_cols]/plotdata[,acko_cols[1]],type = "b",col="red")
+lines(times,plotdata[,tko_cols]/plotdata[,tko_cols[1]],type = "b",col="blue3")
+lines(times,plotdata[,abcko_cols]/plotdata[,abcko_cols],type = "b",col="green3")
+
+# 3 
+#barplot(as.vector(plotdata[,c(wt_cols[3],acko_cols[3],tko_cols[3])]))
+```
+
+## Select isgs 
+
+### find the isgs list (3h or 8hr induction >= threhold)
+
+load the data:
+
+```{r}
+load(file=paste(datafolder,"mef.RData",sep = ""))
+colnames(a)
+cols <- 13:14
+b <- a[,cols]
+genes <- a$SYMBOL
+```
+
+calculate the fold & apply the threshold 
+```{r,echo=F}
+b<-sapply(1:2, function(x) b[,x]/b[,1])
+(th <- c(2,4,8,16))
+sapply(c(2,4,8,16),function(th) length(which(b[,2]>=th )))
+isg_ind <-which(b[,2]>=th[3] )
+```
+
+Who are they 
+```{r}
+genes[isg_ind]
+```
+
+Due to the usage of probe in microarray, it could happen that multiple probes measuring the same gene. So you can find duplicate gene names in the above list, which actually are selected by different probes. 
+
+### Draw the heatmap 
+
+Select the data:
+
+```{r}
+plotdata<-a1[isg_ind,]
+head(plotdata)
+plotdata$symbol
+```
+
+The absolute value;
+
+```{r,fig.height=6,message=F}
+library(gplots)
+library(RColorBrewer)
+rowcex = .6
+my_palette <-colorRampPalette(brewer.pal(10,"Reds"))
+my_palette<-colorRampPalette(c("white","red"))
+
+plotdata2 <- plotdata[,c(wt_cols,acko_cols,tko_cols,abcko_cols)]
+head(plotdata2)
+par(mfrow=c(1,1))
+plotdata3<- as.matrix(plotdata2)
+#plotdata3<- t(scale(t(plotdata3[,c(2,6,10,14)])))
+rownames(plotdata3) <- plotdata$symbol
+heatmap.2(log10(plotdata3),Colv = NA,dendrogram = "row",main = "log10(raw data)",trace="none",
+          col = my_palette(10),
+          cexRow = rowcex)
+```
+
+The fold_induction
+
+```{r,fig.height=6}
+plotdata4<-cbind(plotdata[,wt_cols]/plotdata[,wt_cols[1]],
+      plotdata[,acko_cols]/plotdata[,acko_cols[1]],
+      plotdata[,tko_cols]/plotdata[,tko_cols[1]],
+      plotdata[,abcko_cols]/plotdata[,abcko_cols[1]])
+plotdata4<-as.matrix(plotdata4)
+rownames(plotdata4) <- plotdata$symbol
+heatmap.2(log2(plotdata4),Colv = NA,dendrogram = "row",main = "log2(fold_induction)",
+          trace = "none",col=rev(redblue(10)),cexRow = rowcex)
+heatmap.2(log2(plotdata4),Colv = NA,dendrogram = "row",main = "log2(fold_induction)(2)",
+          trace = "none",col=rev(redblue(20)),cexRow = rowcex,breaks=seq(-3,3,length.out = 21))
+```
+
+log2(mutant/wt):
+
+```{r,fig.height=6}
+plotdata5<- cbind(plotdata[,acko_cols] / plotdata[,wt_cols],plotdata[,tko_cols]/ plotdata[,wt_cols],
+                  plotdata[,abcko_cols] / plotdata[,wt_cols])
+colnames(plotdata5) <- colnames(plotdata3)[5:16]
+plotdata5<-as.matrix(plotdata5)
+rownames(plotdata5) <- plotdata$symbol
+heatmap.2(log2(plotdata5),Colv =NA,dendrogram = "row",main = "log2(mutant/wt)",trace="none",col=rev(redblue(20)),cexRow = rowcex
+          ,breaks=seq(-2,2,length.out = 21))
+```
+
+3ko/wt - acko/wt
+
+```{r,fig.height=6} 
+plotdata6<- cbind(plotdata5[,5:8] - plotdata5[,1:4],plotdata5[,9:12] - plotdata5[,1:4])
+plotdata6<-as.matrix(plotdata6)
+heatmap.2(plotdata6,Colv =NA,dendrogram = "row",main = "(3ko/abcko -acko)/wt",trace="none",col=rev(redblue(20)),
+          breaks=seq(-1,1,length.out = 21),cexRow = rowcex)
+```
+
+
+3ko/acko or abcko/acko 
+
+```{r,fig.height=6}
+plotdata7<- cbind(plotdata5[,5:8]/ plotdata5[,1:4],plotdata5[,9:12]/ plotdata5[,1:4])
+plotdata7<-as.matrix(plotdata7)
+colors <- rev(redblue(20))
+bks<- c(-Inf, seq(-2,2,length.out = 21),Inf)
+rowMax <- function(x) sapply(1:dim(x)[1], function(i) max(x[i,]))
+rowcolors <- colors[as.numeric(cut(rowMax(log2(plotdata7)),breaks = bks))]
+rowcolors[is.na(rowcolors)] <- colors[20]
+heatmap.2(log2(plotdata7),Colv =NA,dendrogram = "row",main = "log2(3ko/acko, or abcko/acko)",trace="none",col=rev(redblue(20)),
+          breaks=seq(-2,2,length.out = 21),cexRow = rowcex,RowSideColors=rowcolors)
+save(file=paste(datafolder,"mef.RData",sep = ""),"a","plotdata7","plotdata3","a1")
+```
+
+## final result 
+Heatmap:
+
+```{r,eval=F}
+library(gplots)
+setwd("~/Dropbox/Current/4. IFN/IFNb_Expression_2015/figs_code/R/")
+datafolder = "../../data/"
+load(file=paste(datafolder,"mef.RData",sep = ""))
+pdf("mef.pdf",width = 6,height = 12)
+tkocolor <- "#FFC125"
+abckocolor <- "#1f77b4"
+heatmap.2(log2(plotdata7),Colv =NA,dendrogram = "none",trace="none",col=rev(redblue(20)),
+          breaks=seq(-2,2,length.out = 21),colsep = 4,sepcolor = "white",sepwidth = c(.15,.15),margins = c(5,5)*2,
+          #ColSideColors  =  c(rep(tkocolor,4),rep(abckocolor,4)),
+          #colCol = c(rep(tkocolor,4),rep(abckocolor,4)),
+          srtCol=45, adjCol=c(1,1), 
+          offsetRow = 0,offsetCol = 0,
+          key = TRUE, key.xlab = "log2(fold)",density.info="none",key.title = "",
+          lmat=rbind( c(3, 4), c(2,1), c(0,0) ), lhei=c(.75, 4, .75),
+          #lmat=rbind( c(0, 3, 4), c(2,1,0 ) ), lwid=c(1.5, 4, 2 ),
+          key.par=list(mar=c(5, 0, 5, 8))
+          )
+dev.off()
+system("open mef.pdf")
+
+```
+
+
+Box plot 
+```{r,echo = F}
+head(plotdata3)
+color.wt <- "#262626"
+color.ac <- "#FF3030"
+color.abc <- "#FF7F00"
+color.ac50 <- "#8B814C"
+idx <- c(2,10,6,14)
+plot_data <- log2(plotdata3[,idx]/plotdata3[,1])
+colnames(plot_data) <- NULL
+setEPS()
+postscript("foo.eps",horizontal = F,paper="special",width=2.8578,height = 2.1632 )
+par(mar=c(1,1,1,1)-.5)
+boxplot(plot_data,horizontal=F,col=c(color.wt,color.ac50,color.ac,color.abc),axes=F,names=NULL,cex=.85,outline=F,ylim=c(-2,2))
+axis(1,at=seq(1,4,by=1),tick = T,labels = F,lty = 1,tck=0.02) #tck=-.008,
+axis(2,at=seq(-2,1,by=1),tick = T,labels = F,lty = 1,tck=0.02) #tck=-.008,
+box()
+dev.off()
+t.test(log2(plotdata3[,idx[2]]/plotdata3[,1]),log2(plotdata3[,idx[3]]/plotdata3[,1]),paired = T,alternative = "greater")
+t.test(log2(plotdata3[,idx[3]]/plotdata3[,1]),log2(plotdata3[,idx[4]]/plotdata3[,1]),paired = T,alternative = "greater")
+
+
+par(mar=c(5,4,4,2)+.1)
+boxplot(plot_data,horizontal=F,col=c(color.wt,color.ac,color.ac50,color.abc),axes=T,names=NULL,outline=F)
+
+```
+
+
+The ranked bar graph
+
+```{r,eval=F}
+plotdata8 <- log2(plotdata7[,c(2,6)])
+idx <- order(plotdata8[,1],decreasing = T)
+setEPS()
+postscript("fig5_whole_ISGs.eps",horizontal = F,paper="special",width=4.5,height = 2 )
+par(mar=c(1,1,1,1)-.5)
+barplot(t(plotdata8[idx,]),beside = T,col = c(color.ac50,color.abc),
+        names.arg = rep("",length(plotdata8[idx,])),border = NA,
+        xlim=c(15, length(idx)*3)-7,ylim=c(-2.5,6),axes =F) #,legend = c("",""),
+        #args.legend = list(x="top",bty="n"))
+box()
+axis(2,at=seq(-2,6,by=2),labels  = F,tck = .012)
+axis(1,at=seq(1,221,by=3)+1,tick = T,labels = F,tck=.008,lty = 1)
+grid(nx=NA,ny=NULL,col=gray(.5),lty=2)
+dev.off()
+
+```
