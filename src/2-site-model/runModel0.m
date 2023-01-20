@@ -10,6 +10,7 @@ tic
 N= linspace(0,10,1000);
 I = N;
 
+
 temp=[ 1 0 0;
     1 1 1 ;
     1 1 0;
@@ -45,6 +46,7 @@ parsSpace = rand(ncpars*numbPoints,1);
 parsSpace= reshape(parsSpace,numbPoints,ncpars);
 
 parsSpace = 10.^((parsSpace-0.5)*8);
+parsSpace = sort(parsSpace);
 
 %%
 % rmsd =cell(ntvec,1); 
@@ -53,7 +55,7 @@ parsSpace = 10.^((parsSpace-0.5)*8);
 rmsd = zeros(numbPoints,1); resid= zeros(numbPoints,7);
 %
 tic
-for j = 2:4%1:ntvec
+for j = 1:ntvec
    parfor i = 1:numbPoints
         [rmsd(i),~,resid(i,:)]= objfunc0([parsSpace(i,:) tvec(j,:)],...
             exp_matrix,10,1);
@@ -70,19 +72,52 @@ toc
 
 
 
-%% find all minmals and save data
+%% find all minimals and save data
 nfiles = 4; 
 minRmsd = zeros(1,nfiles);
 minRmsdind = zeros(1,nfiles);
-rmsdQuantile = cell(1,4);
+minRmsdParam = zeros(ncpars,nfiles);
+rmsdQuantile = cell(1,nfiles);
 for jth = 1:nfiles
     load(['../data/model0_lin10_normb',num2str(jth),'.mat']);
-    [minRmsd(jth) minRmsdind(jth)] =   min(rmsd);
+    [minRmsd(jth), minRmsdind(jth)] =   min(rmsd);
     rmsdQuantile{jth} = rmsd(rmsd<prctile(rmsd,10));
+    param = parsSpace(minRmsdind(jth),:);
+    minRmsdParam(:,jth) = param;
 end
 %
-save('../data/model0_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile')
+save('../data/model0_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile', 'minRmsdParam')
 
+tnames = ["t3", "t2", "t1", "t4"];
+M = [tnames; minRmsd; minRmsdParam];
+save('../data/model0_minimums.mat', 'M')
 
+% Plot minimum RMSD and corresponding parameter
+
+subplot(2,1,1)
+bar(minRmsd)
+subplot(2,1,2)
+bar(minRmsdParam)
+
+%% model best-fitting eg : 1.enhanceosome 2. oR 3. IRF. 4. NF
+tic
+N= linspace(0,10,1000);
+I = N;
+% dat = [exp_matrix.irf; exp_matrix.nfkb; exp_matrix.ifnb];
+
+% min param for each model + model matrix
+temp=horzcat(minRmsdParam', tvec);
+tlts = {'AND','NFkB','IRF','OR'};
+figure;
+for i =1:4
+    subplot(2,2,i)
+    pars = temp(i,:);
+    m1 = model0(pars);
+    m1 = calState(m1,N,I);
+    m1 = calF(m1);
+    plotCnorm(m1,N,I, exp_matrix);
+    title(tlts{i})
+end
+toc
 
 
