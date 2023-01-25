@@ -5,6 +5,12 @@ clear;
 
 load('../data/exp_matrix_norm.mat') 
 
+% verify data points look good
+figure;
+scatter(exp_matrix.irf*10,exp_matrix.nfkb*10,50,exp_matrix.ifnb,"filled")
+colorbar;
+ylabel('NFkb');xlabel('IRF');
+
 %% model linear eg : 1.enhanceosome 2. oR 3. IRF. 4. NF
 tic
 N= linspace(0,10,1000);
@@ -32,7 +38,7 @@ toc
 %% check the objfunc 
 pars = [ones(1,1)*.1 ones(1,2)]; 
 % pars =[parsSpace(b,:) 0 0 0 1 0 1];
-[rmsd,rsqred,resid] = objfunc0(pars,exp_matrix,10,1)
+[rmsd,rsqred,resid] = objfunc0(pars,exp_matrix,10,1);
 plot(resid,'o-')
 %% let's explore the parameter space. 
 ncpars = 1; 
@@ -92,7 +98,9 @@ tnames = ["t3", "t2", "t1", "t4"];
 M = [tnames; minRmsd; minRmsdParam];
 save('../data/model0_minimums.mat', 'M')
 
-% Plot minimum RMSD and corresponding parameter
+
+%% Plot minimum RMSD and corresponding parameter
+minRmsd = mean(minVals(:,:,1));
 
 subplot(2,1,1)
 bar(minRmsd)
@@ -120,4 +128,12 @@ for i =1:4
 end
 toc
 
-
+% for i =1:4
+%     subplot(2,2,i)
+%     pars = temp(i,:);
+%     m1 = model0(pars);
+%     m1 = calState(m1,N,I);
+%     m1 = calF(m1);
+%     plotCnorm(m1,N,I);
+%     title(tlts{i})
+% end
