@@ -14,6 +14,7 @@ npars = 10000;
 pars = zeros(nfiles,npars);
 nfiles = 4;
 
+fprintf("Loading params \n")
 for jth = 1:nfiles
     load(['../data/model0_lin10_normb',num2str(jth),'.mat']);
     [~,indexes] = sort(rmsd);
@@ -23,7 +24,7 @@ end
 parsSpace = reshape(pars,npars*nfiles,ncpars);
 parsSpace = sort(unique(parsSpace));
 numbPoints = length(parsSpace);
-fprintf("%d params",numbPoints)
+fprintf("%d params \n",numbPoints)
 
 %% Bootstrap RMSD to get error bars
 ndata = length(exp_matrix.irf);
@@ -32,6 +33,7 @@ minVals.rmsd=zeros(n_resample,ntvec);
 minVals.param=zeros(n_resample,ntvec);
 % minVals = [];
 
+fprintf("Starting \n")
 tic
 
 for r = 1:n_resample
@@ -70,3 +72,4 @@ end
 toc
 
 save("../data/model0_bootstrap_mins.mat", "minVals")
+fprintf("saved data. \n")
