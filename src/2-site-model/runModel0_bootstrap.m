@@ -11,8 +11,9 @@ load('../data/exp_matrix_norm.mat')
 % load 10000 best param values
 ncpars = 1; 
 npars = 10000;
-pars = zeros(nfiles,npars);
 nfiles = 4;
+pars = zeros(nfiles,npars);
+
 
 fprintf("Loading params \n")
 for jth = 1:nfiles
