@@ -11,7 +11,7 @@ m = model0(pars);
 % transfer the experimental NFkB and IRF data
 m = calState2(m,exp_matrix.nfkb*scale,exp_matrix.irf*scale);
 m = calF2(m);
-if nflag
+if nflag && (max(m.f) ~= 0)
     residues = m.f/max(m.f) - exp_matrix.ifnb';
 else
     residues = m.f - exp_matrix.ifnb';
