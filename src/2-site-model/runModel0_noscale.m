@@ -13,11 +13,11 @@ colormap(cmap);
 colorbar;
 ylabel('NFkb');xlabel('IRF');
 ax = gca;
-exportgraphics(ax,'exp_data.png');
+exportgraphics(ax,'exp_data_noscale.png');
 
 %% model linear eg : 1.enhanceosome 2. oR 3. IRF. 4. NF
 tic
-N= linspace(0,10,1000);
+N= linspace(0,1,1000);
 I = N;
 
 
@@ -37,7 +37,7 @@ for i =1:4
     title(tlts{i});
 end
 ax = gcf;
-exportgraphics(ax,'countour_plot_linear.png');
+exportgraphics(ax,'countour_plot_linear_noscale.png');
 toc
 
 
@@ -47,7 +47,7 @@ pars = [ones(1,1)*.1 ones(1,2)];
 [~,rsqred,resid] = objfunc0(pars,exp_matrix,10,1);
 plot(resid,'o-');
 ax = gcf;
-exportgraphics(ax,'residuals.png');
+exportgraphics(ax,'residuals_noscale.png');
 %% let's explore the parameter space. 
 ncpars = 1; 
 rng(3) % set seed for rand
@@ -77,13 +77,13 @@ parpool(pc,ncpu)
 for j = 1:ntvec
    parfor i = 1:numbPoints
         [rmsd(i),~,resid(i,:)]= objfunc0([parsSpace(i,:) tvec(j,:)],...
-            exp_matrix,10,1);
+            exp_matrix,1,1);
         if mod(i,numbPoints/10)==0
              disp(i)
          end
    end
     disp(j)
-    save(['../data/model0_lin10_normb',num2str(j),'.mat'],...
+    save(['../data/model0_noscale_lin10_normb',num2str(j),'.mat'],...
         'parsSpace','resid','rmsd')
 end
 
@@ -99,18 +99,18 @@ minRmsdind = zeros(1,nfiles);
 minRmsdParam = zeros(ncpars,nfiles);
 rmsdQuantile = cell(1,nfiles);
 for jth = 1:nfiles
-    load(['../data/model0_lin10_normb',num2str(jth),'.mat']);
+    load(['../data/model0_noscale_lin10_normb',num2str(jth),'.mat']);
     [minRmsd(jth), minRmsdind(jth)] =   min(rmsd);
     rmsdQuantile{jth} = rmsd(rmsd<prctile(rmsd,10));
     param = parsSpace(minRmsdind(jth),:);
     minRmsdParam(:,jth) = param;
 end
 %
-save('../data/model0_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile', 'minRmsdParam')
+save('../data/model0_noscale_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile', 'minRmsdParam')
 
 tnames = ["t3", "t2", "t1", "t4"];
 M = [tnames; minRmsd; minRmsdParam];
-save('../data/model0_minimums.mat', 'M');
+save('../data/model0_noscale_minimums.mat', 'M');
 
 %% Plot minimum RMSD and corresponding parameter
 figure;
@@ -119,11 +119,11 @@ bar(minRmsd);
 subplot(2,1,2);
 bar(minRmsdParam);
 ax = gcf;
-exportgraphics(ax,'model0_minRMSD.png');
+exportgraphics(ax,'model0_minRMSD_noscale.png');
 
 %% model best-fitting eg : 1.enhanceosome 2. oR 3. IRF. 4. NF
 tic
-N= linspace(0,10,1000);
+N= linspace(0,1,1000);
 I = N;
 % dat = [exp_matrix.irf; exp_matrix.nfkb; exp_matrix.ifnb];
 
@@ -147,7 +147,7 @@ bar(minRmsd);
 subplot(2,1,2);
 bar(minRmsdParam);
 ax = gcf;
-exportgraphics(ax,'model0_minRMSD.png');
+exportgraphics(ax,'model0_minRMSD_noscale.png');
 
 % for i =1:4
 %     subplot(2,2,i)
