@@ -111,7 +111,7 @@ tnames = ["t3", "t2", "t1", "t4"];
 M = [tnames; minRmsd; minRmsdParam];
 save('../data/model0_minimums_2statenoise.mat', 'M')
 
-% Plot minimum RMSD and corresponding parameter
+%% Plot minimum RMSD and corresponding parameter
 
 subplot(2,1,1)
 bar(minRmsd)

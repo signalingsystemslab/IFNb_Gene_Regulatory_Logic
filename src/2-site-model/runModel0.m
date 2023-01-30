@@ -100,7 +100,6 @@ save('../data/model0_minimums.mat', 'M')
 
 
 %% Plot minimum RMSD and corresponding parameter
-minRmsd = mean(minVals(:,:,1));
 
 subplot(2,1,1)
 bar(minRmsd)

@@ -29,13 +29,20 @@ fprintf("%d params \n",numbPoints)
 
 %% Bootstrap RMSD to get error bars
 ndata = length(exp_matrix.irf);
+tvec = npermutek([0 1],2);
+ntvec = size(tvec,1);
 n_resample = 10000;
 minVals.rmsd=zeros(n_resample,ntvec);
 minVals.param=zeros(n_resample,ntvec);
 % minVals = [];
 
-fprintf("Starting \n")
+fprintf("Starting %d iterations \n",n_resample)
 tic
+
+ncpu=12;
+pc=parcluster('local');
+pc.NumThreads=2;
+parpool(pc,ncpu)
 
 for r = 1:n_resample
     rng(r)
@@ -74,3 +81,4 @@ toc
 
 save("../data/model0_bootstrap_mins.mat", "minVals")
 fprintf("saved data. \n")
+
