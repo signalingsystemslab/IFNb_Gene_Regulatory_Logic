@@ -36,3 +36,9 @@ ylabel('RMSD');
 ylabel('C at min RMSD');
 xlabel('model');
 
+%% Explore state space at different parameters
+cmap = readmatrix("../data/colormap.csv");
+plotContours2site(0.63424, cmap)
+
+
+

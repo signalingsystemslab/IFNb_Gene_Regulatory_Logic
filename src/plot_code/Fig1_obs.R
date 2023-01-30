@@ -28,3 +28,13 @@ pheatmap(
   legend = F,
   fontsize = 20,
   filename = "heatmap_gen_obs.png")
+
+# Export heatmap palette as RGB
+pal = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+pal = hex2RGB(pal)
+r = pal@coords[,1]
+g = pal@coords[,2]
+b = pal@coords[,3]
+pal = bind_cols(r = r, g=g, b=b)
+
+write.csv(pal, file = "../data/colormap.csv")

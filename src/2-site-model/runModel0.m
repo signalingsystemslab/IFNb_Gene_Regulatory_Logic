@@ -7,7 +7,9 @@ load('../data/exp_matrix_norm.mat')
 
 % verify data points look good
 figure;
-scatter(exp_matrix.irf*10,exp_matrix.nfkb*10,50,exp_matrix.ifnb,"filled")
+scatter(exp_matrix.irf,exp_matrix.nfkb,50,exp_matrix.ifnb,"filled")
+cmap = readmatrix("../data/colormap.csv");
+colormap(cmap);
 colorbar;
 ylabel('NFkb');xlabel('IRF');
 
@@ -38,7 +40,7 @@ toc
 %% check the objfunc 
 pars = [ones(1,1)*.1 ones(1,2)]; 
 % pars =[parsSpace(b,:) 0 0 0 1 0 1];
-[rmsd,rsqred,resid] = objfunc0(pars,exp_matrix,10,1);
+[~,rsqred,resid] = objfunc0(pars,exp_matrix,10,1);
 plot(resid,'o-')
 %% let's explore the parameter space. 
 ncpars = 1; 
