@@ -69,37 +69,38 @@ classdef model0
 
         end
         
-        function obj=plotC(obj,N,I,filename)
-            contourf(log10(I),log10(N),obj.f,10);
-            colorbar;ylabel('NFkb(log10)');xlabel('IRF(log10)');
-            if nargin>3
-                save2pdf(filename);
-            end
-        end
+%         function obj=plotC(obj,N,I,filename)
+%             contourf(log10(I),log10(N),obj.f,10);
+%             colorbar;ylabel('NFkb(log10)');xlabel('IRF(log10)');
+%             if nargin>3
+%                 save2pdf(filename);
+%             end
+%         end
         
-        function obj=plotCnorm(obj,N,I,dat,filename) % linear scale
+%         function obj=plotCnorm(obj,N,I,dat,filename) % linear scale
+%             fscaled = obj.f/max(obj.f(:));
+%             contourf(I,N,fscaled,10); % col,row order
+%             colorbar;ylabel('NFkb');xlabel('IRF');
+%             if nargin>3
+%                 hold on;
+%                 scatter(dat.irf*10,dat.nfkb*10,50,dat.ifnb,"filled");
+%             end
+%             if nargin>4
+%                 save2pdf(filename)
+%             end
+%         end
+
+        function obj=plotC(obj,N,I,dat,filename) % linear scale
             fscaled = obj.f/max(obj.f(:));
             contourf(I,N,fscaled,10); % col,row order
-            colorbar;ylabel('NFkb');xlabel('IRF');
+            colorbar;ylabel('NFkB');xlabel('IRF');
             if nargin>3
                 hold on;
-                scatter(dat.irf*10,dat.nfkb*10,50,dat.ifnb,"filled");
+                scatter(dat.irf,dat.nfkb,50,dat.ifnb,"filled");
             end
             if nargin>4
-                save2pdf(filename)
-            end
-        end
-
-        function obj=plotC2(obj,N,I,dat,filename) % linear scale
-            fscaled = obj.f;
-            contourf(I,N,fscaled,10); % col,row order
-            colorbar;ylabel('NFkb');xlabel('IRF');
-            if nargin>3
-                hold on;
-                scatter(dat.irf*10,dat.nfkb*10,50,dat.ifnb,"filled");
-            end
-            if nargin>4
-                save2pdf(filename)
+                ax = gcf;
+                exportgraphics(ax,filename);
             end
         end
 
