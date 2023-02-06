@@ -37,4 +37,4 @@ g = pal@coords[,2]
 b = pal@coords[,3]
 pal = bind_cols(r = r, g=g, b=b)
 
-write.csv(pal, file = "../data/colormap.csv")
+write.csv(pal, file = "../data/colormap.csv",row.names = F, col.names = F)
