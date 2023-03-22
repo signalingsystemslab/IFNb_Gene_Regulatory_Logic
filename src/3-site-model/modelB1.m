@@ -1,6 +1,6 @@
 %% model 0:
 % no coooperativity and same affinity model 
-classdef model0
+classdef modelB1
     % model classes
     properties
         % define the properties of the class here, (like fields of a struct)
