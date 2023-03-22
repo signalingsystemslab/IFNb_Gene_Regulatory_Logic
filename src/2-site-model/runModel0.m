@@ -1,16 +1,16 @@
-% This file is to systematically explore the 8 State model. (5p) 
+% This file is to systematically explore the 2 site model. (5p) 
 clear;
 
 %% Set up
 % load data
 load('../data/exp_matrix_norm.mat') 
-
+fprintf("try 3\n")
 % start parallel pool
-ncpu=12;
+ncpu=20;
 pc=parcluster('local');
 pc.NumThreads=2;
 parpool(pc,ncpu);
-%% Generate synthetic data
+% %% Generate synthetic data
 npts = 99; % number of synthetic points
 nexp = length(exp_matrix.irf); % number of points in an experiment
 new_points = zeros(3,nexp,npts);
@@ -58,6 +58,7 @@ writematrix(M,'../data/syn_data.csv')
 
 ndata = length(data_points.irf); %(npts+1)*7
 save('../data/synthetic_data.mat','data_points','new_points','ndata')
+% load('../data/synthetic_data.mat')
 fprintf("Done generating synthetic data \n")
 
 %% Build parameters set 
@@ -67,13 +68,14 @@ numbPoints = 10^6; % number of vectors
 tvec = npermutek([0 1],2);
 ntvec = size(tvec,1);
 
-%
-parsSpace = rand(ncpars*numbPoints,1); 
-parsSpace= reshape(parsSpace,numbPoints,ncpars);
-
-parsSpace = 10.^((parsSpace-0.5)*8); %1e-4 to 1e4
-parsSpace = sort(parsSpace);
-save('../data/pars_model2site.mat','parsSpace')
+% %
+% parsSpace = rand(ncpars*numbPoints,1); 
+% parsSpace= reshape(parsSpace,numbPoints,ncpars);
+% 
+% parsSpace = 10.^((parsSpace-0.5)*8); %1e-4 to 1e4
+% parsSpace = sort(parsSpace);
+% save('../data/pars_model2site.mat','parsSpace')
+load('../data/pars_model2site.mat')
 
 %% Minimize RMSD
 rmsd =cell(ntvec,1); 
@@ -87,7 +89,7 @@ fprintf("Finding RMSD for exp data \n")
 for j = 1:ntvec
    parfor i = 1:numbPoints
         [rmsd(i),~,resid(i,:)]= objfunc0([parsSpace(i,:) tvec(j,:)],...
-            exp_matrix,10,1);
+            exp_matrix,1,1);
         if mod(i,numbPoints/10)==0
              disp(i)
          end
@@ -97,32 +99,34 @@ for j = 1:ntvec
         'parsSpace','resid','rmsd')
 end
 
-% save only minimum RMSD for syn data
+% find minimum RMSD for syn data
 fprintf("Finding RMSD for syn data \n")
 syn_mins = zeros(ntvec,2,npts); %min rmsd, best C param
 
+% model, rmsd-param, dataset, params
+rmsd_syn = zeros(ntvec,2,npts,numbPoints);
 for k = 1:npts
     data_matrix.irf = new_points(1,:,k);
     data_matrix.nfkb = new_points(2,:,k);
     data_matrix.ifnb = new_points(3,:,k);
-
+    
     for j = 1:ntvec
         t = tvec(j,:);
-        rmsd_tmp=zeros(numbPoints,1);
         parfor i = 1:numbPoints
-            [rmsd_tmp(i),~,]= objfunc0([parsSpace(i,:) t],...
-            data_matrix,10,1);
+            p = parsSpace(i,:);
+            [r,~,~]= objfunc0([p t],data_matrix,1,1);
+            rmsd_syn(j,:,k,i) = [r, p];
             if mod(i,numbPoints/10)==0
-             disp(i)
+                disp(i)
             end
         end
-        [m,i] = min(rmsd_tmp);
+        [m,i] = min(rmsd_syn(j,1,k,:));
         syn_mins(j,1,k) = m;
         syn_mins(j,2,k) = parsSpace(i,:);
     end
-    fprintf("%d points\n",k)
+    fprintf("Finished %d points\n",k)
 end
-save("../data/minRMSD_synthetic.mat",'syn_mins')
+save("../data/minRMSD_synthetic.mat",'syn_mins','rmsd_syn', '-v7.3')
 
 % end parallel
 poolobj = gcp('nocreate');
@@ -143,88 +147,54 @@ for jth = 1:nfiles
     minRmsdParam(:,jth) = param;
 end
 %
-save('../data/model0_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile', 'minRmsdParam')
+tnames = ["AND", "NFkB", "IRF", "OR"];
+save('../data/model0_rmsd_all.mat','minRmsd','minRmsdind','rmsdQuantile', 'minRmsdParam',"tnames")
+
+% tvec
+% I N
+% 0 0 AND - j=1
+% 0 1 NFkB - j=2
+% 1 0 IRF - j=3
+% 1 1 OR - j=4
 
 %  Export to load in R
-t=[3,2,1,4];
-M = ["minRMSD", "bestC","model";minRmsd', minRmsdParam',t'];
+M = ["minRMSD", "bestC","model";minRmsd', minRmsdParam',tnames'];
 writematrix(M,'../data/exp_data_mins.csv')
-
-% tnames = ["t3", "t2", "t1", "t4"];
-% M = [tnames; minRmsd; minRmsdParam];
-% save('../data/model0_minimums.mat', 'M');
-
 
 trep = [];
 for j=1:ntvec
-    trep = [trep, repelem(t(j), npts)];
+    trep = [trep, repelem(tnames(j), npts)];
 end
-M = reshape(syn_mins,[npts*ntvec,2]);
+sm2 = permute(syn_mins, [3 1 2]);
+M = reshape(sm2,[npts*ntvec,2]);
 M = horzcat(M, trep');
 M = ["minRMSD", "bestC","model"; M];
 writematrix(M,'../data/syn_data_mins.csv')
 
-fprintf("Done /n")
-% %% Plot minimum RMSD and corresponding parameter
-% x=categorical({'AND','NFkB','IRF','OR'});
-% x=reordercats(x,{'AND','NFkB','IRF','OR'});
-% subplot(2,1,1)
-% bar(x,minRmsd)
-% ylabel('RMSD');
-% 
-% subplot(2,1,2)
-% bar(x,minRmsdParam)
-% ylabel('C at min RMSD');
-% xlabel('model');
-% sgtitle("Best fitting parameter and RMSD of model0");
-% ax = gcf;
-% exportgraphics(ax,'./figs/model0_minRMSD.png');
+%% Explore minimals and maximals
+% load("../data/minRMSD_synthetic.mat")
+labs = ["IRF_bestRMSD","IRF_worstRMSD","IRF_highC","IRF_lowC","AND_highC","AND_lowC"];
+cols = ["Dataset_number","RMSD","C_Value"];
+vals = [];
 
-% %% model best-fitting eg : 1.AND 2. oR 3. IRF. 4. NF
-% tic
-% N= linspace(0,10,1000);
-% I = N;
-% % dat = [exp_matrix.irf; exp_matrix.nfkb; exp_matrix.ifnb];
-% 
-% % min param for each model + model matrix
-% % temp=horzcat(minRmsdParam', tvec);
-% % tlts = {'AND','NFkB','IRF','OR'};
-% % figure;
-% % for i =1:4
-% %     subplot(2,2,i)
-% %     pars = temp(i,:);
-% %     m1 = model0(pars);
-% %     m1 = calState(m1,N,I);
-% %     m1 = calF(m1);
-% %     plotCnorm(m1,N,I, exp_matrix);
-% %     title(tlts{i})
-% % end
-% for i = 1:4
-%     c_text = sprintf("C= %.3f",minRmsdParam(i));
-%     plotContours2site(minRmsdParam(i), cmap);
-%     sgtitle(c_text);
-%     ax = gcf;
-%     fig_name = sprintf("./figs/statespace_c%.3f_model0_minR.png",minRmsdParam(i));
-%     exportgraphics(ax,fig_name);
-% %     exportgraphics(ax,'./figs/model0_minR_contour.png');
-% end
-% 
-% toc
-% 
-% figure;
-% subplot(2,1,1);
-% bar(minRmsd);
-% subplot(2,1,2);
-% bar(minRmsdParam);
-% ax = gcf;
-% exportgraphics(ax,'./figs/model0_minRMSD.png');
-% 
-% % for i =1:4
-% %     subplot(2,2,i)
-% %     pars = temp(i,:);
-% %     m1 = model0(pars);
-% %     m1 = calState(m1,N,I);
-% %     m1 = calF(m1);
-% %     plotCnorm(m1,N,I);
-% %     title(tlts{i})
-% % end
+% syn_mins_IRF = syn_mins(3,:,:);
+% syn_mins_AND = syn_mins(1,:,:);
+[r,i] = max(squeeze(syn_mins(3,1,:)));
+vals = [vals; i, r, syn_mins(3,2,i)];
+[r,i] = min(squeeze(syn_mins(3,1,:)));
+vals = [vals; i, r, syn_mins(3,2,i)];
+
+[p,i] = max(squeeze(syn_mins(3,2,:)));
+vals = [vals; i, syn_mins(3,1,i), p];
+[p,i] = min(squeeze(syn_mins(3,2,:)));
+vals = [vals; i, syn_mins(3,1,i), p];
+
+[p,i] = max(squeeze(syn_mins(1,2,:)));
+vals = [vals; i, syn_mins(1,1,i), p];
+[p,i] = min(squeeze(syn_mins(1,2,:)));
+vals = [vals; i, syn_mins(1,1,i), p];
+
+save("../data/interesting_values.mat","vals", "labs","cols")
+
+
+fprintf("Done \n")

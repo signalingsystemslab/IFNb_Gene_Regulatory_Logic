@@ -65,36 +65,36 @@ parsSpace= reshape(parsSpace,numbPoints,ncpars);
 parsSpace = 10.^((parsSpace-0.5)*8);
 parsSpace = sort(parsSpace);
 
-% %% minimize RMSD - slow
-% % rmsd =cell(ntvec,1); 
-% % resid=cell(ntvec,1);
-% 
-% rmsd = zeros(numbPoints,1); resid= zeros(numbPoints,7);
-% % start parallel
-% tic
-% ncpu=12;
-% pc=parcluster('local');
-% pc.NumThreads=2;
-% parpool(pc,ncpu)
-% 
-% for j = 1:ntvec
-%    
-%    parfor i = 1:numbPoints
-%         [rmsd(i),~,resid(i,:)]= objfunc0([parsSpace(i,:) tvec(j,:)],...
-%             exp_matrix,1,1);
-%         if mod(i,numbPoints/10)==0
-%              disp(i)
-%          end
-%    end
-%     fprintf("Finished %d optimization(s) \n",j)
-%     save(['../data/model0_noscale_lin10_normb',num2str(j),'.mat'],...
-%         'parsSpace','resid','rmsd')
-% end
-% 
-% % end parallel
-% poolobj = gcp('nocreate');
-% delete(poolobj);
-% toc 
+%% minimize RMSD - slow
+% rmsd =cell(ntvec,1); 
+% resid=cell(ntvec,1);
+
+rmsd = zeros(numbPoints,1); resid= zeros(numbPoints,7);
+% start parallel
+tic
+ncpu=12;
+pc=parcluster('local');
+pc.NumThreads=2;
+parpool(pc,ncpu)
+
+for j = 1:ntvec
+   
+   parfor i = 1:numbPoints
+        [rmsd(i),~,resid(i,:)]= objfunc0([parsSpace(i,:) tvec(j,:)],...
+            exp_matrix,1,1);
+        if mod(i,numbPoints/10)==0
+             disp(i)
+         end
+   end
+    fprintf("Finished %d optimization(s) \n",j)
+    save(['../data/model0_noscale_lin10_normb',num2str(j),'.mat'],...
+        'parsSpace','resid','rmsd')
+end
+
+% end parallel
+poolobj = gcp('nocreate');
+delete(poolobj);
+toc 
 
 %% find all minimals and save data
 nfiles = 4; 

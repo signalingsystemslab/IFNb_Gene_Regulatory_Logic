@@ -60,7 +60,7 @@ classdef model0
             % calculate F value for residue
             d=size(obj.state,2); obj.f = ones(1,d); % N ,I 
             obj.f = obj.state'*(obj.beta.*obj.t)...
-                ./(obj.state'*obj.beta);
+                ./(obj.state'*obj.beta);Calcu
 
         end
         

@@ -1,4 +1,4 @@
-%%
+%% two site model0
 classdef model0
     % model classes
     properties

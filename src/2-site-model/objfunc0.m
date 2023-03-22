@@ -1,9 +1,9 @@
 function [rmsd,rsquared,residues]= objfunc0(pars,exp_matrix,scale,nflag)
 
 if nargin<3
-    scale =10;
+    scale =1;
 elseif isempty(scale)
-    scale =10;
+    scale =1;
 elseif nargin <4
     nflag = 0; % normalize
 end
