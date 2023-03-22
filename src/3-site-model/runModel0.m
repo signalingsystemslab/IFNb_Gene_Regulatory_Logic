@@ -2,6 +2,7 @@
 clear;
 
 load ../data/exp_matrix_norm.mat
+
 %% optimization 
 
 seed = 5;
@@ -23,9 +24,10 @@ options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','none');
 lb=[ 0 0 0 0 0 0];ub=[ 1 1 1 1 1 1] ; 
 rmsd = zeros(numbPoints,1); resid= zeros(numbPoints,8);parsFinal = zeros(numbPoints,ncpars);
 tic
-parfor i = 1:numbPoints
-    % for i= 1:5
-    [parsFinal(i,:), rmsd(i),resid(i,:)]= lsqnonlin(@obj0,parsSpace(i,:),lb,ub,options);
+% for i = 1:numbPoints
+for i = 1:5
+    fprintf("Starting optimization\n")
+    [parsFinal(i,:), rmsd(i),resid(i,:)]= lsqnonlin(@(p) obj(p, exp_matrix),parsSpace(i,:),lb,ub,options);
     if mod(i,numbPoints/10)==0
         disp(i)
     end
@@ -34,4 +36,9 @@ toc
 %
 min(rmsd)
 save('../data/bestFit_model0_b.mat','parsFinal','rmsd','resid','seed')
+
+function r=obj(p, exp_matrix)
+    p(1) = 10^p(1);
+    [~,~,r]=objfunc0(p,exp_matrix,1,1);
+end
 
