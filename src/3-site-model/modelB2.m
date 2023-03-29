@@ -1,7 +1,7 @@
 
 %% model 1
 % Different affinity model. 
-classdef model1
+classdef modelB2
     % model classes
     properties
         % define the properties of the class here, (like fields of a struct)
@@ -15,10 +15,10 @@ classdef model1
     end
     methods
         % methods, including the constructor are defined in this block
-        function obj = model1(pars) % pars length should be 11
+        function obj = modelB2(pars) % pars length should be 11
             % class constructor
             if(nargin > 0)
-                obj.parsC = pars(1);
+                obj.parsC = pars(1); %K_I2
                 obj.parsT = pars(2:end);
                 obj.beta = [1 1 obj.parsC(1) 1 ... %'0','I1','I2','N',
                     obj.parsC(1) 1 obj.parsC(1) obj.parsC(1)]'; %'I1I2','I1N','I2N','I1I2N'
