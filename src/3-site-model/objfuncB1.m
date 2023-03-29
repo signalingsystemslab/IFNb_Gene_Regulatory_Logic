@@ -1,4 +1,4 @@
-function [rmsd,rsquared,residues]= objfunc0(pars,exp_matrix,scale,nflag)
+function [rmsd,rsquared,residues]= objfuncB1(pars,exp_matrix,scale,nflag)
 
     if nargin<3
         scale =10;
@@ -8,7 +8,7 @@ function [rmsd,rsquared,residues]= objfunc0(pars,exp_matrix,scale,nflag)
         nflag = 0; % normalize
     end
     
-    m = model0(pars);
+    m = modelB1(pars);
     % transfer the experimental NFkB and IRF data 
     m = calState2(m,exp_matrix.nfkb*scale,exp_matrix.irf*scale);
     m = calF2(m); 

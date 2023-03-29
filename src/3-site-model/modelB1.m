@@ -13,7 +13,7 @@ classdef modelB1
     end
     methods
         % methods, including the constructor are defined in this block
-        function obj = model0(pars) % pars length should be 11
+        function obj = modelB1(pars) % pars length should be 11
             % class constructor
             if(nargin > 0)
                 obj.parsT = pars(1:end);
@@ -60,7 +60,7 @@ classdef modelB1
             % calculate F value for residue
             d=size(obj.state,2); obj.f = ones(1,d); % N ,I 
             obj.f = obj.state'*(obj.beta.*obj.t)...
-                ./(obj.state'*obj.beta);Calcu
+                ./(obj.state'*obj.beta);
 
         end
         
@@ -75,7 +75,9 @@ classdef modelB1
         function obj=plotCnorm(obj,N,I,filename) % linear scale
             fscaled = obj.f/max(obj.f(:));
             contourf(I,N,fscaled,10); % col,row order
-            colorbar;ylabel('NFkb');xlabel('IRF');
+            cb = colorbar;
+            ylabel('NF\kappa B','FontSize',16);xlabel('IRF','FontSize',16);
+            ylabel(cb,"IFN\beta mRNA",'FontSize',16)
             if nargin>3
                 save2pdf(filename)
             end
