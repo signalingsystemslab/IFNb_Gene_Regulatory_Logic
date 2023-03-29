@@ -69,11 +69,11 @@ tvec = npermutek([0 1],2);
 ntvec = size(tvec,1);
 
 % %
-% parsSpace = rand(ncpars*numbPoints,1); 
-% parsSpace= reshape(parsSpace,numbPoints,ncpars);
-% 
-% parsSpace = 10.^((parsSpace-0.5)*8); %1e-4 to 1e4
-% parsSpace = sort(parsSpace);
+parsSpace = rand(ncpars*numbPoints,1); 
+parsSpace= reshape(parsSpace,numbPoints,ncpars);
+
+parsSpace = 10.^((parsSpace-0.5)*8); %1e-4 to 1e4
+parsSpace = sort(parsSpace);
 % save('../data/pars_model2site.mat','parsSpace')
 load('../data/pars_model2site.mat')
 
