@@ -4,20 +4,28 @@ clear;
 
 %% load exp matrix 
 load('../data/exp_matrix_norm.mat') 
-% TODO: make sure this script worked. Copy Model B1 new mat files and CSV
-% with residuals from veqc.
+% TODO: make sure this script works.
 
-%% check the objfunc 
-pars = [ones(1)*.1 ones(1,6)]; 
-[rmsd,rsqred,resid] = objfuncB2(pars,exp_matrix,10,1);
+% start parallel pool
+ncpu=20;
+pc=parcluster('local');
+pc.NumThreads=2;
+parpool(pc,ncpu);
+
+
+% %% check the objfunc 
+% pars = [ones(1)*.1 ones(1,6)]; 
+% [rmsd,rsqred,resid] = objfuncB2(pars,exp_matrix,10,1);
 
 %% optimization 
 % obj=@(p) [~,~,r]= objfunc0([10^p tvec(j,:)],exp_matrix,10,1);
 seed = 6;
 rng(seed) % set seed for rands
-ncpars = 1+6; 
-
+ncpars = 7; 
+npts = 99; % number of synthetic points
+nexp = length(exp_matrix.irf); % number of points in an experiment
 numbPoints = 10^4; % number of vectors
+
 
 % Pars: K_I2, t1-t6
 parsSpace = rand(ncpars*numbPoints,1); 

@@ -1,6 +1,6 @@
 %% model 3:
 % different affinity + cooperativity 
-classdef model3
+classdef modelB4
     % model classes
     properties
         % define the properties of the class here, (like fields of a struct)
@@ -14,7 +14,7 @@ classdef model3
     end
     methods
         % methods, including the constructor are defined in this block
-        function obj = model3(pars) % pars length should be 11
+        function obj = modelB4(pars) % pars length should be 11
             % class constructor
             if(nargin > 0)
                 obj.parsC = pars(1:2);

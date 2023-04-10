@@ -1,6 +1,6 @@
 %% model 2 
 % cooperativity model
-classdef model2
+classdef modelB3
     % model classes
     properties
         % define the properties of the class here, (like fields of a struct)
@@ -14,7 +14,7 @@ classdef model2
     end
     methods
         % methods, including the constructor are defined in this block
-        function obj = model2(pars) % pars length should be 11
+        function obj = modelB3(pars) % pars length should be 11
             % class constructor
             if(nargin > 0)
                 obj.parsC = pars(1);
