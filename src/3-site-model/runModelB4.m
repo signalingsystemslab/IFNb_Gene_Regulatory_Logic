@@ -28,8 +28,8 @@ numbPoints = 10^4; % number of vectors
 
 parsSpace = rand(ncpars*numbPoints,1); 
 parsSpace= reshape(parsSpace,numbPoints,ncpars);
-parsSpace(:,1) = (parsSpace(:,1)*2); % 0 to 2
-parsSpace(:,2) = (parsSpace(:,2)*2);% 0 to 2
+parsSpace(:,1) = (parsSpace(:,1)*2); % 0 to 2 for KI2
+parsSpace(:,2) = (parsSpace(:,2)*2);% 0 to 2 for C %why not -2 to 2?
 
 % options = optimset('PlotFcns',{@optimplotx,@optimplotfunccount,@optimplotresnorm
 % }, 'TolFun',1e-10,'TolX',1e-10); 
