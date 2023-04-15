@@ -204,6 +204,8 @@ all_df=par_df %>%
   filter(keep==1) %>%
   pivot_longer(all_of(t_pars), names_to = "parameter",values_to = "val")
 
+par_save = par_df %>% arrange(rmsd) %>% select(!c("dset","rmsd","aic"))
+write_csv(par_save, str_c("../data/modelB",model_name,"_best_fit.csv"),col_names = F)
 # all_df[all_df$good+all_df$bad,]
 
 p=ggplot(all_df,aes(x=good,y=val)) +
