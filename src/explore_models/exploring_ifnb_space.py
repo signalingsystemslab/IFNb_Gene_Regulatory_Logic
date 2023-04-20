@@ -35,7 +35,6 @@ def plot_ifnb_vs_either(f_values, model_name, var_name, t, normalize=True):
         for i in range(len(var)):
             f_plot[i,0] = np.min(f_values[:,i])
             f_plot[i,1] = np.max(f_values[:,i])
-        print(f_plot)
 
     mid = int(np.round(len(var)/2))
     labs = {"N": r"$NF\kappa B$", "I": r"$IRF$"}
