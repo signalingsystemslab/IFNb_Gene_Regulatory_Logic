@@ -6,6 +6,8 @@ from modelB2 import *
 from modelB3 import *
 from modelB4 import *
 
+colors = ["#071540","#B3203B"]
+cmap = LinearSegmentedColormap.from_list("cmap", colors)
 
 N = np.linspace(0, 1, 100)
 I = np.linspace(0, 1, 100)
@@ -14,7 +16,7 @@ def plot_contour(f_values, model_name, C, normalize=True):
     if normalize:
         f_values = f_values / np.max(f_values)
     fig=plt.figure()
-    plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
+    plt.contourf(I,N, f_values, 100, cmap=cmap)
     plt.colorbar(format="%.1f")
     plt.title("Model "+model_name+" best fit results")
     fig.gca().set_ylabel(r"$NF\kappa B$")

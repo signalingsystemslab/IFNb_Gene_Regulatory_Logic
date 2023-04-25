@@ -1,5 +1,6 @@
 library(tidyverse)
 library(pheatmap)
+library(RColorBrewer)
 
 tb = bind_cols(
   irf_tlr=c(0.1,0.25,0.01,NA),
@@ -29,12 +30,33 @@ pheatmap(
   fontsize = 20,
   filename = "heatmap_gen_obs.png")
 
-# Export heatmap palette as RGB
-pal = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
-pal = hex2RGB(pal)
-r = pal@coords[,1]
-g = pal@coords[,2]
-b = pal@coords[,3]
-pal = bind_cols(r = r, g=g, b=b)
+# # Export heatmap palette as RGB
+# pal = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+# pal = hex2RGB(pal)
+# r = pal@coords[,1]
+# g = pal@coords[,2]
+# b = pal@coords[,3]
+# pal = bind_cols(r = r, g=g, b=b)
 
-write.csv(pal, file = "../data/colormap.csv",row.names = F, col.names = F)
+# write.csv(pal, file = "../data/colormap.csv",row.names = F, col.names = F)
+
+exp_pts = bind_cols(
+  "IRF" = c(tb$irf_tlr, tb$irf_rlr),
+  "NFkB" = c(tb$nfkb_tlr, tb$nfkb_rlr),
+  "IFNb" = c(tb$ifnb_tlr, tb$ifnb_rlr),
+  "stim" = c(rep("TLR", 4),rep("RLR", 4)))
+
+#  Plot
+p = ggplot(exp_pts,  aes(x=IRF, y = NFkB, fill=IFNb, color=IFNb, shape=stim)) +
+  geom_point(size=8, alpha = 1, color="black", stroke=1) +
+  scale_fill_distiller(palette = "RdYlBu", direction =-1) +
+  scale_color_distiller(palette = "RdYlBu", direction =-1) +
+  scale_shape_manual(values=c("TLR"=21, "RLR"=22)) +
+  ylab(expression("[NF"*kappa*"B], normalized")) + xlab("[IRF], normalized") +
+  labs(color = expression("IFN"*beta*" mRNA"), fill = expression("IFN"*beta*" mRNA"), shape = "Stimulus type") +
+  theme_bw() +
+  theme(axis.text=element_text(size = rel(1.5)), axis.title = element_text(size = rel(1.5)),
+        legend.title = element_text(size = rel(1.5)), legend.text = element_text(size = rel(1.1)))
+ggsave(p, filename = str_c("../exp_data_points.png"),
+       height = 6, width = 9)
+
