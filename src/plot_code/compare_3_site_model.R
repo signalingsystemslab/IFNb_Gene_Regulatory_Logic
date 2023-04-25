@@ -112,7 +112,7 @@ rmsd_two_site = read_csv(str_c("../data/syn_data_mins.csv")) %>%
   mutate(dset = rep(c(1:99),length.out = n())) %>%
   bind_rows(rmsd_two_exp) %>%
   mutate(model = str_c("twosite",model)) %>%
-  rename("minRMSD" = "rmsd") %>%
+  rename("rmsd" = "minRMSD") %>%
   dplyr::select(c("rmsd","dset","model"))
 
 rmsd_both_models = rmsd %>%
@@ -128,7 +128,7 @@ rmsd_both_models = rmsd %>%
 p= ggplot(rmsd_both_models, aes(x=model,y=rmsd)) +
   geom_boxplot(outlier.size = 3) +
   geom_jitter(data=rmsd_both_models[rmsd_both_models$dset!=0,], color="black",alpha=0.3,size=3,width=rel(0.1))+
-  geom_point(data=rmsd_both_models[rmsd_both_models$dset==0,], color="red",size=3)+
+  geom_point(data=rmsd_both_models[rmsd_both_models$dset==0,], color="#EF4A5F",size=3)+
   theme_bw()+
   scale_x_discrete(labels=c(bquote("Model "*beta*"1"),
                             bquote("Model "*beta*"2"),
@@ -140,7 +140,7 @@ p= ggplot(rmsd_both_models, aes(x=model,y=rmsd)) +
                             "2-site OR")) +
   ggtitle("All models RMSD 2-site and 3-site") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(p, filename = str_c("../3-site-model/figs/all_models_RMSD_2site_3site.png"),
+ggsave(p, filename = str_c("../3-site-model/figs/all_models_RMSD_2site_3site.pdf"),
        height = 4, width = 5)
 
 p= ggplot(rmsd_both_models, aes(x=model,y=aic)) +

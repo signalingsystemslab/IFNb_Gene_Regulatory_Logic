@@ -16,7 +16,7 @@ def plot_contour(f_values, model_name, t, normalize=True):
     plt.title("Model "+model_name+" best fit results")
     fig.gca().set_ylabel(r"$NF\kappa B$")
     fig.gca().set_xlabel(r"$IRF$")
-    plt.savefig("./figures/picking_t/model"+model_name+"_best_fit_results_number" + t +".png")
+    plt.savefig("./figures/picking_t/model"+model_name+"_best_fit_results_number" + t +".pdf")
 
 # Function for plotting IFNb vs N or I taking in the following arguments: array with F values, name of the model, name of the variable
 def plot_ifnb_vs_either(f_values, model_name, var_name, t, normalize=True):

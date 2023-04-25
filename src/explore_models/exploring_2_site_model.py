@@ -19,7 +19,7 @@ def plot_contour(f_values, model_name, C, normalize=True):
     plt.title("Model "+model_name+" best fit results")
     fig.gca().set_ylabel(r"$NF\kappa B$")
     fig.gca().set_xlabel(r"$IRF$")
-    plt.savefig("../2-site-model/figs/contour/model_"+model_name+"_best_fit_results_C%.2f.png" % C)
+    plt.savefig("../2-site-model/figs/contour/model_"+model_name+"_best_fit_results_C%.2f.pdf" % C)
 
 def calculateFvalues2(pars, model, N, I):
     f_values = np.zeros((len(N), len(I)))
@@ -50,8 +50,8 @@ ifnb_predicted = {}
 
 for model in model_names.values():
     C = exp_data.loc[exp_data["model"] == model, "bestC"].values[0]
-    # print("Model: %s" % model)
-    # print("C = %.2f" % C)
+    print("Model: %s" % model)
+    print("C = %.2f" % C)
 
     f = calculateFvalues2(C, model,N, I)
     plot_contour(f, model, C)
@@ -107,6 +107,9 @@ for model in model_funs.keys():
 # Add column to data frame with maximum residual
 residuals["residuals_squared"] = residuals["residuals"].apply(lambda x: x**2)
 residuals["max_residual"] = residuals["residuals_squared"].apply(lambda x: np.max(x))
+# Add column to data frame with RMSD
+residuals["RMSD"] = residuals["residuals_squared"].apply(lambda x: np.sqrt(np.mean(x)))
+
 print(residuals)
 # Plot in a bar chart
 fig=plt.figure()

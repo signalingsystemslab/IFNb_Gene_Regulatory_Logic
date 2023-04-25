@@ -22,6 +22,7 @@ ggsave(p, filename = str_c("../2-site-model/figs/all_data_points.png"),
 
 ## Plot best C/corresponding RMSD for all models
 opt_par_exp = read_csv("../data/exp_data_mins.csv") %>%
+  mutate(model = c("AND","NFkB","IRF", "OR")) %>%
   mutate(model = factor(model, levels=c("IRF","NFkB","AND","OR"))) %>% 
   mutate(group = row_number(), bestC=log10(bestC)) %>%
   rename(logbestC=bestC) %>%
@@ -66,3 +67,18 @@ p=ggplot(opt_par_syn, aes(x=model, y=val)) +
 ggsave(p, filename = str_c("../2-site-model/figs/best_fits.png"),
        height = 6, width = 9)
 
+
+# Plot for IRF
+irf_params = opt_par_exp %>%
+  filter(model == "IRF")
+p = ggplot(irf_params, aes(x=measure,y=val)) +
+  geom_col(color="#EF4A5F") +
+  expand_limits(y=1)+
+  scale_x_discrete(labels=c("log10(C)", "RMSD")) +
+  theme_bw() +
+  theme(axis.text = element_text(size=rel(4)),
+        axis.title = element_blank())
+ggsave(p, filename = str_c("../2-site-model/figs/irf_params.pdf"),
+       height = 10, width = 10)
+
+  
