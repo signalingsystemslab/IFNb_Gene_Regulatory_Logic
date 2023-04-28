@@ -1,10 +1,13 @@
 from model2site import *
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
 from modelB1 import *
 from modelB2 import *
 from modelB3 import *
 from modelB4 import *
+
+plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
 
 colors = ["#071540","#B3203B"]
 cmap = LinearSegmentedColormap.from_list("cmap", colors)
@@ -16,6 +19,7 @@ def plot_contour(f_values, model_name, C, normalize=True):
     if normalize:
         f_values = f_values / np.max(f_values)
     fig=plt.figure()
+    plt.grid(False)
     plt.contourf(I,N, f_values, 100, cmap=cmap)
     plt.colorbar(format="%.1f")
     plt.title("Model "+model_name+" best fit results")
