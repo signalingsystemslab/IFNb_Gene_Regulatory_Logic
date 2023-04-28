@@ -23,14 +23,14 @@ numbPoints = 10^4; % number of vectors
 parsSpace = rand(ncpars*numbPoints,1); 
 parsSpace= reshape(parsSpace,numbPoints,ncpars);
 % parsSpace(:,1) = (parsSpace(:,1)*4); % 0 to 4
-parsSpace(:,1) = (10^(parsSpace(:,1)-0.5)*4);% 10e-2 to 10e2 for C parameter
+parsSpace(:,1) = (10.^(parsSpace(:,1)-0.5)*4);% 10e-2 to 10e2 for C parameter
 
 % options = optimset('PlotFcns',{@optimplotx,@optimplotfunccount,@optimplotresnorm
 % }, 'TolFun',1e-10,'TolX',1e-10); 
 
 options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','none'); 
 
-lb=[ -2 0 0 0 0 0 0];ub=[ 2 1 1 1 1 1 1] ; 
+lb=[ 0 0 0 0 0 0 0];ub=[ 10^2 1 1 1 1 1 1] ; 
 rss = zeros(numbPoints,1); resid= zeros(numbPoints,nexp);parsFinal = zeros(numbPoints,ncpars);
 %% Optimize experimental data
 tic

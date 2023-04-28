@@ -29,14 +29,14 @@ numbPoints = 10^4; % number of vectors
 parsSpace = rand(ncpars*numbPoints,1); 
 parsSpace= reshape(parsSpace,numbPoints,ncpars);
 parsSpace(:,1) = (parsSpace(:,1)*2); % 0 to 2 for KI2
-parsSpace(:,2) = (10^(parsSpace(:,2)-0.5)*4);% -2 to 2 for C
+parsSpace(:,2) = (10.^(parsSpace(:,2)-0.5)*4);% -2 to 2 for C
 
 % options = optimset('PlotFcns',{@optimplotx,@optimplotfunccount,@optimplotresnorm
 % }, 'TolFun',1e-10,'TolX',1e-10); 
 
 options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','none',"Algorithm","levenberg-marquardt"); 
 
-lb=[0 0 0 0 0 0 0 0];ub=[2 2 1 1 1 1 1 1] ; %first two pars are in log10 scale. 
+lb=[0 0 0 0 0 0 0 0];ub=[2 10^2 1 1 1 1 1 1] ; %first two pars are in log10 scale. 
 rss = zeros(numbPoints,1); resid= zeros(numbPoints,nexp);parsFinal = zeros(numbPoints,ncpars);
 %% Optimize experimental data
 tic
