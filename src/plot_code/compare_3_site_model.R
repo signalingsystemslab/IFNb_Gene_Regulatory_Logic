@@ -140,7 +140,7 @@ p= ggplot(rmsd_both_models, aes(x=model,y=rmsd)) +
                             "2-site OR")) +
   ggtitle("All models RMSD 2-site and 3-site") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(p, filename = str_c("../3-site-model/figs/all_models_RMSD_2site_3site.pdf"),
+ggsave(p, filename = str_c("../3-site-model/figs/all_models_RMSD_2site_3site.png"),
        height = 4, width = 5)
 
 p= ggplot(rmsd_both_models, aes(x=model,y=aic)) +

@@ -8,17 +8,18 @@ syn_pts = data_pts %>% filter(exp != 0)
 exp_pts = data_pts %>% filter(exp == 0)
 
 p = ggplot(syn_pts,  aes(x=IRF, y = NFkB, fill=IFNb, color=IFNb)) +
-  geom_point(size=2, alpha = 0.7, shape=21) +
-  geom_point(data = exp_pts, size=5, alpha = 1, shape=21, color="black", stroke=1) +
+  geom_point(size=10, alpha = 0.7, shape=21) +
+  geom_point(data = exp_pts, size=20, alpha = 1, shape=21, color="black", stroke=1) +
   scale_fill_distiller(palette = "RdYlBu", direction =-1) +
   scale_color_distiller(palette = "RdYlBu", direction =-1) +
   ylab(expression("[NF"*kappa*"B], normalized")) + xlab("[IRF], normalized") +
   labs(color = expression("IFN"*beta*" mRNA"), fill = expression("IFN"*beta*" mRNA")) +
   theme_bw() +
-  theme(axis.text=element_text(size = rel(1.5)), axis.title = element_text(size = rel(1.5)),
-        legend.title = element_text(size = rel(1.5)), legend.text = element_text(size = rel(1.1)))
-ggsave(p, filename = str_c("../2-site-model/figs/all_data_points.png"),
-       height = 6, width = 9)
+  theme(axis.text=element_text(size = rel(8)), axis.title = element_blank(),
+        legend.position = "none",
+        plot.margin = margin(1,1,1.5,1.2, "cm"))
+ggsave(p, filename = str_c("../2-site-model/figs/all_data_points_poster.png"),
+       height = 12, width = 20)
 
 ## Plot best C/corresponding RMSD for all models
 opt_par_exp = read_csv("../data/exp_data_mins.csv") %>%
@@ -71,14 +72,16 @@ ggsave(p, filename = str_c("../2-site-model/figs/best_fits.png"),
 # Plot for IRF
 irf_params = opt_par_exp %>%
   filter(model == "IRF")
-p = ggplot(irf_params, aes(x=measure,y=val)) +
-  geom_col(color="#EF4A5F") +
+p = ggplot(irf_params, aes(x=measure,y=val, fill=measure)) +
+  geom_col() +
   expand_limits(y=1)+
   scale_x_discrete(labels=c("log10(C)", "RMSD")) +
+  scale_fill_manual(values=c("#EF4A5F", "#999999")) +
   theme_bw() +
   theme(axis.text = element_text(size=rel(4)),
-        axis.title = element_blank())
+        axis.title = element_blank(),
+        legend.position = "none")
 ggsave(p, filename = str_c("../2-site-model/figs/irf_params.pdf"),
-       height = 10, width = 10)
+       height = 10, width = 15)
 
   
