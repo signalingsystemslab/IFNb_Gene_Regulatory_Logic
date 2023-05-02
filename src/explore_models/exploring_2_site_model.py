@@ -100,12 +100,12 @@ for model in model_names.values():
     #                                 "residuals": ifnb_predicted[model] - ifnb},
     #                                 ignore_index=True)
     residuals = pd.concat([residuals, pd.DataFrame({"model": model,
-                                                            "residuals": [ifnb_predicted[model] - ifnb]})],
+                                                            "residuals": [ifnb_predicted["residuals"]})],
                                                             ignore_index=True)
 
 for model in model_funs.keys():
     residuals = pd.concat([residuals, pd.DataFrame({"model": model,
-                                                            "residuals": [ifnb_predicted[model] - ifnb]})],
+                                                            "residuals": [ifnb_predicted["residuals"]})],
                                                             ignore_index=True)
 
 # print(residuals)

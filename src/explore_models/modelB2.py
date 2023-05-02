@@ -18,7 +18,7 @@ class ModelB2:
         self.beta[7] = self.K
 
         # print(self.parsT)
-        self.t = np.array([0] + self.parsT + [1])
+        self.t = np.hstack((0, self.parsT, 1))
         # print("t= " + str(self.t))
 
     def calculateState(self, N, I):

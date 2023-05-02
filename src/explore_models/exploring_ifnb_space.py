@@ -75,6 +75,7 @@ for model_name, model_fun in model_funs.items():
     # pars_df = pd.read_csv("../data/model"+model_name+"_best_fit.csv", index_col=0)
     pars_arr = np.loadtxt("../data/model"+model_name+"_best_fit.csv", delimiter=",")
     # plot top 5 t values
+    
     for row in range(5):
         print("row=%d" % row)
         pars = list(pars_arr[row,:])

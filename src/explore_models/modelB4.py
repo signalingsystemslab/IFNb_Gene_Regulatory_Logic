@@ -20,7 +20,7 @@ class ModelB4:
         self.beta[6] = self.K
         self.beta[7] = self.K * self.C
 
-        self.t = np.array([0] + self.parsT + [1])
+        self.t = np.hstack((0, self.parsT, 1))
 
     def calculateState(self, N, I):
         self.state = np.array([1, I, I, N, I**2, I*N, I*N, I**2*N])

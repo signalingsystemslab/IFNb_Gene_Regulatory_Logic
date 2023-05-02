@@ -11,7 +11,7 @@ class ModelB1:
 		self.parsT = parsT
 		self.beta = np.array([1 for i in range(8)])
 		# make self.t a list with 0, the elements from self.parsT, and 1
-		self.t = np.array([0] + self.parsT + [1])
+		self.t = np.hstack((0, self.parsT, 1))
 		# print(self.t)
 
 # Define the method called calculateState for the model called modelB1. The method should take the following parameters: N and I. The method should create a class variable called state with a list with 1, I, I, N, I squared, I times N, I times N, and I squared times N.
