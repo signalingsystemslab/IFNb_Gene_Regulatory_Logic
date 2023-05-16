@@ -3,17 +3,23 @@ import numpy as np
 class Modelp50:
 	def __init__(self, pars, model= "B2"):
 		i=0
-		if model == "B1":
-			self.K = 1
-		elif model == "B2":
+		self.K=1
+		self.C=1
+		if model == "B2":
 			self.K = pars[0]
 			i+=1
-		else:
-			raise ValueError("Incorrect model type")
+		elif model == "B3":
+			self.C = pars[0]
+			i+=1
+		elif model == "B4":
+			self.K = pars[0]
+			self.C = pars[1]
+			i+=2
 
 		if len(pars[i:len(pars)]) != 6:
+			print("model= " + model)
 			print("i= " + str(i))
-			print("pars = " + str(pars), "lengt= " + str(len(pars)))
+			print("pars = " + str(pars), "length= " + str(len(pars)))
 			print("K= " + str(self.K))
 			raise ValueError("Incorrect number of parameters in input")
 
@@ -29,11 +35,12 @@ class Modelp50:
 		#  k_{I1} k_N \\ k_{I2} k_N \\ k_{I1} k_N k_p \\ k_{I1} k_{12} k_N
 		# \end{pmatrix}
 		self.beta = np.array([1.0 for i in range(12)])
-		# Multiply positions containing k_{I2} by self.K
+		
 		self.beta[2] = self.K
-		self.beta[7] = self.K
+		self.beta[7] = self.K * self.C
 		self.beta[9] = self.K
-		self.beta[11] = self.K
+		self.beta[11] = self.K * self.C
+		
 		# Self t array will contain: 0, t1, t2, t1, t3, t3, 0, t4, t5, t6, t5, 1 where t1 is 
 		# the 0th element of self.parsT, etc
 		self.t = np.array([0.0 for i in range(12)])
