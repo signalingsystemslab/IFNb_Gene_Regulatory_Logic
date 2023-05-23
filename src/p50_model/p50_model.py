@@ -72,27 +72,3 @@ def explore_modelp50(parsT, N, I, P, model_name= "B2"):
 	model.calculateF()
 	# print(model.f)
 	return model.f
-
-# arr1 = [1,2,3,4]
-# arr2 = np.array([5,6,7,8])
-# arr1[0] = arr2[0]
-# print(arr1)
-
-# class test():
-# 	def __init__(self,pars):
-# 		self.parsT = pars[1:len(pars)]
-# 		print(self.parsT)
-# 		self.t = np.array([0 for i in range(12)]).astype(float)
-# 		self.t[1] = 200
-# 		self.t[2] = self.parsT[1]
-# 		self.t[3] = pars[3]
-# 		print(self.parsT[1])
-# 		print(self.t[2])
-
-
-# # set arr1 = [2.00000000e+00 2.22044838e-14 2.22044838e-14 2.22044748e-14
-# #  1.00000000e+00 3.43062417e-01 5.17380217e-01]
-# arr1 = [2.0, 1.5,2.5,3.5]
-
-# x=test(arr1)
-# print(x.t)
