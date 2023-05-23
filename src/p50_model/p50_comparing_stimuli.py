@@ -33,29 +33,57 @@ for i in range(len(stimulus_data)):
 
 print(results_df)
 
-# Make a graph of B2 results
-fig = plt.figure()
-p50_labs = {1: "WT", 0: "p50 KO"}
-for p50 in p50_labs.keys():
-    x = results_df.loc[(results_df["model"] == "B2") & (results_df["p50"] == p50), "stimulus"]
-    y = results_df.loc[(results_df["model"] == "B2") & (results_df["p50"] == p50), "ifnb"]
-    plt.plot(x, y, label=p50_labs[p50], marker="o", linestyle="None")
-fig.legend(bbox_to_anchor=(1.1, 0.5))
-plt.xticks(rotation=90)
-plt.ylabel("IFNb")
-plt.xlabel("Stimulus")
-plt.title(" Predictions of p50 stimulus response for model B2")
-plt.savefig(f"{dir}/B2_p50_stimulus_response.png", bbox_inches="tight")
+# # Make a graph of B2 results
+# fig = plt.figure()
+# p50_labs = {1: "WT", 0: "p50 KO"}
+# for p50 in p50_labs.keys():
+#     x = results_df.loc[(results_df["model"] == "B2") & (results_df["p50"] == p50), "stimulus"]
+#     y = results_df.loc[(results_df["model"] == "B2") & (results_df["p50"] == p50), "ifnb"]
+#     plt.plot(x, y, label=p50_labs[p50], marker="o", linestyle="None")
+# fig.legend(bbox_to_anchor=(1.1, 0.5))
+# plt.xticks(rotation=90)
+# plt.ylabel("IFNb")
+# plt.xlabel("Stimulus")
+# plt.title(" Predictions of p50 stimulus response for model B2")
+# plt.savefig(f"{dir}/B2_p50_stimulus_response.png", bbox_inches="tight")
 
-# Make a graph of B4 results
+# # Make a graph of B4 results
+# fig = plt.figure()
+# for p50 in p50_labs.keys():
+#     x = results_df.loc[(results_df["model"] == "B4") & (results_df["p50"] == p50), "stimulus"]
+#     y = results_df.loc[(results_df["model"] == "B4") & (results_df["p50"] == p50), "ifnb"]
+#     plt.plot(x, y, label=p50_labs[p50], marker="o", linestyle="None")
+# fig.legend(bbox_to_anchor=(1.1, 0.5))
+# plt.xticks(rotation=90)
+# plt.ylabel("IFNb")
+# plt.xlabel("Stimulus")
+# plt.title(" Predictions of p50 stimulus response for model B4")
+# plt.savefig(f"{dir}/B4_p50_stimulus_response.png", bbox_inches="tight")
+
+# Plot B2 results showing fold change of p50 KO vs WT
+results_fc =results_df.copy()
+results_fc = results_fc.pivot(index=["model", "stimulus"], columns="p50", values="ifnb")
+results_fc["fc"] = results_fc[0] / results_fc[1]
+results_fc = results_fc.reset_index()
+print(results_fc)
+
 fig = plt.figure()
-for p50 in p50_labs.keys():
-    x = results_df.loc[(results_df["model"] == "B4") & (results_df["p50"] == p50), "stimulus"]
-    y = results_df.loc[(results_df["model"] == "B4") & (results_df["p50"] == p50), "ifnb"]
-    plt.plot(x, y, label=p50_labs[p50], marker="o", linestyle="None")
-fig.legend(bbox_to_anchor=(1.1, 0.5))
+x = results_fc.loc[results_fc["model"] == "B2", "stimulus"]
+y = results_fc.loc[results_fc["model"] == "B2", "fc"]
+plt.plot(x, y, marker="o", linestyle="None")
 plt.xticks(rotation=90)
-plt.ylabel("IFNb")
+plt.ylabel(r"IFN$\beta$ fold change")
 plt.xlabel("Stimulus")
-plt.title(" Predictions of p50 stimulus response for model B4")
-plt.savefig(f"{dir}/B4_p50_stimulus_response.png", bbox_inches="tight")
+plt.title("Fold change of p50 KO vs WT for model B2")
+plt.savefig(f"{dir}/B2_p50_stimulus_response_fc.png", bbox_inches="tight")
+
+# Plot B4 results showing fold change of p50 KO vs WT
+fig = plt.figure()
+x = results_fc.loc[results_fc["model"] == "B4", "stimulus"]
+y = results_fc.loc[results_fc["model"] == "B4", "fc"]
+plt.plot(x, y, marker="o", linestyle="None")
+plt.xticks(rotation=90)
+plt.ylabel(r"IFN$\beta$ fold change")
+plt.xlabel("Stimulus")
+plt.title("Fold change of p50 KO vs WT for model B4")
+plt.savefig(f"{dir}/B4_p50_stimulus_response_fc.png", bbox_inches="tight")
