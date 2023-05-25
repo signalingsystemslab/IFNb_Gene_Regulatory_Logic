@@ -89,27 +89,27 @@ def optimize_model_local(N, I, P, beta, model_name, pars):
         print("Time elapsed: %.2f hours" % (t/3600))
     return res.x, res.cost, res.fun
 
-# res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
-# results = pd.DataFrame(columns=res_title)
-# pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B1")
-# # pars, rmsd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1], 0.11
-# results.loc["B1"] = np.hstack([pars, np.nan,np.nan,rmsd])
+res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
+results = pd.DataFrame(columns=res_title)
+pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B1")
+# pars, rmsd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1], 0.11
+results.loc["B1"] = np.hstack([pars, np.nan,np.nan,rmsd])
 
-# pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B2")
-# # pars, rmsd = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.22
-# results.loc["B2"] = np.hstack([pars, np.nan,rmsd])
+pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B2")
+# pars, rmsd = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.22
+results.loc["B2"] = np.hstack([pars, np.nan,rmsd])
 
-# pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B3")
-# # pars, rmsd = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.3], 0.33
-# results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rmsd])
+pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B3")
+# pars, rmsd = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.3], 0.33
+results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rmsd])
 
-# pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B4")
-# # pars, rmsd = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4], 0.44
-# results.loc["B4"] = np.hstack([pars, rmsd])
+pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B4")
+# pars, rmsd = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4], 0.44
+results.loc["B4"] = np.hstack([pars, rmsd])
 
-# # Save results
-# print("Saving results to ../data/p50_grid_search_minimum_results.csv")
-# results.to_csv("../data/p50_grid_search_minimum_results.csv")
+# Save results
+print("Saving results to ../data/p50_grid_search_minimum_results.csv")
+results.to_csv("../data/p50_grid_search_minimum_results.csv")
 
 # Local optimization
 grid_search_results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
