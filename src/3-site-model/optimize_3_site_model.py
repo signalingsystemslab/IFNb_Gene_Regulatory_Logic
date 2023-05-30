@@ -17,6 +17,12 @@ print(training_data)
 
 def three_site_objective(pars, *args):
     N, I, beta, model_name = args
+    if model_name == "B2":
+        pars = np.hstack([pars[6], pars[0:6]])
+    elif model_name == "B3":
+        pars = np.hstack([pars[6], pars[0:6]])
+    elif model_name == "B4":
+        pars = np.hstack([pars[6:8], pars[0:6]])
     f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
     residuals = np.array(f_list) - beta
     rmsd = np.sqrt(np.mean(residuals**2))
@@ -35,7 +41,7 @@ def optimize_model(N, I, beta, model_name):
     elif model_name == "B4":
         par_rgs.append(slice(0, 2, 0.1))
         par_rgs.append((10**-2, 10**2))
-    rgs = tuple(par_rgs + trgs)
+    rgs = tuple(trgs + par_rgs)
     # print(rgs)
     res = opt.brute(three_site_objective, rgs, args=(N, I, beta, model_name), Ns=10, full_output=True, finish=None,
                     workers=40)
@@ -52,8 +58,12 @@ def optimize_model(N, I, beta, model_name):
 
 def three_site_objective_local(pars, *args):
     N, I, beta, model_name = args
-    # for arg in args:
-    #     print(arg)
+    if model_name == "B2":
+        pars = np.hstack([pars[6], pars[0:6]])
+    elif model_name == "B3":
+        pars = np.hstack([pars[6], pars[0:6]])
+    elif model_name == "B4":
+        pars = np.hstack([pars[6:8], pars[0:6]])
     f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
     residuals = np.array(f_list) - beta
     return residuals
