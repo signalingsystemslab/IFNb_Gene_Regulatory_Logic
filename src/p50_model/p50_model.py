@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Modelp50:
 	def __init__(self, pars, model= "B2"):
@@ -72,3 +73,21 @@ def explore_modelp50(parsT, N, I, P, model_name= "B2"):
 	model.calculateF()
 	# print(model.f)
 	return model.f
+
+def plot_contour(f_values, model_name, I, N, dir,name, normalize=True):
+	if normalize:
+		f_values = f_values / np.max(f_values)
+	fig=plt.figure()
+	plt.colorbar(format="%.1f")
+	plt.title("Model %s best fit" % model_name)
+	fig.gca().set_ylabel(r"$NF\kappa B$")
+	fig.gca().set_xlabel(r"$IRF$")
+	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
+	plt.close()
+
+def calculateFvalues(model_name, pars, I, N):
+	f_values = np.zeros((len(N), len(I)))
+	for n in range(len(N)):
+		for i in range(len(I)):
+			f_values[n,i] = explore_modelp50(pars, N[n], I[i], model_name)
+	return f_values

@@ -63,3 +63,31 @@ results.loc["B4"] = np.hstack([pars, rmsd])
 # Save results
 print("Saving results to ../data/p50_grid_search_minimum_results.csv")
 results.to_csv("../data/p50_grid_search_minimum_results.csv")
+
+# Make contour plots from best fit parameters
+results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
+pars = {"B1": results.loc["B1"].values[0:6],
+        "B2": results.loc["B2"].values[0:7],
+        "B3": results.loc["B3"].values[[0,1,2,3,4,5,7]],
+        "B4": results.loc["B4"].values[0:8]}
+I = np.linspace(0, 1, 100)
+N= I.copy()
+P = np.array([1 for i in range(100)])
+
+for model in ["B1", "B2", "B3", "B4"]:
+    p= pars[model]
+    f = calculateFvalues(model, p, I, N)
+    plot_contour(f, model, I, N, result_dir, "grid_opt_best_fit")
+
+
+#  Plot best fit parameters
+fig = plt.figure()
+for model in ["B1", "B2", "B3", "B4"]:
+    plt.plot(pars[model][0:6], label=model, marker="o", linestyle="none")
+plt.legend(bbox_to_anchor=(1.2,0.5))
+plt.ylabel("Transcription capability (t)")
+plt.xlabel("Parameter")
+# plt.xticks(range(6), list(results)[0:6])
+plt.xticks(np.arange(6), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], rotation=45)
+plt.title("Best fit parameters with grid search for P50 model")
+plt.savefig(os.path.join(result_dir, "grid_opt_best_fit_parameters.png"), bbox_inches="tight")
