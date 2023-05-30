@@ -35,7 +35,7 @@ def optimize_model(N, I, beta, model_name):
     elif model_name == "B4":
         par_rgs.append(slice(0, 2, 0.1))
         par_rgs.append((10**-2, 10**2))
-    rgs = tuple(trgs + par_rgs)
+    rgs = tuple(par_rgs + trgs)
     # print(rgs)
     res = opt.brute(three_site_objective, rgs, args=(N, I, beta, model_name), Ns=10, full_output=True, finish=None,
                     workers=40)
@@ -149,9 +149,9 @@ results.to_csv("../data/three_site_local_optimization_results.csv")
 # Make contour plots from best fit parameters
 results = pd.read_csv("../data/three_site_local_optimization_results.csv", index_col=0)
 pars = {"B1": results.loc["B1"].values[0:6],
-        "B2": results.loc["B2"].values[0:7],
-        "B3": results.loc["B3"].values[[0,1,2,3,4,5,7]],
-        "B4": results.loc["B4"].values[0:8]}
+        "B2": np.hstack([results.loc["B2"].values[6], results.loc["B2"].values[0:6]]),
+        "B3": np.hstack([results.loc["B3"].values[7], results.loc["B3"].values[0:6]]),
+        "B4": np.hstack([results.loc["B4"].values[6:8], results.loc["B4"].values[0:6]])}
 I = np.linspace(0, 1, 100)
 N= I.copy()
 P = np.array([1 for i in range(100)])
@@ -159,7 +159,8 @@ P = np.array([1 for i in range(100)])
 for model in ["B1", "B2", "B3", "B4"]:
     p= pars[model]
     f = calculateFvalues(model, p, I, N)
-    plot_contour(f, model, I, N, result_dir, "grid_opt_best_fit")
+    title = "grid_opt_best_fit_%s" % model
+    plot_contour(f, model, I, N, result_dir, title)
 
 
 #  Plot best fit parameters

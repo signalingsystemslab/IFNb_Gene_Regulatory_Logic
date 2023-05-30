@@ -13,6 +13,7 @@ os.makedirs(result_dir, exist_ok=True)
 print("Loading data")
 training_data = pd.read_csv("../data/p50_training_data.csv")
 num_pts = training_data.shape[0]
+print(training_data)
 
 def p50_objective(pars, *args):
     N, I, P, beta, model_name = args
@@ -24,6 +25,7 @@ def p50_objective(pars, *args):
 def optimize_model(N, I, P, beta, model_name):
     print("Optimizing model ", model_name)
     start = time.time()
+    print("Starting brute force optimization at ", time.ctime())
     trgs = [slice(0, 1, 0.1) for i in range(6)]
     par_rgs = []
     if model_name == "B2":
@@ -33,7 +35,7 @@ def optimize_model(N, I, P, beta, model_name):
     elif model_name == "B4":
         par_rgs.append(slice(0, 2, 0.1))
         par_rgs.append((10**-2, 10**2))
-    rgs = tuple(trgs + par_rgs)
+    rgs = tuple(par_rgs + trgs)
     # print(rgs)
     res = opt.brute(p50_objective, rgs, args=(N, I, P, beta, model_name), Ns=10, full_output=True, finish=opt.fmin,
                     workers=20)
@@ -41,6 +43,48 @@ def optimize_model(N, I, P, beta, model_name):
     t = end - start
     print("Time elapsed: %.2f seconds" % t)
     return res[0], res[1]
+
+def p50_objective_local(pars, *args):
+    N, I, P, beta, model_name = args
+    # for arg in args:
+    #     print(arg)
+    f_list = [explore_modelp50(pars, N[i], I[i], P[i], model_name) for i in range(num_pts)]
+    residuals = np.array(f_list) - beta
+    return residuals
+
+def optimize_model_local(N, I, P, beta, model_name, pars):
+    start = time.time()
+    if True:
+        method = "trf"
+    else:
+        method = "lm"
+    m_name = {"lm": "Levenberg-Marquardt", "trf": "Trust Region Reflective"}
+    print("Using %s method to locally optimize model %s" % (m_name[method], model_name))
+    print("Starting local optimization at ", time.ctime())
+    upper = np.array([1 for i in range(6)])
+    lower = np.array([0 for i in range(6)])
+    if model_name == "B2":
+        upper = np.append(upper, 2)
+        lower = np.append(lower, 0)
+    elif model_name == "B3":
+        upper = np.append(upper, 10**2)
+        lower = np.append(lower, 10**-2)
+    elif model_name == "B4":
+        upper = np.append(upper, [2, 10**2])
+        lower = np.append(lower, [0, 10**-2])
+
+    res = opt.least_squares(p50_objective_local, pars, args=(N, I, P, beta, model_name),
+                             method=method, bounds=(lower, upper), loss = "linear")
+    end = time.time()
+    print("Optimized parameters:\n", res.x)
+    t = end - start
+    if t < 60:
+        print("Time elapsed: %.2f seconds" % t)
+    elif t < 3600:
+        print("Time elapsed: %.2f minutes" % (t/60))
+    else:
+        print("Time elapsed: %.2f hours" % (t/3600))
+    return res.x, res.cost, res.fun
 
 res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
 results = pd.DataFrame(columns=res_title)
@@ -64,19 +108,50 @@ results.loc["B4"] = np.hstack([pars, rmsd])
 print("Saving results to ../data/p50_grid_search_minimum_results.csv")
 results.to_csv("../data/p50_grid_search_minimum_results.csv")
 
+# Local optimization
+grid_search_results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
+print("Grid search results:\n", grid_search_results)
+b1_starting_pars = grid_search_results.loc["B1"].values[0:6]
+b2_starting_pars = grid_search_results.loc["B2"].values[0:7]
+b3_starting_pars = grid_search_results.loc["B3"].values[[0,1,2,3,4,5,7]]
+b4_starting_pars = grid_search_results.loc["B4"].values[0:8]
+print("Starting parameters for local optimization:\n B1: %s\n B2: %s\n B3: %s\n B4: %s" % (b1_starting_pars, b2_starting_pars, b3_starting_pars, b4_starting_pars))
+
+res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)]
+
+results = pd.DataFrame(columns=res_title)
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B1", b1_starting_pars)
+results.loc["B1"] = np.hstack([pars, np.nan, np.nan, rho, residuals])
+
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B2", b2_starting_pars)
+results.loc["B2"] = np.hstack([pars, np.nan, rho, residuals])
+
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B3", b3_starting_pars)
+results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rho, residuals])
+
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B4", b4_starting_pars)
+results.loc["B4"] = np.hstack([pars, rho, residuals])
+
+# Save results
+print("Saving results to ../data/p50_local_optimization_results.csv")
+results.to_csv("../data/p50_local_optimization_results.csv")
+
 # Make contour plots from best fit parameters
-results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
+results = pd.read_csv("../data/p50_local_optimization_results.csv", index_col=0)
 pars = {"B1": results.loc["B1"].values[0:6],
-        "B2": results.loc["B2"].values[0:7],
-        "B3": results.loc["B3"].values[[0,1,2,3,4,5,7]],
-        "B4": results.loc["B4"].values[0:8]}
+        "B2": np.hstack([results.loc["B2"].values[6], results.loc["B2"].values[0:6]]),
+        "B3": np.hstack([results.loc["B3"].values[7], results.loc["B3"].values[0:6]]),
+        "B4": np.hstack([results.loc["B4"].values[6:8], results.loc["B4"].values[0:6]])}
 I = np.linspace(0, 1, 100)
 N= I.copy()
 P = np.array([1 for i in range(100)])
 
 for model in ["B1", "B2", "B3", "B4"]:
-    p= pars[model]
-    f = calculateFvalues(model, p, I, N)
+    f = calculateFvalues(model, pars[model], I, N)
     plot_contour(f, model, I, N, result_dir, "grid_opt_best_fit")
 
 

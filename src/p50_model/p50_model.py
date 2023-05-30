@@ -78,6 +78,8 @@ def plot_contour(f_values, model_name, I, N, dir,name, normalize=True):
 	if normalize:
 		f_values = f_values / np.max(f_values)
 	fig=plt.figure()
+	plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
+	plt.grid(False)
 	plt.colorbar(format="%.1f")
 	plt.title("Model %s best fit" % model_name)
 	fig.gca().set_ylabel(r"$NF\kappa B$")
@@ -85,9 +87,9 @@ def plot_contour(f_values, model_name, I, N, dir,name, normalize=True):
 	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
 	plt.close()
 
-def calculateFvalues(model_name, pars, I, N):
+def calculateFvalues(model_name, pars, I, N, P=0):
 	f_values = np.zeros((len(N), len(I)))
 	for n in range(len(N)):
 		for i in range(len(I)):
-			f_values[n,i] = explore_modelp50(pars, N[n], I[i], model_name)
+			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
 	return f_values
