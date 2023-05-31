@@ -174,9 +174,16 @@ for model in ["B1", "B2", "B3", "B4"]:
 
 
 #  Plot best fit parameters
+t_pars = {"B1": results.loc["B1"].values[0:6],
+          "B2": results.loc["B2"].values[0:6],
+          "B3": results.loc["B3"].values[0:6],
+          "B4": results.loc["B4"].values[0:6]}
 fig = plt.figure()
+i=0
 for model in ["B1", "B2", "B3", "B4"]:
-    plt.plot(pars[model][0:6], label=model, marker="o", linestyle="none")
+    x= np.arange(i, i+6)
+    plt.plot(x, t_pars[model], label=model, marker="o", linestyle="none")
+    i+=0.1
 plt.legend(bbox_to_anchor=(1.2,0.5))
 plt.ylabel("Transcription capability (t)")
 plt.xlabel("Parameter")
