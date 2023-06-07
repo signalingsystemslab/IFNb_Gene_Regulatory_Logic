@@ -74,22 +74,22 @@ def explore_modelp50(parsT, N, I, P, model_name):
 	# print(model.f)
 	return model.f
 
-def plot_contour(f_values, model_name, I, N, dir,name, p50=1, normalize=True):
-    if normalize:
-        f_values = f_values / np.max(f_values)
-    fig=plt.figure()
-    plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
-    plt.grid(False)
-    plt.colorbar(format="%.1f")
-    plt.title("Model "+model_name+" best fit, p50 = %s" % p50)
-    fig.gca().set_ylabel(r"$NF\kappa B$")
-    fig.gca().set_xlabel(r"$IRF$")
-    plt.savefig("%s/contour_plot_%s.png" % (dir,name))
-    plt.close()
+def plot_contour(f_values, model_name, I, N, dir,name, normalize=True):
+	if normalize:
+		f_values = f_values / np.max(f_values)
+	fig=plt.figure()
+	plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
+	plt.grid(False)
+	plt.colorbar(format="%.1f")
+	plt.title("Model %s best fit" % model_name)
+	fig.gca().set_ylabel(r"$NF\kappa B$")
+	fig.gca().set_xlabel(r"$IRF$")
+	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
+	plt.close()
 
-def calculateFvalues(model_name, pars, I, N, p50):
-    f_values = np.zeros((len(N), len(I)))
-    for n in range(len(N)):
-        for i in range(len(I)):
-            f_values[n,i] = explore_modelp50(pars,N[n], I[i],p50[i], model_name)
-    return f_values
+def calculateFvalues(model_name, pars, I, N, P=0):
+	f_values = np.zeros((len(N), len(I)))
+	for n in range(len(N)):
+		for i in range(len(I)):
+			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
+	return f_values
