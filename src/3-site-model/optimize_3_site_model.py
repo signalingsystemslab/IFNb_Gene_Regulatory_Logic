@@ -7,11 +7,11 @@ import scipy.optimize as opt
 import time
 plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
 
-result_dir = "./figures/grid_search/"
+result_dir = "./figures/grid_search_no_CpG/"
 os.makedirs(result_dir, exist_ok=True)
 
 print("Loading data")
-training_data = pd.read_csv("../data/training_data.csv")
+training_data = pd.read_csv("../data/training_data_noCpG.csv")
 num_pts = training_data.shape[0]
 print(training_data)
 
@@ -54,7 +54,7 @@ def optimize_model(N, I, beta, model_name):
         print("Time elapsed: %.2f minutes" % (t/60))
     else:
         print("Time elapsed: %.2f hours" % (t/3600))
-    return res[0], res[1]
+    return res[0], res[1], res[3]
 
 def three_site_objective_local(pars, *args):
     N, I, beta, model_name = args
@@ -104,28 +104,33 @@ def optimize_model_local(N, I, beta, model_name, pars):
 
 res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
 results = pd.DataFrame(columns=res_title)
-pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B1")
+pars, rmsd, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B1")
 # pars, rmsd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1], 0.11
 results.loc["B1"] = np.hstack([pars, np.nan,np.nan,rmsd])
+np.save("three_site_grid_search_rmsd_B1.npy", jout)
 
-pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B2")
+pars, rmsd, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B2")
 # pars, rmsd = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.22
 results.loc["B2"] = np.hstack([pars, np.nan,rmsd])
+np.save("three_site_grid_search_rmsd_B2.npy", jout)
 
-pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B3")
+pars, rmsd, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B3")
 # pars, rmsd = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.3], 0.33
 results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rmsd])
+np.save("three_site_grid_search_rmsd_B3.npy", jout)
 
-pars, rmsd = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B4")
+pars, rmsd, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["IFNb"], "B4")
 # pars, rmsd = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4], 0.44
 results.loc["B4"] = np.hstack([pars, rmsd])
+np.save("three_site_grid_search_rmsd_B4.npy", jout)
 
 # Save results
-print("Saving results to ../data/three_site_grid_search_minimum_results.csv")
-results.to_csv("../data/three_site_grid_search_minimum_results.csv")
+grid_filename = "../data/three_site_grid_search_minimum_results_noCpG.csv"
+print("Saving results to %s" % grid_filename)
+results.to_csv(grid_filename)
 
 # Local optimization
-grid_search_results = pd.read_csv("../data/three_site_grid_search_minimum_results.csv", index_col=0)
+grid_search_results = pd.read_csv(grid_filename, index_col=0)
 print("Grid search results:\n", grid_search_results)
 b1_starting_pars = grid_search_results.loc["B1"].values[0:6]
 b2_starting_pars = grid_search_results.loc["B2"].values[0:7]
@@ -153,11 +158,12 @@ pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data
                                             "B4", b4_starting_pars)
 results.loc["B4"] = np.hstack([pars, rho, residuals])
 
-print("Saving results to ../data/three_site_local_optimization_results.csv")
-results.to_csv("../data/three_site_local_optimization_results.csv")
+local_filename = "../data/three_site_local_optimization_results_noCpG.csv"
+print("Saving results to %s" % local_filename)
+results.to_csv(local_filename)
 
 # Make contour plots from best fit parameters
-results = pd.read_csv("../data/three_site_local_optimization_results.csv", index_col=0)
+results = pd.read_csv(local_filename, index_col=0)
 pars = {"B1": results.loc["B1"].values[0:6],
         "B2": np.hstack([results.loc["B2"].values[6], results.loc["B2"].values[0:6]]),
         "B3": np.hstack([results.loc["B3"].values[7], results.loc["B3"].values[0:6]]),
