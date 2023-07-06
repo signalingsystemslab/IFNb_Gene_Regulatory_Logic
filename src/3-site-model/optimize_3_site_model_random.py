@@ -9,8 +9,10 @@ import time
 from multiprocessing import Pool
 plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
 
-result_dir = "./figures/grid_search_no_CpG/"
-os.makedirs(result_dir, exist_ok=True)
+figures_dir = "./figures/random_opt/"
+results_dir = "./results/random_opt/"
+os.makedirs(results_dir, exist_ok=True)
+os.makedirs(figures_dir, exist_ok=True)
 
 print("Loading data")
 training_data = pd.read_csv("../data/training_data_noCpG.csv")
@@ -18,7 +20,7 @@ num_pts = training_data.shape[0]
 print(training_data)
 
 def three_site_objective(pars, *args):
-    N, I, beta, model_name = args
+    N, I, beta, model_name, strategy = args
     if model_name == "B2":
         pars = np.hstack([pars[6], pars[0:6]])
     elif model_name == "B3":
@@ -27,8 +29,11 @@ def three_site_objective(pars, *args):
         pars = np.hstack([pars[6:8], pars[0:6]])
     f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
     residuals = np.array(f_list) - beta
-    rmsd = np.sqrt(np.mean(residuals**2))
-    return rmsd
+    if strategy == "residuals":
+        return residuals
+    else:
+        rmsd = np.sqrt(np.mean(residuals**2))
+        return rmsd
 
 def select_params(num_params, par_length, seed=5):
     params = np.zeros(num_params, par_length)
@@ -45,7 +50,7 @@ def optimize_model(N, I, beta, model_name, params, num_threads=40):
     rmsd = np.zeros(par_length)
     for i in range(par_length):
         with Pool(num_threads) as p:
-            rmsd[i] = p.map(three_site_objective, params[:, i], args=(N, I, beta, model_name))
+            rmsd[i] = p.map(three_site_objective, params[:, i], args=(N, I, beta, model_name, "rmsd"))
     end = time.time()
     print("Finished optimization at %s" % time.ctime())
     t = end - start
@@ -55,3 +60,95 @@ def optimize_model(N, I, beta, model_name, params, num_threads=40):
         print("Time elapsed: %.2f minutes" % (t/60))
     else:
         print("Time elapsed: %.2f hours" % (t/3600))
+
+    return params, rmsd
+
+def plot_optimization(params, rmsd, model_name):
+    plt.figure()
+    plt.plot(rmsd, 'o')
+    plt.xlabel("Iteration")
+    plt.ylabel("RMSD")
+    plt.title("Random optimization of %s model" % model_name)
+    plt.savefig(figures_dir + "random_optimization_%s_model.png" % model_name)
+    plt.close()
+
+def optimize_model_local(N, I, beta, model_name, pars):
+    start = time.time()
+    if True:
+        method = "trf"
+    else:
+        method = "lm"
+    m_name = {"lm": "Levenberg-Marquardt", "trf": "Trust Region Reflective"}
+    print("Using %s method to locally optimize model %s" % (m_name[method], model_name))
+    print("Starting local optimization at ", time.ctime())
+    upper = np.array([1 for i in range(6)])
+    lower = np.array([0 for i in range(6)])
+    if model_name == "B2":
+        upper = np.append(upper, 2)
+        lower = np.append(lower, 0)
+    elif model_name == "B3":
+        upper = np.append(upper, 10**2)
+        lower = np.append(lower, 10**-2)
+    elif model_name == "B4":
+        upper = np.append(upper, [2, 10**2])
+        lower = np.append(lower, [0, 10**-2])
+
+    res = opt.least_squares(three_site_objective, pars, bounds = (lower, upper),
+                            args=(N, I, beta, model_name, "residual"), method=method, loss = "linear")
+    end = time.time()
+    print("Optimized parameters:\n", res.x)
+    t = end - start
+    if t < 60:
+        print("Time elapsed: %.2f seconds" % t)
+    elif t < 3600:
+        print("Time elapsed: %.2f minutes" % (t/60))
+    else:
+        print("Time elapsed: %.2f hours" % (t/3600))
+    return res.x, res.cost, res.fun
+
+def save_results(results_df, model, pars, other):
+    if model == "B1":
+        res = np.hstack([pars, np.nan,np.nan,other])
+    elif model == "B2":
+        res = np.hstack([pars, np.nan,other])
+    elif model == "B3":
+        res = np.hstack([pars[0:6], np.nan, pars[6], other])
+    elif model == "B4":
+        res = np.hstack([pars, other])
+
+    results_df[model] = res
+    return results_df
+
+def main():
+    N = training_data["N"]
+    I = training_data["I"]
+    beta = training_data["beta"]
+    model_par_numbers = {"B1": 6, "B2": 7, "B3": 7, "B4": 8}
+    npars = 10000
+    params = select_params(npars, 6)
+
+    res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
+    results = pd.DataFrame(columns=res_title)
+    results_local = pd.DataFrame(columns= ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)])
+
+    for model in model_par_numbers.keys():
+        # Random optimization
+        num_remaining = model_par_numbers[model] - 6
+        if num_remaining > 0:
+            params = np.hstack([params, select_params(npars, num_remaining)])
+
+        params, rmsd = optimize_model(N, I, beta, model, params)
+        np.save("%s/three_site_random_rmsd_%s.npy" % (results_dir, model), rmsd)
+        np.save("%s/three_site_random_params_%s.npy" % (results_dir, model), params)
+
+        plot_optimization(params, rmsd, model)
+        pars = params[np.argmin(rmsd)]
+        min_rmsd = np.min(rmsd)
+        # Save results
+        results = save_results(results, model, pars, min_rmsd)
+
+        # Local optimization
+        pars = params[np.argmin(rmsd)]
+        pars, rho, residuals = optimize_model_local(N, I, beta, model, pars)
+        results_local = save_results(results_local, model, pars, np.hstack([rho, residuals]))
+        # np.save("%s/three_site_random_local_params_%s.npy" % (results_dir, model), pars)
