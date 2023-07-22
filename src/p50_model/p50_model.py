@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Modelp50:
-	def __init__(self, pars, model= "B2"):
+	def __init__(self, pars, model):
 		i=0
 		self.K=1
 		self.C=1
@@ -18,10 +18,10 @@ class Modelp50:
 			i+=2
 
 		if len(pars[i:len(pars)]) != 6:
-			print("model= " + model)
-			print("i= " + str(i))
-			print("pars = " + str(pars), "length= " + str(len(pars)))
-			print("K= " + str(self.K))
+			print("Model %s: got %d pars when expected %d" % (model, len(pars), 6 + i))
+			# print("i= " + str(i))
+			print("pars = " + str(pars))
+			# print("K= " + str(self.K))
 			raise ValueError("Incorrect number of parameters in input")
 
 		self.parsT = pars[i:len(pars)]
