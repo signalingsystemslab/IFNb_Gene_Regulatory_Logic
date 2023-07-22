@@ -16,7 +16,7 @@ num_pts = training_data.shape[0]
 print(training_data)
 
 def three_site_objective(pars, *args):
-    N, I, beta, model_name = args
+    N, I, beta, model_name, strategy = args
     if model_name == "B2":
         pars = np.hstack([pars[6], pars[0:6]])
     elif model_name == "B3":
@@ -24,9 +24,14 @@ def three_site_objective(pars, *args):
     elif model_name == "B4":
         pars = np.hstack([pars[6:8], pars[0:6]])
     f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
+    # Normalize to highest value
+    f_list = f_list / np.max(f_list)
     residuals = np.array(f_list) - beta
-    rmsd = np.sqrt(np.mean(residuals**2))
-    return rmsd
+    if strategy != "rmsd":
+        return residuals
+    else:
+        rmsd = np.sqrt(np.mean(residuals**2))
+        return rmsd
 
 def optimize_model(N, I, beta, model_name):
     print("Optimizing model ", model_name)
@@ -43,7 +48,7 @@ def optimize_model(N, I, beta, model_name):
         par_rgs.append((10**-2, 10**2))
     rgs = tuple(trgs + par_rgs)
     # print(rgs)
-    res = opt.brute(three_site_objective, rgs, args=(N, I, beta, model_name), Ns=10, full_output=True, finish=None,
+    res = opt.brute(three_site_objective, rgs, args=(N, I, beta, model_name, "rmsd"), Ns=10, full_output=True, finish=None,
                     workers=40)
     end = time.time()
     print("Optimized parameters:\n", res[0])
@@ -56,17 +61,17 @@ def optimize_model(N, I, beta, model_name):
         print("Time elapsed: %.2f hours" % (t/3600))
     return res[0], res[1], res[3]
 
-def three_site_objective_local(pars, *args):
-    N, I, beta, model_name = args
-    if model_name == "B2":
-        pars = np.hstack([pars[6], pars[0:6]])
-    elif model_name == "B3":
-        pars = np.hstack([pars[6], pars[0:6]])
-    elif model_name == "B4":
-        pars = np.hstack([pars[6:8], pars[0:6]])
-    f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
-    residuals = np.array(f_list) - beta
-    return residuals
+# def three_site_objective_local(pars, *args):
+#     N, I, beta, model_name = args
+#     if model_name == "B2":
+#         pars = np.hstack([pars[6], pars[0:6]])
+#     elif model_name == "B3":
+#         pars = np.hstack([pars[6], pars[0:6]])
+#     elif model_name == "B4":
+#         pars = np.hstack([pars[6:8], pars[0:6]])
+#     f_list = [explore_model_three_site(pars, N[i], I[i], model_name) for i in range(num_pts)]
+#     residuals = np.array(f_list) - beta
+#     return residuals
 
 def optimize_model_local(N, I, beta, model_name, pars):
     start = time.time()
@@ -89,8 +94,8 @@ def optimize_model_local(N, I, beta, model_name, pars):
         upper = np.append(upper, [2, 10**2])
         lower = np.append(lower, [0, 10**-2])
 
-    res = opt.least_squares(three_site_objective_local, pars, bounds = (lower, upper),
-                            args=(N, I, beta, model_name), method=method, loss = "linear")
+    res = opt.least_squares(three_site_objective, pars, bounds = (lower, upper),
+                            args=(N, I, beta, model_name, "residuals"), method=method, loss = "linear")
     end = time.time()
     print("Optimized parameters:\n", res.x)
     t = end - start
