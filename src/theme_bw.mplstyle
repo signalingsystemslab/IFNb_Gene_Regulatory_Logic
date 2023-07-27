@@ -12,7 +12,7 @@ font.sans-serif: Arial, FreeSans
 
 axes.edgecolor: bcbcbc
 axes.linewidth: 1
-axes.grid: True
+axes.grid: False
 axes.titlesize: x-large
 axes.labelsize: large
 axes.labelcolor: 555555
