@@ -29,9 +29,9 @@ def get_steady_state(ifnb, t_span, states0, params):
     states = run_model(ifnb, t_span, states0, params)
     difference = 1
     i = 1
-    while difference < 0.005:
+    while difference > 0.005:
         states = run_model(ifnb, t_span, states.y[:,-1], params)
-        difference = np.min(np.abs(states.y[:,-1] - states.y[:,-2]))
+        difference = np.max(np.abs(states.y[:,-1] - states.y[:,-2]))
         i += 1
         if i > 100:
             print("No steady state found")
@@ -54,7 +54,7 @@ def plot_model(states, labels, t, filename, title="", xlabel="Time", ylabel="Con
 def main():
     params = get_params("ifnar_params.csv")
     t = [0,500]
-    states0 = [10, 0, 10, 0]
+    states0 = [50, 0, 50, 0]
     states_ss, t_ss = get_steady_state(0, t, states0, params)
     print("Steady state: %s \t Time: %s min" % (states_ss, t_ss))
 
