@@ -61,7 +61,16 @@ def explore_modelp50(parsT, N, I, P, model_name):
 	return model.f
 
 def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
-    model = Modelp50([K, C] + t_pars, model_name)
-    model.calculateState(N, I, P)
-    model.calculateF()
-    return model.f * scaling
+	if model_name == "B1":
+		other_pars = []
+	elif model_name == "B2":
+		other_pars = [K]
+	elif model_name == "B3":
+		other_pars = [C]
+	elif model_name == "B4":
+		other_pars = [K, C]
+
+	model = Modelp50(other_pars + t_pars, model_name)
+	model.calculateState(N, I, P)
+	model.calculateF()
+	return model.f * scaling
