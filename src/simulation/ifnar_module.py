@@ -30,28 +30,30 @@ def change_equations(t, states, pars, inputs):
 	ifnb = inputs['ifnb']
 
 	# Calculate derivatives
-	# print("p_tau_ifnb: %s\n, exponent = %s\n" % (p_tau_ifnb, np.exp(-t/p_tau_ifnb)))
+	# # print("p_tau_ifnb: %s\n, exponent = %s\n" % (p_tau_ifnb, np.exp(-t/p_tau_ifnb)))
 	
-	# np.seterr(all='raise')
+	# # np.seterr(all='raise')
 
-	e_term = -t/p_tau_ifnb
-	# if e_term < -100:
-	# 	print("e_term = %s" % e_term)
-	# 	e_term = -200
-	e_term = np.exp(e_term)
+	# e_term = -t/p_tau_ifnb
+	# # if e_term < -100:
+	# # 	print("e_term = %s" % e_term)
+	# # 	e_term = -200
+	# e_term = np.exp(e_term)
 	
-	power_term = ifnar_in
-	# if power_term < 10**-20:
-	# 	print("power_term = %s" % power_term)
-	# 	power_term = 10**-20
-	power_term = power_term**p_coop_ifnar
+	# power_term = ifnar_in
+	# # if power_term < 10**-20:
+	# # 	print("power_term = %s" % power_term)
+	# # 	power_term = 10**-20
+	# power_term = power_term**p_coop_ifnar
 
-	multiple = e_term*power_term
-	# print("States: %s" % states)
-	# print("e_term = %s, power_term = %s, multiple = %s" % (e_term, power_term, multiple))
+	# multiple = e_term*power_term
+	# # print("States: %s" % states)
+	# # print("e_term = %s, power_term = %s, multiple = %s" % (e_term, power_term, multiple))
 
-	difnar_in = psyn_ifnar_in-pdec_ifnar_in*ifnar_in-p_act_ifnar_in*ifnar_in-(multiple)+p_deact_ifnar * ifnar
-	difnar = psyn_ifnar-pdec_ifnar*ifnar+p_act_ifnar_in*ifnar_in+(multiple)-p_deact_ifnar * ifnar
+	# difnar_in = psyn_ifnar_in-pdec_ifnar_in*ifnar_in-p_act_ifnar_in*ifnar_in-(multiple)+p_deact_ifnar * ifnar
+	# difnar = psyn_ifnar-pdec_ifnar*ifnar+p_act_ifnar_in*ifnar_in+(multiple)-p_deact_ifnar * ifnar
+	difnar_in = psyn_ifnar_in-pdec_ifnar_in*ifnar_in-p_act_ifnar_in*ifnar_in-(ifnar_in**p_coop_ifnar*ifnb*np.exp(-t/p_tau_ifnb))+p_deact_ifnar * ifnar
+	difnar = psyn_ifnar-pdec_ifnar*ifnar+p_act_ifnar_in*ifnar_in+(ifnar_in**p_coop_ifnar*ifnb*np.exp(-t/p_tau_ifnb))-p_deact_ifnar * ifnar
 	
 	disgf3_in = psyn_isgf3_in-pdec_isgf3_in*isgf3_in-p_act_isgf3_in*isgf3_in*ifnar+p_deact_isgf3 * isgf3
 	disgf3 = psyn_isgf3-pdec_isgf3*isgf3+p_act_isgf3_in*isgf3_in*ifnar-p_deact_isgf3 * isgf3
