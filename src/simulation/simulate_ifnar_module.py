@@ -1,8 +1,12 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
+import os
 from ifnar_module import change_equations
 plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
+
+results_dir = "./results/ifnar_model/"
+os.makedirs(results_dir, exist_ok=True)
 
 def get_inputs(ifnb):
     inputs = {}
@@ -50,6 +54,7 @@ def plot_model(states, labels, t, filename, title="", xlabel="Time", ylabel="Con
     plt.title(title)
     fig.legend(bbox_to_anchor=(1.2,0.5))
     plt.savefig("%s.png" % filename, bbox_inches="tight")
+    plt.close()
 
 def main():
     params = get_params("ifnar_params.csv")
@@ -66,17 +71,51 @@ def main():
     t_eval = np.linspace(t[0], t[1], 1000)
     labels = []
     ifnb = [0.1, 0.3, 1, 3, 10, 30, 100]
-    state_list = np.zeros((len(t_eval), len(ifnb)))
+    state_list_isgf3 = np.zeros((len(t_eval), len(ifnb)))
+    state_list_ifnar = np.zeros((len(t_eval), len(ifnb)))
     for i in range(len(ifnb)):
         beta = ifnb[i]
         states = run_model(beta, t, states_ss, params,t_eval)
         # active isgf3 is the 4th state
-        state_list[:,i] = states.y[3,:]
+        state_list_isgf3[:,i] = states.y[3,:]
+        # active ifnar is the 2nd state
+        state_list_ifnar[:,i] = states.y[1,:]
         labels.append("IFNB = %s nM" % beta)
 
-    state_list = [state_list[:,i] for i in range(state_list.shape[1])]
-    plot_model(state_list, labels, states.t, "ifnar_model_ifnb", r"IFNAR model results with varying IFN$\beta$",
-                "Time", "Active ISGF3 (nM)") 
+    print("Max ISGF3 for each IFNB: %s" % np.max(state_list_isgf3, axis=0))
+
+    state_list = [state_list_isgf3[:,i] for i in range(state_list_isgf3.shape[1])]
+    plot_model(state_list, labels, t_eval, "%sifnar_model_wide_range_isgf3" % results_dir, r"IFNAR model results with varying IFN$\beta$",
+                "Time", "Active ISGF3 (nM)")
+    
+    state_list = [state_list_ifnar[:,i] for i in range(state_list_ifnar.shape[1])]
+    plot_model(state_list, labels, t_eval, "%sifnar_model_wide_range_ifnar" % results_dir, r"IFNAR model results with varying IFN$\beta$",
+                "Time", "Active IFNAR (nM)")
+    
+    ifnb = [14, 62]
+    ifnb = np.round(ifnb, 0)
+    labels = []
+    state_list_isgf3 = np.zeros((len(t_eval), len(ifnb)))
+    state_list_ifnar = np.zeros((len(t_eval), len(ifnb)))
+    for i in range(len(ifnb)):
+        beta = ifnb[i]
+        states = run_model(beta, t, states_ss, params,t_eval)
+        # active isgf3 is the 4th state
+        state_list_isgf3[:,i] = states.y[3,:]
+        # active ifnar is the 2nd state
+        state_list_ifnar[:,i] = states.y[1,:]
+        labels.append("IFNB = %s nM" % beta)
+
+    print("Max ISGF3 for each IFNB: %s" % np.max(state_list_isgf3, axis=0))
+
+    state_list = [state_list_isgf3[:,i] for i in range(state_list_isgf3.shape[1])]
+    plot_model(state_list, labels, t_eval, "%sifnar_model_isgf3_14-62" % results_dir, r"IFNAR model results with varying IFN$\beta$",
+                "Time", "Active ISGF3 (nM)")
+    
+    state_list = [state_list_ifnar[:,i] for i in range(state_list_ifnar.shape[1])]
+    plot_model(state_list, labels, t_eval, "%sifnar_model_ifnar_14-62" % results_dir, r"IFNAR model results with varying IFN$\beta$",
+                "Time", "Active IFNAR (nM)")
+    
 
 if __name__ == "__main__":
     main()
