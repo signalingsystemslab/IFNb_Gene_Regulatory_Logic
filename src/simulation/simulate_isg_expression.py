@@ -58,6 +58,7 @@ def IFN_model(t, states, params, stim_data):
     inputs = get_inputs(N, N_times, I, I_times, P, P_times, t)
     # print("Inputs: " + str(inputs))
 
+    # States: IFNb, IFNAR, IFNAR*, ISGF3, ISGF3*, ISG mRNA
     ifnb_module = ifnb_change_equations(t, states[0:1], params, inputs)
     inputs["ifnb"] = states[0]
     ifnar_module = ifnar_change_equations(t, states[1:5], params, inputs)
