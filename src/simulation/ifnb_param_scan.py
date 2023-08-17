@@ -62,7 +62,7 @@ t, states0, params, stim_data = initialize_simulation()
 print("Running parameter scan")
 isg_syn = 0.5
 isg_deg = 0.5
-ifnb_syn_list = np.arange(15, 100, 1)
+ifnb_syn_list = np.arange(1, 50, 1)
 states_labels = [r"IFN$\beta$", "IFNAR inactive", "IFNAR active", "ISGF3 inactive", "ISGF3 active", "ISG mRNA"]
 
 best_ifnb = [0, 0, 0]
@@ -77,6 +77,7 @@ for ifnb_syn in ifnb_syn_list:
     isgf3_max = np.max(states.y[4,:])
     isgf3_ss = states_ss[4]
     all_ifnb[ifnb_syn] = [ifnb_max, isgf3_max]
+    print("Max IFNb: %.4f" % ifnb_max)
     if ifnb_max > 50 and ifnb_max < 100:
         acceptable_ifnb[ifnb_syn] = [ifnb_max, isgf3_max]
         if isgf3_max > best_ifnb[2]:
