@@ -57,7 +57,7 @@ states_labels = [r"IFN$\beta$", "IFNAR inactive", "IFNAR active", "ISGF3 inactiv
 print("Running parameter scan for CpG stimulation")
 stim_time = 60*8
 t, states0, params, stim_data = initialize_simulation(N= 0.5, I=0.05, stim_time=stim_time, genotype="WT")
-ifnb_syn = 43
+ifnb_syn = 2.0
 isg_syn_list = np.linspace(0, 1, 50)
 isg_deg_list = np.linspace(0, 1, 50)
 t_eval = np.linspace(t[0], t[1], t[1]*2+1)
@@ -212,7 +212,7 @@ for loc_row, loc_col in zip(np.where(isg_FC_diff == np.max(isg_FC_diff))[0], np.
     plt.title("ISG mRNA level at ISG synthesis rate = %.4f, ISG degradation rate = %.4f" % (all_isg_syn[loc_row, loc_col], all_isg_deg[loc_row, loc_col]))
     plt.savefig("%sisg_%s_stim_syn_%.4f_deg_%.4f_timecourse.png" % (results_dir, stim_time, all_isg_syn[loc_row, loc_col], all_isg_deg[loc_row, loc_col]))
 
-    # PLot ISG FC timecourse at loc fold change over 0hr
+    # Plot ISG FC timecourse at loc fold change over 0hr
     WT_FC_timecourse = WT_timecourse/WT_timecourse[0]
     p50KO_FC_timecourse = p50KO_timecourse/p50KO_timecourse[0]
     fig = plt.figure()
@@ -230,6 +230,8 @@ ifnb_p50KO = all_states_p50KO[:,:,0,:].squeeze()
 print("IFNb peaks at %.2f for WT and %.2f for p50KO" % (np.max(ifnb_WT), np.max(ifnb_p50KO)))
 print("IFNAR* peaks at %.2f for WT and %.2f for p50KO" % (np.max(all_states_WT[:,:,2,:].squeeze()), np.max(all_states_p50KO[:,:,2,:].squeeze())))
 print("ISGF3* peaks at %.2f for WT and %.2f for p50KO" % (np.max(all_states_WT[:,:,4,:].squeeze()), np.max(all_states_p50KO[:,:,4,:].squeeze())))
+
+
 
 ## old
 # # Make grid of max ISG values corresponding to all_isg_syn and all_isg_deg
