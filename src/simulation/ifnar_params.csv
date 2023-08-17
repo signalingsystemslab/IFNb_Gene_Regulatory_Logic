@@ -1,5 +1,6 @@
 p_act_ifnar_in,0.0007
 p_act_isgf3_in,0.077
+p_act_ifnar_ifnb,0.0066
 p_coop_ifnar,4.0706
 p_deact_ifnar,0.0065
 p_deact_isgf3,0.027
