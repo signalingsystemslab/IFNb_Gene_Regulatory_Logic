@@ -1,114 +1,131 @@
 from simulate_isg_expression import *
 import os
+import time
+import scipy.optimize as opt
+from multiprocessing import Pool
+
 
 results_dir = "./results/ifnb_parameter_scan/"
 os.makedirs(results_dir, exist_ok=True)
 
+# States: IFNb, IFNAR, IFNAR*, ISGF3, ISGF3*, ISG mRNA
 
-def get_stim_data(N, I, P, N_times="All", I_times="All", P_times="All"):
-    stim_data = [N, N_times, I, I_times, P, P_times]
-    return stim_data
-
-def run_steady_state(t, states0, params, isg_syn, isg_deg, ifnb_syn, stim_data=None):
+def run_steady_state(t, states0, params, isg_syn, isg_deg, stim_data=None):
     params["p_syn_isg"] = isg_syn
     params["p_deg_isg"] = isg_deg
-    params["p_syn_ifnb"] = ifnb_syn
     states_ss, t_ss = get_steady_state(t, states0, params, stim_data)
     return states_ss, t_ss
 
-def run_simulation(t, states0, params, isg_syn, isg_deg, ifnb_syn, t_eval, stim_data=None):
+def run_simulation(t, states0, params, isg_syn, isg_deg, t_eval, stim_data=None):
     params["p_syn_isg"] = isg_syn
     params["p_deg_isg"] = isg_deg
-    params["p_syn_ifnb"] = ifnb_syn
     states = run_model(t, states0, params, t_eval, stim_data)
     return states
 
+def run_simulation_wrapper(t, states0, params, isg_syn, isg_deg, t_eval, stim_data):
+    ss_stim_data = [[0.01 for t in t_eval] for i in range(3)]
+    states_ss, t_ss = run_steady_state(t, states0, params, isg_syn, isg_deg, ss_stim_data)
+    states = run_simulation(t, states_ss, params, isg_syn, isg_deg, t_eval, stim_data)
+    return states
 
-def initialize_simulation():
-    t = [0,500]
-    states0 = [0, 50, 0, 50, 0, 10]
+def initialize_simulation(N = 1, P = 1, I = 1, genotype="WT", stimulus="CpG", stim_time = 60*8):
+    t = [0, stim_time+60]
+    states0 = [0.01, 100, 0.01, 100, 0.01, 10]
 
-    N, I, P = 1,1,0.01
-    N_times, I_times, P_times = [0, 60], [0, 60], [0, 60]
-    stim_data = get_stim_data(N, I, P, N_times, I_times, P_times)
+    P_values = {"WT": P, "p50KO": 0}
+    N_values = {"WT": N, "p50KO": N/2}
+    P_curve = [P_values[genotype] for i in range(stim_time+60)]
+
+    cell_traj = np.loadtxt("RepresentativeCellTraj_NFkBn_%s.csv" % stimulus, delimiter=",")
+    N_curve = cell_traj[1,:]
+    # print(N_values[genotype], np.max(N_curve))
+    N_curve = N_values[genotype]*N_curve/np.max(N_curve)
+    I_curve = [I for i in range(stim_time+60)]
+
+    stim_data = [N_curve, I_curve, P_curve]
 
     ifnb_params = get_params("../p50_model/results/random_opt/ifnb_best_params_random_global.csv")
     ifnar_params = get_params("ifnar_params.csv")
     params = {**ifnb_params, **ifnar_params}
     return t, states0, params, stim_data
 
-t, states0, params, stim_data = initialize_simulation()
+def objective_function(pars, *args):
+    N, P, I, stimulus, stim_time, ifnb_lims, isg_syn, isg_deg = args
+    ifnb_synthesis = pars[0]
+
+    # print("Calculating objective function value for IFNb synthesis = %.4f" % ifnb_synthesis)
+    t, states0, params, stim_data = initialize_simulation(N, P, I, "WT", stimulus, stim_time)
+
+    # print("Done initializing")
+    params["p_syn_ifnb"] = ifnb_synthesis
+    # print(params)
+    t_eval = np.linspace(0, stim_time+60, 1000)
+    # print("Running simulation")
+    states_WT = run_simulation_wrapper(t, states0, params, isg_syn, isg_deg, t_eval, stim_data)
+    # print("Done with WT")
 
 
-# # Example simulation
-# isg_syn = 0.5
-# isg_deg = 0.5
-# ifnb_syn = 50
+    t, states0, params, stim_data = initialize_simulation(N, P, I, "p50KO", stimulus, stim_time)
+    params["p_syn_ifnb"] = ifnb_synthesis
+    states_p50KO = run_simulation_wrapper(t, states0, params, isg_syn, isg_deg, t_eval, stim_data)
+    # print("Done with p50KO")
 
-# states_ss, t_ss = run_steady_state(t, states0, params, isg_syn, isg_deg, ifnb_syn,
-#                                     get_stim_data(0.01,0.01,0.01, "All", "All", "All"))
-# states_labels = [r"IFN$\beta$", "IFNAR inactive", "IFNAR active", "ISGF3 inactive", "ISGF3 active", "ISG mRNA"]
-# for state, label in zip(states_ss, states_labels):
-#     print("Steady state value of %s: %.4f" % (label, state))
+    # Objective function components:
+    # 1. IFNb peak between 50 and 100
+    # 2. Maximize IFNb difference between WT and p50KO
 
-# states = run_simulation(t, states_ss, params, isg_syn, isg_deg, ifnb_syn, None, stim_data)
-# print("\n\nMax value of IFNb: %.4f" % np.max(states.y[0,:]))
-# print("Max value of ISG mRNA: %.4f" % np.max(states.y[5,:]))
-# state_list = [states.y[i,:] for i in range(states.y.shape[0])]
-# plot_model(state_list, states_labels, states.t, "%sisg_model_example" % results_dir, 
-#            "ISG model example", "Time (min)", "Concentration (nM)")
-
-# # Parameter scan
-print("Running parameter scan")
-isg_syn = 0.5
-isg_deg = 0.5
-ifnb_syn_list = np.arange(1, 50, 1)
-states_labels = [r"IFN$\beta$", "IFNAR inactive", "IFNAR active", "ISGF3 inactive", "ISGF3 active", "ISG mRNA"]
-
-best_ifnb = [0, 0, 0]
-acceptable_ifnb = {}
-all_ifnb = {}
-for ifnb_syn in ifnb_syn_list:
-    print("Finding steady state for IFNb synthesis rate of %.4f" % ifnb_syn)
-    states_ss, t_ss = run_steady_state(t, states0, params, isg_syn, isg_deg, ifnb_syn,
-                                        get_stim_data(0.01,0.01,0.01, "All", "All", "All"))
-    states = run_simulation(t, states_ss, params, isg_syn, isg_deg, ifnb_syn, None, stim_data)
-    ifnb_max = np.max(states.y[0,:])
-    isgf3_max = np.max(states.y[4,:])
-    isgf3_ss = states_ss[4]
-    all_ifnb[ifnb_syn] = [ifnb_max, isgf3_max]
-    print("Max IFNb: %.4f" % ifnb_max)
-    if ifnb_max > 50 and ifnb_max < 100:
-        acceptable_ifnb[ifnb_syn] = [ifnb_max, isgf3_max]
-        if isgf3_max > best_ifnb[2]:
-            best_ifnb = [ifnb_syn, ifnb_max, isgf3_max]
-            print("IFNb synthesis rate of %.4f is good: max IFNb of %.4f and max ISGF3 of %.4f" % (ifnb_syn, ifnb_max, isgf3_max))
-        
-        # states_list = [states.y[i,:] for i in range(states.y.shape[0])]
-        # plot_model(states_list, states_labels, states.t, "%sisg_model_ifnb_syn_%.4f" % (results_dir, ifnb_syn),
-        #              "IFNb synthesis rate = %.4f" % ifnb_syn, "Time (min)", "Concentration (nM)")
+    if np.max(states_WT.y[0,:]) > 0:
+        ifnb_difference = np.max(states_p50KO.y[0,:]) / np.max(states_WT.y[0,:])
     else:
-        print("\n\n")
+        ifnb_difference = 0
+    ifnb_peak = np.max(states_WT.y[0,:])
 
-states_ss, t_ss = run_steady_state(t, states0, params, isg_syn, isg_deg, best_ifnb[0],
-                                    get_stim_data(0.01,0.01,0.01, "All", "All", "All"))
-states = run_simulation(t, states_ss, params, isg_syn, isg_deg, best_ifnb[0], None, stim_data)
-states_list = [states.y[i,:] for i in range(states.y.shape[0])]
-plot_model(states_list, states_labels, states.t, "%sisg_model_best_ifnb_syn" % results_dir,
-                "IFNb synthesis rate = %.4f" % best_ifnb[0], "Time (min)", "Concentration (nM)")
+    if ifnb_difference > 0:
+        obj = 1/(ifnb_difference + 1)
+        print("IFNb synthesis = %.4f\tObjective function value = %.4f" % (ifnb_synthesis, obj))
+    else:
+        obj = 1
+    if ifnb_peak < ifnb_lims[0] or ifnb_peak > ifnb_lims[1]:
+        obj = 1
+    return obj
 
-np.save("%sisg_model_best_ifnb_syn" % results_dir, best_ifnb[0])
-np.save("%sacceptable_ifnb_syn" % results_dir, acceptable_ifnb)
-np.save("%sall_ifnb_syn" % results_dir, all_ifnb)
+def optimize_model(min_val, max_val, N = 1, P = 1, I = 1, stimulus="CpG", stim_time = 60*8, ifnb_lims = [50, 100], 
+                   isgf3_lims = [50, 100], isg_syn = 0.01, isg_deg = 0.5):
+    print("Optimizing %s IFNb synthesis" % stimulus)
+    start = time.time()
+    rgs = slice(min_val, max_val, 0.01)
+    rgs = tuple([rgs])
+    res = opt.brute(objective_function, rgs, args=(N, P, I, stimulus, stim_time, ifnb_lims, isg_syn, isg_deg),
+                     full_output=True, finish=None, workers=40)
+    print("Optimization took %.2f seconds" % (time.time() - start))
+    return res[0], res[1], res[3]
 
-ifnb_syn_list = list(all_ifnb.keys())
-ifnb_max_list = [all_ifnb[ifnb_syn][0] for ifnb_syn in ifnb_syn_list]
-isgf3_max_list = [all_ifnb[ifnb_syn][1] for ifnb_syn in ifnb_syn_list]
-fig = plt.figure()
-plt.plot(ifnb_syn_list, ifnb_max_list, "o", label=r"IFN$\beta$")
-plt.plot(ifnb_syn_list, isgf3_max_list, "o", label="ISGF3")
-plt.xlabel(r"IFN$\beta$ synthesis rate")
-plt.ylabel("Max concentration")
-fig.legend(bbox_to_anchor=(1.2,0.5))
-plt.savefig("%sisg_model_max_conc_vs_ifnb_syn" % results_dir, bbox_inches="tight")
+# Optimize IFNb activation and deactivation
+print("\n\n\n##############################################\n\n\n")
+min_val = 0.01
+max_val = 10
+N = 1
+P = 1
+I = 1
+stimulus = "CpG"
+stim_time = 60*8
+ifnb_lims = [50, 100]
+isgf3_lims = [50, 100]
+isg_syn = 0.01
+isg_deg = 0.5
 
+# Example simulation
+ifnb_synthesis = 0.1
+t, states0, params, stim_data = initialize_simulation(N, P, I, "WT", stimulus, stim_time)
+params["p_syn_ifnb"] = ifnb_synthesis
+t_eval = np.linspace(0, stim_time+60, 1000)
+states_WT = run_simulation_wrapper(t, states0, params, isg_syn, isg_deg, t_eval, stim_data)
+print("Example simulation: IFNb synthesis = %.4f worked\n" % ifnb_synthesis)
+
+# Optimize
+pars, rho, jout = optimize_model(min_val, max_val, N, P, I, stimulus, stim_time, ifnb_lims, isgf3_lims, isg_syn, isg_deg)
+print("Best IFNb synthesis: %.4f" % pars)
+print("Best objective function value: %.4f, or %.4f fold change in IFNb peak" % (rho, 1/rho - 1))
+np.save("%s/%s_best_ifnb_synthesis.npy" % (results_dir, stimulus), pars)
+np.save("%s/%s_best_ifnb_synthesis_obj.npy" % (results_dir, stimulus), rho)
+np.save("%s/%s_best_ifnb_synthesis_jout.npy" % (results_dir, stimulus), jout)
