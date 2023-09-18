@@ -2,7 +2,11 @@ from p50_model import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import itertools
+from multiprocessing import Pool
+import os
+import time
 plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
+
 
 def make_p50_plots(N, I, P, filename):
     colors_b2 = ["#E24A33","#348ABD","#988ED5"]
@@ -151,66 +155,198 @@ def make_p50_plots(N, I, P, filename):
 
     return ratio_B1, ratio_B2
 
-# Model f as a function of p50
-P = np.linspace(0, 2, 50)
+# # Model f as a function of p50
+# P = np.linspace(0, 2, 50)
 
-# Make a data frame of I, N, and P values and filenames
-df = pd.DataFrame(columns=["I", "N", "P", "filename", "ratio_B1"])
-vals = np.logspace(-3, 0, 10)
+# # Make a data frame of I, N, and P values and filenames
+# df = pd.DataFrame(columns=["I", "N", "P", "filename", "ratio_B1"])
+# vals = np.logspace(-3, 0, 10)
 
 
-i=0
-for comb in itertools.combinations_with_replacement(vals, 2):
-    I, N = comb
-    df.loc[i] = [I, N, P, "I%.3f_N%.3f" % (I, N),0]
-    rB1, rB2 = make_p50_plots(I, N, P, "I%.3f_N%.3f" % (I, N))
-    df.loc[i, "ratio_B1"] = rB1
-    if I != N:
-        N, I = comb
-        df.loc[i+1] = [I, N, P, "I%.3f_N%.3f" % (I, N),0]
-        rB1, rB2 = make_p50_plots(I, N, P, "I%.3f_N%.3f" % (I, N))
-        df.loc[i+1, "ratio_B1"] = rB1
-        i+=2
-    else:
-        i+=1
-    print("Finished I=%.3f, N=%.3f and reverse" % (I, N))
+# i=0
+# for comb in itertools.combinations_with_replacement(vals, 2):
+#     I, N = comb
+#     df.loc[i] = [I, N, P, "I%.3f_N%.3f" % (I, N),0]
+#     rB1, rB2 = make_p50_plots(I, N, P, "I%.3f_N%.3f" % (I, N))
+#     df.loc[i, "ratio_B1"] = rB1
+#     if I != N:
+#         N, I = comb
+#         df.loc[i+1] = [I, N, P, "I%.3f_N%.3f" % (I, N),0]
+#         rB1, rB2 = make_p50_plots(I, N, P, "I%.3f_N%.3f" % (I, N))
+#         df.loc[i+1, "ratio_B1"] = rB1
+#         i+=2
+#     else:
+#         i+=1
+#     print("Finished I=%.3f, N=%.3f and reverse" % (I, N))
 
-print(df["filename"])
-pd.DataFrame.to_csv(df, "../data/model_B1_p50_ratios.csv")
-df = pd.read_csv("../data/model_B1_p50_ratios.csv")
-print(df)
+# print(df["filename"])
+# pd.DataFrame.to_csv(df, "../data/model_B1_p50_ratios.csv")
+# df = pd.read_csv("../data/model_B1_p50_ratios.csv")
+# print(df)
 
-# Plot I vs N
+# # Plot I vs N
+# plt.figure()
+# plt.scatter(df["I"], df["N"], c=df["ratio_B1"], cmap="viridis")
+# # Set colormap boundaries to include 1.0
+# plt.clim(1.0, np.max(df["ratio_B1"]))
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B1")
+# plt.colorbar(label=r"Fold change")
+# plt.savefig("../p50_model/figures/model_B1_p50_ratio.png")
+
+# # remove duplicates for I and N
+# df = df.drop_duplicates(subset=["I", "N"])
+
+# # Make an array of ratio B1 values where rows are I and columns are N
+# df_sorted = df.sort_values(by=["I", "N"])
+# vals = np.unique(df_sorted["I"])
+
+# ratio_B1 = np.zeros((len(vals), len(vals)))
+# for i in range(len(vals)):
+#     ratio_B1[i,:] = df_sorted.loc[df_sorted["I"]==vals[i], "ratio_B1"].values
+#     # print(vals[i])
+#     # print(df_sorted.loc[df_sorted["I"]==vals[i], "ratio_B1"].values)
+
+
+# plt.figure()
+# levels = np.linspace(1.0, np.max(df["ratio_B1"]), 8)
+# levels = np.round(levels, 2)
+# plt.contourf(vals, vals, ratio_B1, cmap="viridis", levels=levels)
+# plt.colorbar(label=r"Fold change")
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B1")
+# plt.savefig("../p50_model/figures/model_B1_p50_ratio_contour.png")
+
+# With final parameters, get f values for a range of NFkB and IRF values in WT and KO
+dir = "results/comparing_genotypes/"
+os.makedirs(dir, exist_ok=True)
+
+# Get final parameters
+def get_params(file):
+    params = {}
+    with open(file) as f:
+        for line in f:
+            (key, val) = line.split(",")
+            params[key] = float(val)
+    return params
+
+def return_N(N,I):
+    return N
+
+def return_I(N,I):
+    return I
+
+print("Getting parameters")
+pars = get_params("../p50_model/results/random_opt/ifnb_best_params_random_global.csv")
+# Unpack pars
+t1 = pars["t1"]
+t2 = pars["t2"]
+t3 = pars["t3"]
+t4 = pars["t4"]
+t5 = pars["t5"]
+t6 = pars["t6"]
+t_pars = [t1, t2, t3, t4, t5, t6]
+K = pars["K_i2"]
+C = pars["C"]
+
+# N_list = np.linspace(0, 1, 100)
+# I_list = np.linspace(0, 1, 10)
+# P_list = {"WT": 1, "KO": 0}
+# f_values = np.zeros((len(N_list)*len(I_list), len(P_list)))
+# N_values = np.zeros((len(N_list)*len(I_list), len(P_list)))
+# I_values = np.zeros((len(N_list)*len(I_list), len(P_list)))
+
+# # x=[return_N_I_P(N, I) for N in N_list for I in I_list]
+# # print("Shape of x: %s, type of x: %s" % (str(np.shape(x)), str(type(x))))
+# # f_test = np.zeros((len(N_list), len(I_list)))
+# # print(x)
+# # x = np.array(x).reshape((len(N_list), len(I_list)))
+# # print("Shape of x: %s, type of x: %s" % (str(np.shape(x)), str(type(x))))
+# # print(x)
+# print("Starting multiprocessing")
+# start = time.time()
+# with Pool(30) as pl:
+#     for i in range(len(P_list)):
+#         p = list(P_list.keys())[i]
+#         print("Calculating f values for %s" % p)
+#         # get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1)
+#         f_values[:,i] = pl.starmap(get_f, [(t_pars, K, C, N, I, P_list[p], "B2", 1) for N in N_list for I in I_list])
+#         N_values[:,i] = pl.starmap(return_N, [(N, I) for N in N_list for I in I_list])
+#         I_values[:,i] = pl.starmap(return_I, [(N, I) for N in N_list for I in I_list])
+# end = time.time()
+# print("Finished multiprocessing in %.2f minutes" % ((end-start)/60))
+
+# f_values = f_values.reshape((len(N_list), len(I_list), len(P_list)))
+# N_values = N_values.reshape((len(N_list), len(I_list), len(P_list)))
+# I_values = I_values.reshape((len(N_list), len(I_list), len(P_list)))
+
+# # Save all values
+# np.save("%s/f_values.npy" % dir, f_values)
+# np.save("%s/N_values.npy" % dir, N_values)
+# np.save("%s/I_values.npy" % dir, I_values)
+
+# Calculate fold change KO vs WT
+f_values = np.load("%s/f_values.npy" % dir)
+N_values = np.load("%s/N_values.npy" % dir)
+I_values = np.load("%s/I_values.npy" % dir)
+
+# Replace 0 values in :,:,0 with 10e-10 to avoid divide by 0 error
+f_values[:,:,0][f_values[:,:,0]==0] = 10e-10
+fold_change = f_values[:,:,1] / f_values[:,:,0]
+
+# print N and I values that maximize fold change (top 5)
+print("Top 5 fold change values:")
+print(np.sort(fold_change.flatten())[-5:])
+print("N values:")
+print(N_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
+print("I values:")
+print(I_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
+
+print("Making plots")
+# Plot fold change
 plt.figure()
-plt.scatter(df["I"], df["N"], c=df["ratio_B1"], cmap="viridis")
-# Set colormap boundaries to include 1.0
-plt.clim(1.0, np.max(df["ratio_B1"]))
+plt.contourf(I_values[:,:,0], N_values[:,:,0], fold_change, 100, cmap="RdYlBu_r")
+plt.colorbar(label=r"Fold change IFN$\beta$ in KO vs WT")
 plt.xlabel(r"IRF")
 plt.ylabel(r"NF$\kappa$B")
-plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B1")
-plt.colorbar(label=r"Fold change")
-plt.savefig("../p50_model/figures/model_B1_p50_ratio.png")
+plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B2")
+plt.savefig("%s/fold_change_heatmap.png" % dir)
+plt.close()
 
-# remove duplicates for I and N
-df = df.drop_duplicates(subset=["I", "N"])
-
-# Make an array of ratio B1 values where rows are I and columns are N
-df_sorted = df.sort_values(by=["I", "N"])
-vals = np.unique(df_sorted["I"])
-
-ratio_B1 = np.zeros((len(vals), len(vals)))
-for i in range(len(vals)):
-    ratio_B1[i,:] = df_sorted.loc[df_sorted["I"]==vals[i], "ratio_B1"].values
-    # print(vals[i])
-    # print(df_sorted.loc[df_sorted["I"]==vals[i], "ratio_B1"].values)
-
-
+# Plot f values for WT and KO
 plt.figure()
-levels = np.linspace(1.0, np.max(df["ratio_B1"]), 8)
-levels = np.round(levels, 2)
-plt.contourf(vals, vals, ratio_B1, cmap="viridis", levels=levels)
-plt.colorbar(label=r"Fold change")
+plt.contourf(I_values[:,:,0], N_values[:,:,0], f_values[:,:,0], 100, cmap="RdYlBu_r")
+plt.colorbar(label=r"IFN$\beta$ mRNA")
 plt.xlabel(r"IRF")
 plt.ylabel(r"NF$\kappa$B")
-plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B1")
-plt.savefig("../p50_model/figures/model_B1_p50_ratio_contour.png")
+plt.title(r"IFN$\beta$ mRNA in WT, model B2")
+plt.savefig("%s/WT_heatmap.png" % dir)
+plt.close()
+
+plt.figure()
+plt.contourf(I_values[:,:,1], N_values[:,:,1], f_values[:,:,1], 100, cmap="RdYlBu_r")
+plt.colorbar(label=r"IFN$\beta$ mRNA")
+plt.xlabel(r"IRF")
+plt.ylabel(r"NF$\kappa$B")
+plt.title(r"IFN$\beta$ mRNA in KO, model B2")
+plt.savefig("%s/KO_heatmap.png" % dir)
+
+# Calculate log 2 fold change
+log2_fold_change = np.log2(fold_change)
+plt.figure()
+plt.contourf(I_values[:,:,0], N_values[:,:,0], log2_fold_change, 100, cmap="RdYlBu_r")
+plt.colorbar(label=r"Log$_2$ fold change IFN$\beta$ in KO vs WT")
+plt.xlabel(r"IRF")
+plt.ylabel(r"NF$\kappa$B")
+plt.title(r"Log$_2$ fold change IFN$\beta$ w/ p50 KO, model B2")
+plt.savefig("%s/log2_fold_change_heatmap.png" % dir)
+
+# print("Shape = %s" % str(np.shape(f_values)))
+# print("\nF values for WT:")
+# print(f_values[:,:,0])
+# print("\nN values for WT:")
+# print(N_values[:,:,0])
+# print("\nI values for WT:")
+# print(I_values[:,:,0])

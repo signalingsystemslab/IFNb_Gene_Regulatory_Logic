@@ -93,3 +93,18 @@ def calculateFvalues(model_name, pars, I, N, P=0):
 		for i in range(len(I)):
 			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
 	return f_values
+
+def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
+	if model_name == "B1":
+		other_pars = []
+	elif model_name == "B2":
+		other_pars = [K]
+	elif model_name == "B3":
+		other_pars = [C]
+	elif model_name == "B4":
+		other_pars = [K, C]
+
+	model = Modelp50(other_pars + t_pars, model_name)
+	model.calculateState(N, I, P)
+	model.calculateF()
+	return model.f * scaling

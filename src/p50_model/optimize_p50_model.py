@@ -26,7 +26,8 @@ def p50_objective(pars, *args):
     f_list = [explore_modelp50(pars, N[i], I[i], P[i], model_name) for i in range(num_pts)]
     residuals = np.array(f_list) - beta
     # Normalize to highest value
-    f_list = f_list / np.max(f_list)
+    if np.max(f_list) != 0:
+        f_list = f_list / np.max(f_list)
     residuals = np.array(f_list) - beta
     if strategy != "rmsd":
         return residuals
@@ -50,7 +51,7 @@ def optimize_model(N, I, P, beta, model_name):
     rgs = tuple(trgs+par_rgs)
     # print(rgs)
     res = opt.brute(p50_objective, rgs, args=(N, I, P, beta, model_name, "rmsd"), Ns=10, full_output=True, finish=None,
-                    workers=20)
+                    workers=40)
     end = time.time()
     print("Optimized parameters:\n", res[0])
     t = end - start
@@ -108,63 +109,64 @@ def optimize_model_local(N, I, P, beta, model_name, pars):
         print("Time elapsed: %.2f hours" % (t/3600))
     return res.x, res.cost, res.fun
 
-# res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
-# results = pd.DataFrame(columns=res_title)
-# pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B1")
-# # pars, rmsd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1], 0.11
-# results.loc["B1"] = np.hstack([pars, np.nan,np.nan,rho])
-# np.save("../data/p50_grid_search_rho_values_B1.npy", jout)
+print("Initializing grid search")
+res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
+results = pd.DataFrame(columns=res_title)
+pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B1")
+# pars, rmsd = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1], 0.11
+results.loc["B1"] = np.hstack([pars, np.nan,np.nan,rho])
+np.save("../data/p50_grid_search_rho_values_B1.npy", jout)
 
-# pars, rho , jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B2")
-# # pars, rmsd = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.22
-# results.loc["B2"] = np.hstack([pars, np.nan,rho])
-# np.save("../data/p50_grid_search_rho_values_B2.npy", jout)
+pars, rho , jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B2")
+# pars, rmsd = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], 0.22
+results.loc["B2"] = np.hstack([pars, np.nan,rho])
+np.save("../data/p50_grid_search_rho_values_B2.npy", jout)
 
-# pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B3")
-# # pars, rmsd = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.3], 0.33
-# results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rho])
-# np.save("../data/p50_grid_search_rho_values_B3.npy", jout)
+pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B3")
+# pars, rmsd = [0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.3], 0.33
+results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rho])
+np.save("../data/p50_grid_search_rho_values_B3.npy", jout)
 
-# pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B4")
-# # pars, rmsd = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4], 0.44
-# results.loc["B4"] = np.hstack([pars, rho])
-# np.save("../data/p50_grid_search_rho_values_B4.npy", jout)
+pars, rho, jout = optimize_model(training_data["NFkB"], training_data["IRF"], training_data["p50"], training_data["IFNb"], "B4")
+# pars, rmsd = [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4], 0.44
+results.loc["B4"] = np.hstack([pars, rho])
+np.save("../data/p50_grid_search_rho_values_B4.npy", jout)
 
-# # Save results
-# print("Saving results to ../data/p50_grid_search_minimum_results.csv")
-# results.to_csv("../data/p50_grid_search_minimum_results.csv")
+# Save results
+print("Saving results to ../data/p50_grid_search_minimum_results.csv")
+results.to_csv("../data/p50_grid_search_minimum_results.csv")
 
-# # Local optimization
-# grid_search_results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
-# print("Grid search results:\n", grid_search_results)
-# b1_starting_pars = grid_search_results.loc["B1"].values[0:6]
-# b2_starting_pars = grid_search_results.loc["B2"].values[0:7]
-# b3_starting_pars = grid_search_results.loc["B3"].values[[0,1,2,3,4,5,7]]
-# b4_starting_pars = grid_search_results.loc["B4"].values[0:8]
-# print("Starting parameters for local optimization:\n B1: %s\n B2: %s\n B3: %s\n B4: %s" % (b1_starting_pars, b2_starting_pars, b3_starting_pars, b4_starting_pars))
+# Local optimization
+grid_search_results = pd.read_csv("../data/p50_grid_search_minimum_results.csv", index_col=0)
+print("Grid search results:\n", grid_search_results)
+b1_starting_pars = grid_search_results.loc["B1"].values[0:6]
+b2_starting_pars = grid_search_results.loc["B2"].values[0:7]
+b3_starting_pars = grid_search_results.loc["B3"].values[[0,1,2,3,4,5,7]]
+b4_starting_pars = grid_search_results.loc["B4"].values[0:8]
+print("Starting parameters for local optimization:\n B1: %s\n B2: %s\n B3: %s\n B4: %s" % (b1_starting_pars, b2_starting_pars, b3_starting_pars, b4_starting_pars))
 
-# res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)]
+res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)]
 
-# results = pd.DataFrame(columns=res_title)
-# pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
-#                                             training_data["IFNb"], "B1", b1_starting_pars)
-# results.loc["B1"] = np.hstack([pars, np.nan, np.nan, rho, residuals])
+results = pd.DataFrame(columns=res_title)
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B1", b1_starting_pars)
+results.loc["B1"] = np.hstack([pars, np.nan, np.nan, rho, residuals])
 
-# pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
-#                                             training_data["IFNb"], "B2", b2_starting_pars)
-# results.loc["B2"] = np.hstack([pars, np.nan, rho, residuals])
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B2", b2_starting_pars)
+results.loc["B2"] = np.hstack([pars, np.nan, rho, residuals])
 
-# pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
-#                                             training_data["IFNb"], "B3", b3_starting_pars)
-# results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rho, residuals])
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B3", b3_starting_pars)
+results.loc["B3"] = np.hstack([pars[0:6], np.nan, pars[6], rho, residuals])
 
-# pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
-#                                             training_data["IFNb"], "B4", b4_starting_pars)
-# results.loc["B4"] = np.hstack([pars, rho, residuals])
+pars, rho, residuals = optimize_model_local(training_data["NFkB"], training_data["IRF"], training_data["p50"],
+                                            training_data["IFNb"], "B4", b4_starting_pars)
+results.loc["B4"] = np.hstack([pars, rho, residuals])
 
-# # Save results
-# print("Saving results to ../data/p50_local_optimization_results.csv")
-# results.to_csv("../data/p50_local_optimization_results.csv")
+# Save results
+print("Saving results to ../data/p50_local_optimization_results.csv")
+results.to_csv("../data/p50_local_optimization_results.csv")
 
 # Make contour plots from best fit parameters
 results = pd.read_csv("../data/p50_local_optimization_results.csv", index_col=0)
