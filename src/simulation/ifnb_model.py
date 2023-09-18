@@ -52,6 +52,7 @@ class Modelp50:
 		self.state = np.array([1, I, I, I*P, N, N*P, P, I**2, I*N, I*N, I*N*P, I**2*N])
 
 	def calculateF(self):
+		# print(self.state)
 		self.f = np.dot(np.transpose(self.state),(self.beta * self.t)) / np.dot(np.transpose(self.state), self.beta)
 
 def explore_modelp50(parsT, N, I, P, model_name):
