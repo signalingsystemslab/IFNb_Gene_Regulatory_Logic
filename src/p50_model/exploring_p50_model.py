@@ -287,66 +287,161 @@ C = pars["C"]
 # np.save("%s/N_values.npy" % dir, N_values)
 # np.save("%s/I_values.npy" % dir, I_values)
 
-# Calculate fold change KO vs WT
-f_values = np.load("%s/f_values.npy" % dir)
-N_values = np.load("%s/N_values.npy" % dir)
-I_values = np.load("%s/I_values.npy" % dir)
+# # Calculate fold change KO vs WT
+# f_values = np.load("%s/f_values.npy" % dir)
+# N_values = np.load("%s/N_values.npy" % dir)
+# I_values = np.load("%s/I_values.npy" % dir)
 
-# Replace 0 values in :,:,0 with 10e-10 to avoid divide by 0 error
-f_values[:,:,0][f_values[:,:,0]==0] = 10e-10
-fold_change = f_values[:,:,1] / f_values[:,:,0]
+# # Replace 0 values in :,:,0 with 10e-10 to avoid divide by 0 error
+# f_values[:,:,0][f_values[:,:,0]==0] = 10e-10
+# fold_change = f_values[:,:,1] / f_values[:,:,0]
 
-# print N and I values that maximize fold change (top 5)
+# # print N and I values that maximize fold change (top 5)
+# print("Top 5 fold change values:")
+# print(np.sort(fold_change.flatten())[-5:])
+# print("N values:")
+# print(N_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
+# print("I values:")
+# print(I_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
+
+# print("Making plots")
+# # Plot fold change
+# plt.figure()
+# plt.contourf(I_values[:,:,0], N_values[:,:,0], fold_change, 100, cmap="RdYlBu_r")
+# plt.colorbar(label=r"Fold change IFN$\beta$ in KO vs WT")
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B2")
+# plt.savefig("%s/fold_change_heatmap.png" % dir)
+# plt.close()
+
+# # Plot f values for WT and KO
+# plt.figure()
+# plt.contourf(I_values[:,:,0], N_values[:,:,0], f_values[:,:,0], 100, cmap="RdYlBu_r")
+# plt.colorbar(label=r"IFN$\beta$ mRNA")
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"IFN$\beta$ mRNA in WT, model B2")
+# plt.savefig("%s/WT_heatmap.png" % dir)
+# plt.close()
+
+# plt.figure()
+# plt.contourf(I_values[:,:,1], N_values[:,:,1], f_values[:,:,1], 100, cmap="RdYlBu_r")
+# plt.colorbar(label=r"IFN$\beta$ mRNA")
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"IFN$\beta$ mRNA in KO, model B2")
+# plt.savefig("%s/KO_heatmap.png" % dir)
+
+# # Calculate log 2 fold change
+# log2_fold_change = np.log2(fold_change)
+# plt.figure()
+# plt.contourf(I_values[:,:,0], N_values[:,:,0], log2_fold_change, 100, cmap="RdYlBu_r")
+# plt.colorbar(label=r"Log$_2$ fold change IFN$\beta$ in KO vs WT")
+# plt.xlabel(r"IRF")
+# plt.ylabel(r"NF$\kappa$B")
+# plt.title(r"Log$_2$ fold change IFN$\beta$ w/ p50 KO, model B2")
+# plt.savefig("%s/log2_fold_change_heatmap.png" % dir)
+
+# # print("Shape = %s" % str(np.shape(f_values)))
+# # print("\nF values for WT:")
+# # print(f_values[:,:,0])
+# # print("\nN values for WT:")
+# # print(N_values[:,:,0])
+# # print("\nI values for WT:")
+# # print(I_values[:,:,0])
+
+## How much do t parameters affect ifnb expression?
+# Determine sensitivity to parameters t1-t6
+t_pars = np.linspace(0.1, 1, 10)
+t_pars = np.meshgrid(t_pars, t_pars, t_pars, t_pars, t_pars, t_pars)
+t_pars = np.array(t_pars).T.reshape(-1, 6)
+k_pars = [2 for i in range(len(t_pars))]
+# Append k_pars to t_pars
+t_pars = np.hstack((t_pars, np.array(k_pars).reshape(-1,1)))
+
+print(t_pars.shape)
+print(len(t_pars))
+print([t_pars[i,:] for i in range(5)])
+
+# f_values = np.zeros((len(t_pars)))
+# f_values_KO = np.zeros((len(t_pars)))
+# print("Starting multiprocessing")
+# start = time.time()
+# with Pool(30) as p:
+#     f_values[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 1, "B2", 1) for i in range(len(t_pars))])
+#     f_values_KO[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 0, "B2", 1) for i in range(len(t_pars))])
+# end = time.time()
+# print("Finished multiprocessing in %.2f minutes" % ((end-start)/60))
+
+# #  get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1)
+
+# # Save f values
+# np.save("%s/f_values_t_pars.npy" % dir, f_values)
+# np.save("%s/f_values_KO_t_pars.npy" % dir, f_values_KO)
+# np.save("%s/t_pars.npy" % dir, t_pars)
+# print("Saved f values")
+
+# Plot f values
+print("Loading f values")
+f_values = np.load("%s/f_values_t_pars.npy" % dir)
+f_values_KO = np.load("%s/f_values_KO_t_pars.npy" % dir)
+t_pars = np.load("%s/t_pars.npy" % dir)
+print("Loaded f values")
+
+# # Plot f values for each parameter as scatter plots
+# for i in range(6):
+#     print("Plotting scatter plot for WT t%d" % (i+1))
+#     plt.figure()
+#     plt.scatter(t_pars[:,i], f_values)
+#     plt.xlabel("t%d" % (i+1))
+#     plt.ylabel(r"IFN$\beta$ mRNA")
+#     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+#     plt.savefig("%s/f_values_t%d.png" % (dir, i+1))
+
+# # KO
+# for i in range(6):
+#     print("Plotting scatter plot for KO t%d" % (i+1))
+#     plt.figure()
+#     plt.scatter(t_pars[:,i], f_values_KO)
+#     plt.xlabel("t%d" % (i+1))
+#     plt.ylabel(r"IFN$\beta$ mRNA")
+#     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+#     plt.savefig("%s/f_values_KO_t%d.png" % (dir, i+1))
+
+# # Fold change KO/WT
+fold_change = f_values_KO / f_values
+# for i in range(6):
+#     print("Plotting scatter plot for fold change vs t%d" % (i+1))
+#     plt.figure()
+#     plt.scatter(t_pars[:,i], fold_change)
+#     plt.xlabel("t%d" % (i+1))
+#     plt.ylabel(r"Fold change IFN$\beta$ mRNA")
+#     plt.title(r"Fold change IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+#     plt.savefig("%s/fold_change_t%d.png" % (dir, i+1))
+
+# Plot f values with each two parameters held constant
+fig, ax = plt.subplots(6,6, figsize=(10,10))
+for i in range(6):
+    for j in range(6):
+        print("Plotting scatter plot for t%d vs t%d" % (i+1, j+1))
+        if i != j:
+            ax[i,j].scatter(t_pars[:,i], t_pars[:,j], c=f_values, cmap="viridis")
+            ax[i,j].set_xlabel("t%d" % (i+1))
+            ax[i,j].set_ylabel("t%d" % (j+1))
+            ax[i,j].set_title(r"IFN$\beta$ mRNA vs t%d and t%d, model B2" % (i+1, j+1))
+        else:
+            ax[i,j].scatter(t_pars[:,i], f_values)
+            ax[i,j].set_xlabel("t%d" % (i+1))
+            ax[i,j].set_ylabel(r"IFN$\beta$ mRNA")
+ 
+plt.tight_layout()
+plt.savefig("%s/f_values_t_pars_heatmap.png" % dir)
+
+
+
+# Print t_pars that maximize fold change
 print("Top 5 fold change values:")
 print(np.sort(fold_change.flatten())[-5:])
-print("N values:")
-print(N_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
-print("I values:")
-print(I_values[:,:,0].flatten()[np.argsort(fold_change.flatten())[-5:]])
-
-print("Making plots")
-# Plot fold change
-plt.figure()
-plt.contourf(I_values[:,:,0], N_values[:,:,0], fold_change, 100, cmap="RdYlBu_r")
-plt.colorbar(label=r"Fold change IFN$\beta$ in KO vs WT")
-plt.xlabel(r"IRF")
-plt.ylabel(r"NF$\kappa$B")
-plt.title(r"Fold change IFN$\beta$ w/ p50 KO, model B2")
-plt.savefig("%s/fold_change_heatmap.png" % dir)
-plt.close()
-
-# Plot f values for WT and KO
-plt.figure()
-plt.contourf(I_values[:,:,0], N_values[:,:,0], f_values[:,:,0], 100, cmap="RdYlBu_r")
-plt.colorbar(label=r"IFN$\beta$ mRNA")
-plt.xlabel(r"IRF")
-plt.ylabel(r"NF$\kappa$B")
-plt.title(r"IFN$\beta$ mRNA in WT, model B2")
-plt.savefig("%s/WT_heatmap.png" % dir)
-plt.close()
-
-plt.figure()
-plt.contourf(I_values[:,:,1], N_values[:,:,1], f_values[:,:,1], 100, cmap="RdYlBu_r")
-plt.colorbar(label=r"IFN$\beta$ mRNA")
-plt.xlabel(r"IRF")
-plt.ylabel(r"NF$\kappa$B")
-plt.title(r"IFN$\beta$ mRNA in KO, model B2")
-plt.savefig("%s/KO_heatmap.png" % dir)
-
-# Calculate log 2 fold change
-log2_fold_change = np.log2(fold_change)
-plt.figure()
-plt.contourf(I_values[:,:,0], N_values[:,:,0], log2_fold_change, 100, cmap="RdYlBu_r")
-plt.colorbar(label=r"Log$_2$ fold change IFN$\beta$ in KO vs WT")
-plt.xlabel(r"IRF")
-plt.ylabel(r"NF$\kappa$B")
-plt.title(r"Log$_2$ fold change IFN$\beta$ w/ p50 KO, model B2")
-plt.savefig("%s/log2_fold_change_heatmap.png" % dir)
-
-# print("Shape = %s" % str(np.shape(f_values)))
-# print("\nF values for WT:")
-# print(f_values[:,:,0])
-# print("\nN values for WT:")
-# print(N_values[:,:,0])
-# print("\nI values for WT:")
-# print(I_values[:,:,0])
+print("t_pars values:")
+print(t_pars[np.argsort(fold_change.flatten())[-5:], :])
