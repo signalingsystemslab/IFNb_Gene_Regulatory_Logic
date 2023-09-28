@@ -104,7 +104,7 @@ def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 	elif model_name == "B4":
 		other_pars = [K, C]
 
-	model = Modelp50(other_pars + t_pars, model_name)
+	model = Modelp50(np.concatenate((other_pars, t_pars)), model_name)
 	model.calculateState(N, I, P)
 	model.calculateF()
 	return model.f * scaling
