@@ -36,11 +36,13 @@ class Modelp50:
 		self.beta[11] = self.K * self.C
 		
 		self.t = np.array([0.0 for i in range(12)])
+		self.t[0] = 0
 		self.t[1] = self.parsT[0]
 		self.t[2] = self.parsT[1]
 		self.t[3] = self.parsT[0]
 		self.t[4] = self.parsT[2]
 		self.t[5] = self.parsT[2]
+		self.t[6] = 0
 		self.t[7] = self.parsT[3]
 		self.t[8] = self.parsT[4]
 		self.t[9] = self.parsT[5]

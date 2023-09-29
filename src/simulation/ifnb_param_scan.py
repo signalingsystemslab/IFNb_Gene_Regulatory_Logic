@@ -111,8 +111,8 @@ def optimize_model(min_val, max_val, N = 1, P = 1, I = 1, N_scale=0.5, stimulus=
 print("\n\n\n##############################################\n\n\n")
 min_val = 0.01
 max_val = 1
-# N_list = [0.1, 0.25, 0.4, 0.5, 1]
-N_list = [0.25]
+N_list = [0.1, 0.25, 0.4, 0.5, 1]
+# N_list = [0.25]
 P = 1
 I = 0.1
 N_scale = 1
@@ -174,14 +174,14 @@ for N in N_list:
     print("Max IFNb fold change for p50KO: %.4f" % np.max(ifnb_p50KO_fold_change))
     print("Fold change difference: %.4f" % (np.max(ifnb_p50KO_fold_change)/np.max(ifnb_WT_fold_change)))
 
-    # # Plot IFNb
-    # plt.figure(figsize=(8,6))
-    # plt.plot(t_eval, states_WT.y[0,:], label="WT", color="black")
-    # plt.plot(t_eval, states_p50KO.y[0,:], label="p50KO", color="red")
-    # plt.xlabel("Time (min)")
-    # plt.ylabel(r"IFN$\beta$ (nM)")
-    # plt.legend()
-    # plt.savefig("%s/%s_N-%s_best_ifnb_synthesis_timecourse.png" % (results_dir, stimulus, N), bbox_inches="tight")
+    # Plot IFNb
+    plt.figure(figsize=(8,6))
+    plt.plot(t_eval, states_WT.y[0,:], label="WT", color="black")
+    plt.plot(t_eval, states_p50KO.y[0,:], label="p50KO", color="red")
+    plt.xlabel("Time (min)")
+    plt.ylabel(r"IFN$\beta$ (nM)")
+    plt.legend()
+    plt.savefig("%s/%s_N-%s_best_ifnb_synthesis_timecourse.png" % (results_dir, stimulus, N), bbox_inches="tight")
 
     # Plot IFNb fold change over 0h
     plt.figure(figsize=(8,6))
@@ -192,12 +192,12 @@ for N in N_list:
     plt.legend()
     plt.savefig("%s/%s_N-%s_best_ifnb_synthesis_fold_change.png" % (results_dir, stimulus, N), bbox_inches="tight")
 
-    # # Plot all
-    # fig, ax = plt.subplots(2, 3, figsize=(12, 8))
-    # for i in range(6):
-    #     ax[i//3, i%3].plot(t_eval, states_WT.y[i,:], label="WT", color="black")
-    #     ax[i//3, i%3].plot(t_eval, states_p50KO.y[i,:], label="p50KO", color="red")
-    #     ax[i//3, i%3].set_title(states_labels[i])
-    #     ax[i//3, i%3].legend()
-    # plt.tight_layout()
-    # plt.savefig("%s/%s_N-%s_best_ifnb_synthesis_timecourse_all.png" % (results_dir, stimulus, N), bbox_inches="tight")
+    # Plot all
+    fig, ax = plt.subplots(2, 3, figsize=(12, 8))
+    for i in range(6):
+        ax[i//3, i%3].plot(t_eval, states_WT.y[i,:], label="WT", color="black")
+        ax[i//3, i%3].plot(t_eval, states_p50KO.y[i,:], label="p50KO", color="red")
+        ax[i//3, i%3].set_title(states_labels[i])
+        ax[i//3, i%3].legend()
+    plt.tight_layout()
+    plt.savefig("%s/%s_N-%s_best_ifnb_synthesis_timecourse_all.png" % (results_dir, stimulus, N), bbox_inches="tight")
