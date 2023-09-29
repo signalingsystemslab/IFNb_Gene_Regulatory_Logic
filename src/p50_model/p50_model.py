@@ -63,36 +63,36 @@ class Modelp50:
 	def calculateF(self):
 		self.f = np.dot(np.transpose(self.state),(self.beta * self.t)) / np.dot(np.transpose(self.state), self.beta)
 
-def explore_modelp50(parsT, N, I, P, model_name):
-	model = Modelp50(parsT, model_name)
-	# print(model.parsT)
-	# print(model.t)
-	# print("beta = ", model.beta)
-	model.calculateState(N, I, P)
-	# print(model.state)
-	model.calculateF()
-	# print(model.f)
-	return model.f
+# def explore_modelp50(parsT, N, I, P, model_name):
+# 	model = Modelp50(parsT, model_name)
+# 	# print(model.parsT)
+# 	# print(model.t)
+# 	# print("beta = ", model.beta)
+# 	model.calculateState(N, I, P)
+# 	# print(model.state)
+# 	model.calculateF()
+# 	# print(model.f)
+# 	return model.f
 
-def plot_contour(f_values, model_name, I, N, dir,name, normalize=True):
+def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize=True):
 	if normalize:
 		f_values = f_values / np.max(f_values)
 	fig=plt.figure()
 	plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
 	plt.grid(False)
 	plt.colorbar(format="%.1f")
-	plt.title("Model %s best fit" % model_name)
+	plt.title("Model %s contour plot %s" % (model_name, condition))
 	fig.gca().set_ylabel(r"$NF\kappa B$")
 	fig.gca().set_xlabel(r"$IRF$")
 	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
 	plt.close()
 
-def calculateFvalues(model_name, pars, I, N, P=0):
-	f_values = np.zeros((len(N), len(I)))
-	for n in range(len(N)):
-		for i in range(len(I)):
-			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
-	return f_values
+# def calculateFvalues(model_name, pars, I, N, P=0):
+# 	f_values = np.zeros((len(N), len(I)))
+# 	for n in range(len(N)):
+# 		for i in range(len(I)):
+# 			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
+# 	return f_values
 
 def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 	if model_name == "B1":
