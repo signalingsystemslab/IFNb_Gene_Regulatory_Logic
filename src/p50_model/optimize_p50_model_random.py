@@ -219,72 +219,72 @@ def main():
     print("Best results from model %s:\n" % best_results.name, best_results)
     print("Saved best results to %s/ifnb_best_params_random_global.csv" % os.path.abspath(results_dir))
 
-    # # Make contour plots from best fit parameters
-    # pars = {"B1": results.loc["B1"].values[0:6],
-    #         "B2": np.hstack([results.loc["B2"].values[6], results.loc["B2"].values[0:6]]),
-    #         "B3": np.hstack([results.loc["B3"].values[7], results.loc["B3"].values[0:6]]),
-    #         "B4": np.hstack([results.loc["B4"].values[6:8], results.loc["B4"].values[0:6]])}
-    # I = np.linspace(0, 1, 100)
-    # N= I.copy()
-    # P = np.array([1 for i in range(100)])
+    # Make contour plots from best fit parameters
+    pars = {"B1": results.loc["B1"].values[0:6],
+            "B2": np.hstack([results.loc["B2"].values[6], results.loc["B2"].values[0:6]]),
+            "B3": np.hstack([results.loc["B3"].values[7], results.loc["B3"].values[0:6]]),
+            "B4": np.hstack([results.loc["B4"].values[6:8], results.loc["B4"].values[0:6]])}
+    I = np.linspace(0, 1, 100)
+    N= I.copy()
+    P = np.array([1 for i in range(100)])
 
-    # for model in ["B1", "B2", "B3", "B4"]:
-    #     f = calculateFvalues(model, pars[model], I, N, P=0)
-    #     title = "random_opt_best_fit_P0_%s" % model
-    #     plot_contour(f, model, I, N, results_dir, title)
-    #     f = calculateFvalues(model, pars[model], I, N, P=1)
-    #     title = "random_opt_best_fit_P1_%s" % model
-    #     plot_contour(f, model, I, N, results_dir, title)
+    for model in ["B1", "B2", "B3", "B4"]:
+        f = calculateFvalues(model, pars[model], I, N, P=0)
+        title = "random_opt_best_fit_P0_%s" % model
+        plot_contour(f, model, I, N, results_dir, title)
+        f = calculateFvalues(model, pars[model], I, N, P=1)
+        title = "random_opt_best_fit_P1_%s" % model
+        plot_contour(f, model, I, N, results_dir, title)
 
-    # #  Plot best fit parameters
-    # t_pars = {"B1": results.loc["B1"].values[0:6],
-    #         "B2": results.loc["B2"].values[0:6],
-    #         "B3": results.loc["B3"].values[0:6],
-    #         "B4": results.loc["B4"].values[0:6]}
-    # fig = plt.figure()
-    # i=0
-    # for model in ["B1", "B2", "B3", "B4"]:
-    #     x= np.arange(i, i+6)
-    #     plt.plot(x, t_pars[model], label=model, marker="o", linestyle="none")
-    #     i+=0.1
-    # plt.legend(bbox_to_anchor=(1.2,0.5))
-    # plt.ylabel("Transcription capability (t)")
-    # plt.xlabel("Parameter")
-    # plt.grid(False)
-    # # plt.xticks(range(6), list(results)[0:6])
-    # plt.xticks(np.arange(0.2,6.2), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], rotation=45)
-    # plt.title("Best fit parameters for p50 model with random optimization")
-    # plt.savefig("%s/p50_random_best_fit_parameters.png" % figures_dir, bbox_inches="tight")
+    #  Plot best fit parameters
+    t_pars = {"B1": results.loc["B1"].values[0:6],
+            "B2": results.loc["B2"].values[0:6],
+            "B3": results.loc["B3"].values[0:6],
+            "B4": results.loc["B4"].values[0:6]}
+    fig = plt.figure()
+    i=0
+    for model in ["B1", "B2", "B3", "B4"]:
+        x= np.arange(i, i+6)
+        plt.plot(x, t_pars[model], label=model, marker="o", linestyle="none")
+        i+=0.1
+    plt.legend(bbox_to_anchor=(1.2,0.5))
+    plt.ylabel("Transcription capability (t)")
+    plt.xlabel("Parameter")
+    plt.grid(False)
+    # plt.xticks(range(6), list(results)[0:6])
+    plt.xticks(np.arange(0.2,6.2), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], rotation=45)
+    plt.title("Best fit parameters for p50 model with random optimization")
+    plt.savefig("%s/p50_random_best_fit_parameters.png" % figures_dir, bbox_inches="tight")
 
-    # # Compare predicted IFNb to testing data
-    # test_data = pd.read_csv("../data/p50_testing_data.csv")
-    # testing_rmsd = {}
-    # f_vals = test_data.copy()
-    # for model in ["B1", "B2", "B3", "B4"]:
-    #     f = [explore_modelp50(pars[model], test_data["NFkB"][i], test_data["IRF"][i], test_data["p50"][i], model) for i in range(test_data.shape[0])]
-    #     f_vals["IFNb_%s" % model] = f
-    #     rmsd = np.sqrt(np.mean((f / f[1] * f_vals["IFNb"][1] - test_data["IFNb"])**2))
-    #     testing_rmsd[model] = rmsd
-    # print("Testing RMSD:\n", testing_rmsd)
+    # Compare predicted IFNb to testing data
+    test_data = pd.read_csv("../data/p50_testing_data.csv")
+    testing_rmsd = {}
+    f_vals = test_data.copy()
+    for model in ["B1", "B2", "B3", "B4"]:
+        f = [explore_modelp50(pars[model], test_data["NFkB"][i], test_data["IRF"][i], test_data["p50"][i], model) for i in range(test_data.shape[0])]
+        f_vals["IFNb_%s" % model] = f
+        rmsd = np.sqrt(np.mean((f / f[1] * f_vals["IFNb"][1] - test_data["IFNb"])**2))
+        testing_rmsd[model] = rmsd
+    print("Testing RMSD:\n", testing_rmsd)
 
 
-    # p50_vals = np.linspace(0, 2, 100)
-    # fig = plt.figure()
-    # for model_name in ["B1", "B2", "B3", "B4"]:
-    #     ifnb = [explore_modelp50(pars[model_name], test_data["NFkB"][0], test_data["IRF"][0], p50, model_name) for p50 in p50_vals]
-    #     # print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
-    #     #  Normalize to p50 = 1
-    #     ifnb = ifnb / f_vals["IFNb_%s" % model_name][1] * f_vals["IFNb"][1] 
-    #     print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
-    #     plt.plot(p50_vals, ifnb, label=model_name)
-    # plt.scatter(test_data["p50"], test_data["IFNb"], s=50, label="Testing Data", zorder =2, color="black")
-    # plt.xlabel("p50")
-    # plt.ylabel(r"IFN$\beta$")
-    # plt.ylim([0,1])
-    # plt.title("Model predictions for all models")
-    # plt.grid(False)
-    # fig.legend(bbox_to_anchor=(1.15,0.5))
-    # plt.savefig("%s/random_opt_predictions.png" % results_dir, bbox_inches="tight")
+    p50_vals = np.linspace(0, 2, 100)
+    fig = plt.figure()
+    for model_name in ["B1", "B2", "B3", "B4"]:
+        ifnb = [explore_modelp50(pars[model_name], test_data["NFkB"][0], test_data["IRF"][0], p50, model_name) for p50 in p50_vals]
+        # print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
+        #  Normalize to p50 = 1
+        ifnb = ifnb / f_vals["IFNb_%s" % model_name][1] * f_vals["IFNb"][1] 
+        print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
+        plt.plot(p50_vals, ifnb, label=model_name)
+    plt.scatter(test_data["p50"], test_data["IFNb"], s=50, label="Testing Data", zorder =2, color="black")
+    plt.xlabel("p50")
+    plt.ylabel(r"IFN$\beta$")
+    plt.ylim([0,1])
+    plt.title("Model predictions for all models")
+    plt.grid(False)
+    fig.legend(bbox_to_anchor=(1.15,0.5))
+    plt.savefig("%s/random_opt_predictions.png" % results_dir, bbox_inches="tight")
 
 if __name__ == "__main__":
     main()

@@ -252,7 +252,7 @@ K = pars["K_i2"]
 C = pars["C"]
 
 # N_list = np.linspace(0, 1, 100)
-# I_list = np.linspace(0, 1, 10)
+# I_list = np.linspace(0, 1, 100)
 # P_list = {"WT": 1, "KO": 0}
 # f_values = np.zeros((len(N_list)*len(I_list), len(P_list)))
 # N_values = np.zeros((len(N_list)*len(I_list), len(P_list)))
@@ -351,97 +351,115 @@ C = pars["C"]
 # # print("\nI values for WT:")
 # # print(I_values[:,:,0])
 
-## How much do t parameters affect ifnb expression?
-# Determine sensitivity to parameters t1-t6
-t_pars = np.linspace(0.1, 1, 10)
-t_pars = np.meshgrid(t_pars, t_pars, t_pars, t_pars, t_pars, t_pars)
-t_pars = np.array(t_pars).T.reshape(-1, 6)
-k_pars = [2 for i in range(len(t_pars))]
-# Append k_pars to t_pars
-t_pars = np.hstack((t_pars, np.array(k_pars).reshape(-1,1)))
+# ## How much do t parameters affect ifnb expression?
+# # Determine sensitivity to parameters t1-t6
+# t_pars = np.linspace(0.1, 1, 10)
+# t_pars = np.meshgrid(t_pars, t_pars, t_pars, t_pars, t_pars, t_pars)
+# t_pars = np.array(t_pars).T.reshape(-1, 6)
+# k_pars = [2 for i in range(len(t_pars))]
+# # Append k_pars to t_pars
+# t_pars = np.hstack((t_pars, np.array(k_pars).reshape(-1,1)))
 
-print(t_pars.shape)
-print(len(t_pars))
-print([t_pars[i,:] for i in range(5)])
+# print(t_pars.shape)
+# print(len(t_pars))
+# print([t_pars[i,:] for i in range(5)])
 
-# f_values = np.zeros((len(t_pars)))
-# f_values_KO = np.zeros((len(t_pars)))
-# print("Starting multiprocessing")
+# # f_values = np.zeros((len(t_pars)))
+# # f_values_KO = np.zeros((len(t_pars)))
+# # print("Starting multiprocessing")
+# # start = time.time()
+# # with Pool(30) as p:
+# #     f_values[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 1, "B2", 1) for i in range(len(t_pars))])
+# #     f_values_KO[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 0, "B2", 1) for i in range(len(t_pars))])
+# # end = time.time()
+# # print("Finished multiprocessing in %.2f minutes" % ((end-start)/60))
+
+# # #  get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1)
+
+# # # Save f values
+# # np.save("%s/f_values_t_pars.npy" % dir, f_values)
+# # np.save("%s/f_values_KO_t_pars.npy" % dir, f_values_KO)
+# # np.save("%s/t_pars.npy" % dir, t_pars)
+# # print("Saved f values")
+
+# # Plot f values
 # start = time.time()
-# with Pool(30) as p:
-#     f_values[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 1, "B2", 1) for i in range(len(t_pars))])
-#     f_values_KO[:] = p.starmap(get_f, [(t_pars[i,:], K, C, 1, 1, 0, "B2", 1) for i in range(len(t_pars))])
-# end = time.time()
-# print("Finished multiprocessing in %.2f minutes" % ((end-start)/60))
+# print("Loading f values")
+# f_values = np.load("%s/f_values_t_pars.npy" % dir)
+# f_values_KO = np.load("%s/f_values_KO_t_pars.npy" % dir)
+# t_pars = np.load("%s/t_pars.npy" % dir)
+# print("Loaded f values")
 
-# #  get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1)
+# # # Plot f values for each parameter as scatter plots
+# # for i in range(6):
+# #     print("Plotting scatter plot for WT t%d" % (i+1))
+# #     plt.figure()
+# #     plt.scatter(t_pars[:,i], f_values)
+# #     plt.xlabel("t%d" % (i+1))
+# #     plt.ylabel(r"IFN$\beta$ mRNA")
+# #     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+# #     plt.savefig("%s/f_values_t%d.png" % (dir, i+1))
 
-# # Save f values
-# np.save("%s/f_values_t_pars.npy" % dir, f_values)
-# np.save("%s/f_values_KO_t_pars.npy" % dir, f_values_KO)
-# np.save("%s/t_pars.npy" % dir, t_pars)
-# print("Saved f values")
+# # # KO
+# # for i in range(6):
+# #     print("Plotting scatter plot for KO t%d" % (i+1))
+# #     plt.figure()
+# #     plt.scatter(t_pars[:,i], f_values_KO)
+# #     plt.xlabel("t%d" % (i+1))
+# #     plt.ylabel(r"IFN$\beta$ mRNA")
+# #     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+# #     plt.savefig("%s/f_values_KO_t%d.png" % (dir, i+1))
 
-# Plot f values
-print("Loading f values")
-f_values = np.load("%s/f_values_t_pars.npy" % dir)
-f_values_KO = np.load("%s/f_values_KO_t_pars.npy" % dir)
-t_pars = np.load("%s/t_pars.npy" % dir)
-print("Loaded f values")
+# # # Fold change KO/WT
+# fold_change = f_values_KO / f_values
+# # for i in range(6):
+# #     print("Plotting scatter plot for fold change vs t%d" % (i+1))
+# #     plt.figure()
+# #     plt.scatter(t_pars[:,i], fold_change)
+# #     plt.xlabel("t%d" % (i+1))
+# #     plt.ylabel(r"Fold change IFN$\beta$ mRNA")
+# #     plt.title(r"Fold change IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
+# #     plt.savefig("%s/fold_change_t%d.png" % (dir, i+1))
 
-# # Plot f values for each parameter as scatter plots
-# for i in range(6):
-#     print("Plotting scatter plot for WT t%d" % (i+1))
-#     plt.figure()
-#     plt.scatter(t_pars[:,i], f_values)
-#     plt.xlabel("t%d" % (i+1))
-#     plt.ylabel(r"IFN$\beta$ mRNA")
-#     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
-#     plt.savefig("%s/f_values_t%d.png" % (dir, i+1))
-
-# # KO
-# for i in range(6):
-#     print("Plotting scatter plot for KO t%d" % (i+1))
-#     plt.figure()
-#     plt.scatter(t_pars[:,i], f_values_KO)
-#     plt.xlabel("t%d" % (i+1))
-#     plt.ylabel(r"IFN$\beta$ mRNA")
-#     plt.title(r"IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
-#     plt.savefig("%s/f_values_KO_t%d.png" % (dir, i+1))
-
-# # Fold change KO/WT
-fold_change = f_values_KO / f_values
-# for i in range(6):
-#     print("Plotting scatter plot for fold change vs t%d" % (i+1))
-#     plt.figure()
-#     plt.scatter(t_pars[:,i], fold_change)
-#     plt.xlabel("t%d" % (i+1))
-#     plt.ylabel(r"Fold change IFN$\beta$ mRNA")
-#     plt.title(r"Fold change IFN$\beta$ mRNA vs t%d, model B2" % (i+1))
-#     plt.savefig("%s/fold_change_t%d.png" % (dir, i+1))
-
-# Plot f values with each two parameters held constant
-fig, ax = plt.subplots(6,6, figsize=(10,10))
-for i in range(6):
-    for j in range(6):
-        print("Plotting scatter plot for t%d vs t%d" % (i+1, j+1))
-        if i != j:
-            ax[i,j].scatter(t_pars[:,i], t_pars[:,j], c=f_values, cmap="viridis")
-            ax[i,j].set_xlabel("t%d" % (i+1))
-            ax[i,j].set_ylabel("t%d" % (j+1))
-            ax[i,j].set_title(r"IFN$\beta$ mRNA vs t%d and t%d, model B2" % (i+1, j+1))
-        else:
-            ax[i,j].scatter(t_pars[:,i], f_values)
-            ax[i,j].set_xlabel("t%d" % (i+1))
-            ax[i,j].set_ylabel(r"IFN$\beta$ mRNA")
+# # # Plot f values with each two parameters held constant
+# # fig, ax = plt.subplots(6,6, figsize=(10,10))
+# # for i in range(6):
+# #     for j in range(6):
+# #         print("Plotting scatter plot for t%d vs t%d" % (i+1, j+1))
+# #         if i != j:
+# #             ax[i,j].scatter(t_pars[:,i], t_pars[:,j], c=fold_change, cmap="viridis")
+# #             ax[i,j].set_xlabel("t%d" % (i+1))
+# #             ax[i,j].set_ylabel("t%d" % (j+1))
+# #             # ax[i,j].set_title(r"IFN$\beta$ mRNA vs t%d and t%d, model B2" % (i+1, j+1))
+# #         else:
+# #             ax[i,j].scatter(t_pars[:,i], f_values)
+# #             ax[i,j].set_xlabel("t%d" % (i+1))
+# #             ax[i,j].set_ylabel(r"IFN$\beta$ mRNA")
  
-plt.tight_layout()
-plt.savefig("%s/f_values_t_pars_heatmap.png" % dir)
+# # plt.tight_layout()
+# # plt.savefig("%s/fold_change_t_pars_heatmap.png" % dir)
+
+# # end = time.time()
+# # print("Finished in %.2f minutes" % ((end-start)/60))
+
+# # Print t_pars that maximize fold change
+# print("Parameters which give the biggest fold change:")
+# print(t_pars[np.argmax(fold_change),:])
+# print("Fold change = %.2f" % np.max(fold_change))
 
 
+# Unpack pars
+t1 = 0.01
+t2 = 1.0
+t3 = 0.01
+t4 = 1.0
+t5 = 0.01
+t6 = 1.0
+t_pars = [t1, t2, t3, t4, t5, t6]
+print("Calculating f values for t-pars %s" % str(t_pars))
 
-# Print t_pars that maximize fold change
-print("Top 5 fold change values:")
-print(np.sort(fold_change.flatten())[-5:])
-print("t_pars values:")
-print(t_pars[np.argsort(fold_change.flatten())[-5:], :])
+# Calculate f-values for WT and KO
+WT_test_f = get_f(t_pars, K, C, 1, 1, 1, "B2", 1)
+KO_test_f = get_f(t_pars, K, C, 1, 1, 0, "B2", 1)
+print("WT f = %.2f, KO f = %.2f, KO/WT = %.2f" % (WT_test_f, KO_test_f, KO_test_f/WT_test_f))
+
