@@ -34,11 +34,8 @@ def p50_objective(pars, *args):
         K = pars[6]
         C = pars[7]
         # pars = np.hstack([pars[6:8], pars[0:6]])
-    f_list = np.zeros(num_pts)
-    with Pool(40) as p:
-        f_list = p.starmap(get_f, [(t_pars, K, C, N[i], I[i], P[i], model_name) for i in range(num_pts)])
 
-    # f_list = [explore_modelp50(pars, N[i], I[i], P[i], model_name) for i in range(num_pts)]
+    f_list = [get_f(t_pars, K, C, N[i], I[i], P[i], model_name) for i in range(num_pts)]
     # Normalize to highest value
     f_list = f_list / np.max(f_list)
     residuals = np.array(f_list) - beta
@@ -256,12 +253,14 @@ def main():
             # I = I_vals.flatten()
             f_values = np.zeros((len(N), len(I)))
             with Pool(40) as p:
-                f_values[i,:] = [p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) for i in range(len(N_vals))]
+                for i in range(len(N_vals)):
+                    f_values[i,:] = p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) 
                 # f_values = p.starmap(get_f, [(t_pars, K, C, N[i], I[i], P[genotype], model) for i in range(len(N))])
             title = "best_fit_random_%s_%s" % (genotype, model)
             plot_contour(f_values, model, I_vals, N_vals, results_dir, title, condition=genotype)
             f_dict[genotype] = f_values
         # Calculate fold change between WT and p50KO
+        f_dict["WT"][f_dict["WT"] == 0] = 10**-10
         f_fold_change = f_dict["p50KO"]/f_dict["WT"]
         title = "best_fit_genotype_fold_change_%s" % model
         plot_contour(f_fold_change, model, I_vals, N_vals, results_dir, title, condition="fold change (p50 KO/WT)", normalize=False)
