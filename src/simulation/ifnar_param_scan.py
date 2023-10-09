@@ -9,7 +9,6 @@ results_dir = "./results/ifnar_parameter_scan/"
 os.makedirs(results_dir, exist_ok=True)
 
 # States: IFNb, IFNAR, IFNAR*, ISGF3, ISGF3*, ISG mRNA
-
 def run_steady_state(t, states0, params, isg_syn, isg_deg, stim_data=None):
     params["p_syn_isg"] = isg_syn
     params["p_deg_isg"] = isg_deg
@@ -123,7 +122,8 @@ ifnb_lims = [1, 30]
 isgf3_lims = [0, 100]
 isg_syn = 0.01
 isg_deg = 0.5
-ifnb_syn = np.load("%s/%s_N-%s_best_ifnb_synthesis.npy" % ("results/ifnb_parameter_scan/different_N/", stimulus, N))
+ifnb_syn = 1.0
+# ifnb_syn = np.load("%s/%s_N-%s_best_ifnb_synthesis.npy" % ("results/ifnb_parameter_scan/different_N/", stimulus, N))
 print("IFNb synthesis: %.4f for N = %.2f" % (ifnb_syn, N))
 
 print("Optimizing IFNAR activation and deactivation")
