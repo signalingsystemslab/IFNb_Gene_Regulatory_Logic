@@ -177,16 +177,6 @@ def main():
     log2_fold_change = np.log2(fold_change)
     make_contour_plot(log2_fold_change, N_values[:,:,0], I_values[:,:,0],
                         "log2_fold_change", dir, r"Log2 fold change IFN$\beta$ w/ p50 KO, model B2")
-    # # Make contour plot only for IRF between 0 and 0.1 todo: fix this
-    # I_subset = np.where((I_values[:,:,0] >= 0) & (I_values[:,:,0] <= 0.1))
-    # print("I subset shape:")
-    # print(I_subset[0].shape)
-    # log2_fold_change_subset = log2_fold_change[I_subset]
-    # N_values_subset = N_values[:,:,0][I_subset]
-    # I_values_subset = I_values[:,:,0][I_subset]
-    # make_contour_plot(log2_fold_change_subset, N_values_subset, I_values_subset,
-    #                     "log2_fold_change_subset", dir, r"Log2 fold change IFN$\beta$ w/ p50 KO, model B2")
-
     print("Finished")
 
 if __name__ == "__main__":
