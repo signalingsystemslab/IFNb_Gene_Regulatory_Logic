@@ -80,15 +80,15 @@ def optimize_model(N, I, P, beta, model_name, params, num_threads=40):
 
     return params, rmsd
 
-def plot_optimization(params, rmsd, model_name):
+def plot_optimization(params, rmsd, model_name, measure="RMSD"):
     #  Plot individual param against rmsd
     for i in range(params.shape[1]):
         plt.figure()
         plt.plot(params[:,i], rmsd, 'o')
         plt.xlabel("Parameter %d" % (i+1))
-        plt.ylabel("RMSD")
+        plt.ylabel("%s" % measure)
         plt.title("Random optimization of %s model" % model_name)
-        plt.savefig(figures_dir + "random_optimization_%s_model_param_%d.png" % (model_name, i+1))
+        plt.savefig("%s/random_optimization_%s_%s_model_param_%d.png" % (figures_dir, measure, model_name, i+1)) 
         plt.close()
 
 
@@ -97,9 +97,9 @@ def plot_optimization(params, rmsd, model_name):
     plt.figure()
     plt.plot(rmsd, 'o')
     plt.xlabel("Iteration (sorted)")
-    plt.ylabel("RMSD")
+    plt.ylabel("%s" % measure)
     plt.title("Random optimization of %s model" % model_name)
-    plt.savefig(figures_dir + "random_optimization_%s_model.png" % model_name)
+    plt.savefig("%s/random_optimization_%s_%s_sorted.png" % (figures_dir, measure, model_name))
     plt.close()
 
 def optimize_model_local(N, I, P, beta, model_name, pars):
@@ -169,49 +169,63 @@ def main():
     model_par_numbers = {"B1": 6, "B2": 7, "B3": 7, "B4": 8}
     npars = 100000
     pars_initial = select_params(npars, 6)
+    c_pars = select_params(npars, 1, lower=10**-2, upper=10**2)
+    k_pars = select_params(npars, 1, lower=0, upper=2)
     num_pts = len(N)
 
-    res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd"]
+    res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd", "AIC"]
     results = pd.DataFrame(columns=res_title)
     results_local = pd.DataFrame(columns= ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)])
 
-    for model in model_par_numbers.keys():
-        # Random optimization
-        num_remaining = model_par_numbers[model] - 6
-        params = pars_initial
-        if num_remaining > 0:
-            if model == "B2":
-                upper = 2
-                lower = 0
-            elif model == "B3":
-                upper = 10**2
-                lower = 10**-2
-            elif model == "B4":
-                upper = [2, 10**2]
-                lower =  [0, 10**-2]
-            params = np.hstack([params, select_params(npars, num_remaining, lower=lower, upper=upper)])
+    # for model in model_par_numbers.keys():
+    #     # Random optimization
+    #     params = pars_initial
+    #     if model == "B2":
+    #         params = np.hstack([params, k_pars])
+    #     elif model == "B3":
+    #         params = np.hstack([params, c_pars])
+    #     elif model == "B4":
+    #         params = np.hstack([params, k_pars, c_pars])
 
-        params, rmsd = optimize_model(N, I, P, beta, model, params)
-        plot_optimization(params, rmsd, model)
-        np.save("%s/p50_random_rmsd_model_%s.npy" % (results_dir, model), rmsd)
-        np.save("%s/p50_random_params_model_%s.npy" % (results_dir, model), params)
+    #     # if num_remaining > 0:
+    #     #     if model == "B2":
+    #     #         upper = 2
+    #     #         lower = 0
+    #     #     elif model == "B3":
+    #     #         upper = 10**2
+    #     #         lower = 10**-2
+    #     #     elif model == "B4":
+    #     #         upper = [2, 10**2]
+    #     #         lower =  [0, 10**-2]
+    #     #     params = np.hstack([params, select_params(npars, num_remaining, lower=lower, upper=upper)])
 
-        pars = params[np.argmin(rmsd),:]
-        min_rmsd = np.min(rmsd)
-        # Save results
-        results = save_results(results, model, pars, min_rmsd)
+    #     params, rmsd = optimize_model(N, I, P, beta, model, params)
+    #     plot_optimization(params, rmsd, model)
+    #     np.save("%s/p50_random_rmsd_model_%s.npy" % (results_dir, model), rmsd)
+    #     np.save("%s/p50_random_params_model_%s.npy" % (results_dir, model), params)
 
-        # Local optimization
-        pars = params[np.argmin(rmsd),:]
-        pars, rho, residuals = optimize_model_local(N, I, P, beta, model, pars)
-        results_local = save_results(results_local, model, pars, np.hstack([rho, residuals]))
+    #     # Calculate AIC from rmsd and number of parameters
+    #     aic = num_pts * np.log(rmsd) + 2 * model_par_numbers[model]
+    #     plot_optimization(params, aic, model, measure="AIC")
+    #     np.save("%s/p50_random_aic_model_%s.npy" % (results_dir, model), aic)
 
-    results.to_csv("%s/p50_random_global_optimization_results.csv" % results_dir)
-    results_local.to_csv("%s/p50_random_local_optimization_results.csv" % results_dir)
+    #     pars = params[np.argmin(rmsd),:]
+    #     min_rmsd = np.min(rmsd)
+    #     min_aic = np.min(aic)
+    #     # Save results
+    #     results = save_results(results, model, pars, [min_rmsd, min_aic])
 
-    # Save results with best rmsd to use
+    #     # Local optimization
+    #     pars = params[np.argmin(rmsd),:]
+    #     pars, rho, residuals = optimize_model_local(N, I, P, beta, model, pars)
+    #     results_local = save_results(results_local, model, pars, np.hstack([rho, residuals]))
+
+    # results.to_csv("%s/p50_random_global_optimization_results.csv" % results_dir)
+    # results_local.to_csv("%s/p50_random_local_optimization_results.csv" % results_dir)
+
+    # Save results with best AIC to use
     results = pd.read_csv("%s/p50_random_global_optimization_results.csv" % results_dir, index_col=0)
-    best_results = results.iloc[np.argmin(results["rmsd"]),:]
+    best_results = results.iloc[np.argmin(results["rmsd"])]
     best_results = best_results.fillna(1)
     best_model = best_results.name
     K = best_results.loc["K_i2"]
@@ -266,52 +280,50 @@ def main():
         plot_contour(f_fold_change, model, I_vals, N_vals, results_dir, title, condition="fold change (p50 KO/WT)", normalize=False)
 
     #  Plot best fit parameters
-    fig = plt.figure()
+    print("Plotting best fit parameters")
+    # Make two subplots
+    fig, ax = plt.subplots(1,2, width_ratios=[1,2/6])
+    # set prop cycle to viridis
+    for axis in ax:
+        axis.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
     i=0
     for model in ["B1", "B2", "B3", "B4"]:
+        t = results.loc[model].values[0:6]
+        k = results.loc[model].values[6]
+        # if np.isnan(k):
+        #     k = 1
+        c = results.loc[model].values[7]
+        # if np.isnan(c):
+        #     c = 1
         x= np.arange(i, i+6)
-        plt.plot(x, t_pars, label=model, marker="o", linestyle="none")
+        x2= np.arange(i, i+2)
+        ax[0].plot(x, t, label=model, marker="o", linestyle="none")
+        ax[1].plot(x2, [k, c], marker="o", linestyle="none")
         i+=0.1
-    plt.legend(bbox_to_anchor=(1.2,0.5))
-    plt.ylabel("Transcription capability (t)")
-    plt.xlabel("Parameter")
+    ax[0].set_xticks(np.arange(0.15,6.15), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], 
+               rotation=45)
+    ax[1].set_xticks(np.arange(0.05,2.05), ["$K_{i2}$", "C"])
+
+    fig.text(0.5, 0.04, 'Parameter', ha='center', size=14)
+    fig.text(0.04, 0.5, 'Transcription capability (t)', va='center', rotation='vertical', size=14)
     plt.grid(False)
-    # plt.xticks(range(6), list(results)[0:6])
-    plt.xticks(np.arange(0.2,6.2), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], rotation=45)
-    plt.title("Best fit parameters for p50 model with random optimization")
+    plt.suptitle("Best fit parameters for p50 model with random optimization")
+    plt.tight_layout(pad = 4)
+    fig.legend(bbox_to_anchor=(1.1,0.5))
     plt.savefig("%s/p50_random_best_fit_parameters.png" % figures_dir, bbox_inches="tight")
 
-   # Compare predicted IFNb to testing data
-    test_data = pd.read_csv("../data/p50_testing_data.csv")
-    testing_rmsd = {}
-    f_vals = test_data.copy()
-    for model in ["B1", "B2", "B3", "B4"]:
-        f = [get_f(t_pars, K, C, test_data["NFkB"][i], test_data["IRF"][i], test_data["p50"][i], model) for i in range(test_data.shape[0])]
-        # f = [explore_modelp50(pars[model], test_data["NFkB"][i], test_data["IRF"][i], test_data["p50"][i], model) for i in range(test_data.shape[0])]
-        f_vals["IFNb_%s" % model] = f
-        rmsd = np.sqrt(np.mean((f / f[1] * f_vals["IFNb"][1] - test_data["IFNb"])**2))
-        testing_rmsd[model] = rmsd
-    print("Testing RMSD:\n", testing_rmsd)
+    # Plot RMSD, AIC for each model
+    print("Plotting RMSD, AIC for each model")
+    for measure in ["rmsd", "AIC"]:
+        fig, ax = plt.subplots()
+        ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
+        plt.plot(results[measure], 'o')
+        plt.xlabel("Model")
+        plt.ylabel("%s" % measure)
+        plt.title("%s for each model" % measure.upper())
+        plt.savefig("%s/p50_random_%s.png" % (figures_dir, measure), bbox_inches="tight")
 
-
-    p50_vals = np.linspace(0, 2, 100)
-    fig = plt.figure()
-    for model_name in ["B1", "B2", "B3", "B4"]:
-        ifnb = [get_f(t_pars, K, C, test_data["NFkB"][0], test_data["IRF"][0], p50, model_name) for p50 in p50_vals]
-        # ifnb = [explore_modelp50(pars[model_name], test_data["NFkB"][0], test_data["IRF"][0], p50, model_name) for p50 in p50_vals]
-        # print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
-        #  Normalize to p50 = 1
-        ifnb = ifnb / f_vals["IFNb_%s" % model_name][1] * f_vals["IFNb"][1] 
-        print("IFNb at p50=0: %.2f, at p50=1: %.2f, at p50=2: %.2f" % (ifnb[0], ifnb[50], ifnb[99]))
-        plt.plot(p50_vals, ifnb, label=model_name)
-    plt.scatter(test_data["p50"], test_data["IFNb"], s=50, label="Testing Data", zorder =2, color="black")
-    plt.xlabel("p50")
-    plt.ylabel(r"IFN$\beta$")
-    plt.ylim([0,1])
-    plt.title("Model predictions for all models")
-    plt.grid(False)
-    fig.legend(bbox_to_anchor=(1.15,0.5))
-    plt.savefig("%s/random_opt_testing_predictions.png" % results_dir, bbox_inches="tight")
+    print("Done")
 
 if __name__ == "__main__":
     main()
