@@ -366,5 +366,6 @@ def main():
         plt.savefig("%s/IFNb_values_timecourse_by_stim_%d.png" % (dir, i))
         plt.close()
 
+
 if __name__ == "__main__":
     main()
