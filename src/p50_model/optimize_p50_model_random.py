@@ -13,11 +13,6 @@ results_dir = "./results/random_opt/"
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
 
-print("Loading data")
-training_data = pd.read_csv("../data/p50_training_data.csv")
-# num_pts = training_data.shape[0]
-# print(training_data)
-# t_pars, K, C, N, I, P, model_name="B2", scaling=1
 def p50_objective(pars, *args):
     N, I, P, beta, model_name, strategy = args
     t_pars = pars[0:6]
@@ -159,69 +154,60 @@ def save_results(results_df, model, pars, other):
 
 def main():
     print("###############################################\n")
-    print("Optimizing p50 model with random optimization")
+    print("Optimizing p50 model with random optimization at %s" % time.ctime())
+    training_data = pd.read_csv("../data/p50_training_data.csv")
     print("Using the following training data:\n", training_data)
     print("Starting at %s" % time.ctime())
+
     N = training_data["NFkB"]
     I = training_data["IRF"]
     P = training_data["p50"]
     beta = training_data["IFNb"]
     model_par_numbers = {"B1": 6, "B2": 7, "B3": 7, "B4": 8}
-    npars = 100000
+    npars = 10**6
     pars_initial = select_params(npars, 6)
     c_pars = select_params(npars, 1, lower=10**-2, upper=10**2)
     k_pars = select_params(npars, 1, lower=0, upper=2)
     num_pts = len(N)
+    num_threads = 20
 
     res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd", "AIC"]
     results = pd.DataFrame(columns=res_title)
     results_local = pd.DataFrame(columns= ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rho"] + ["res_%d" % i for i in range(num_pts)])
 
-    # for model in model_par_numbers.keys():
-    #     # Random optimization
-    #     params = pars_initial
-    #     if model == "B2":
-    #         params = np.hstack([params, k_pars])
-    #     elif model == "B3":
-    #         params = np.hstack([params, c_pars])
-    #     elif model == "B4":
-    #         params = np.hstack([params, k_pars, c_pars])
+    for model in model_par_numbers.keys():
+        # Random optimization
+        params = pars_initial
+        if model == "B2":
+            params = np.hstack([params, k_pars])
+        elif model == "B3":
+            params = np.hstack([params, c_pars])
+        elif model == "B4":
+            params = np.hstack([params, k_pars, c_pars])
 
-    #     # if num_remaining > 0:
-    #     #     if model == "B2":
-    #     #         upper = 2
-    #     #         lower = 0
-    #     #     elif model == "B3":
-    #     #         upper = 10**2
-    #     #         lower = 10**-2
-    #     #     elif model == "B4":
-    #     #         upper = [2, 10**2]
-    #     #         lower =  [0, 10**-2]
-    #     #     params = np.hstack([params, select_params(npars, num_remaining, lower=lower, upper=upper)])
+        params, rmsd = optimize_model(N, I, P, beta, model, params, num_threads=num_threads)
+        plot_optimization(params, rmsd, model)
+        np.save("%s/p50_random_rmsd_model_%s.npy" % (results_dir, model), rmsd)
+        np.save("%s/p50_random_params_model_%s.npy" % (results_dir, model), params)
 
-    #     params, rmsd = optimize_model(N, I, P, beta, model, params)
-    #     plot_optimization(params, rmsd, model)
-    #     np.save("%s/p50_random_rmsd_model_%s.npy" % (results_dir, model), rmsd)
-    #     np.save("%s/p50_random_params_model_%s.npy" % (results_dir, model), params)
+        # Calculate AIC from rmsd and number of parameters
+        aic = num_pts * np.log(rmsd) + 2 * model_par_numbers[model]
+        plot_optimization(params, aic, model, measure="AIC")
+        np.save("%s/p50_random_aic_model_%s.npy" % (results_dir, model), aic)
 
-    #     # Calculate AIC from rmsd and number of parameters
-    #     aic = num_pts * np.log(rmsd) + 2 * model_par_numbers[model]
-    #     plot_optimization(params, aic, model, measure="AIC")
-    #     np.save("%s/p50_random_aic_model_%s.npy" % (results_dir, model), aic)
+        pars = params[np.argmin(rmsd),:]
+        min_rmsd = np.min(rmsd)
+        min_aic = np.min(aic)
+        # Save results
+        results = save_results(results, model, pars, [min_rmsd, min_aic])
 
-    #     pars = params[np.argmin(rmsd),:]
-    #     min_rmsd = np.min(rmsd)
-    #     min_aic = np.min(aic)
-    #     # Save results
-    #     results = save_results(results, model, pars, [min_rmsd, min_aic])
+        # Local optimization
+        pars = params[np.argmin(rmsd),:]
+        pars, rho, residuals = optimize_model_local(N, I, P, beta, model, pars)
+        results_local = save_results(results_local, model, pars, np.hstack([rho, residuals]))
 
-    #     # Local optimization
-    #     pars = params[np.argmin(rmsd),:]
-    #     pars, rho, residuals = optimize_model_local(N, I, P, beta, model, pars)
-    #     results_local = save_results(results_local, model, pars, np.hstack([rho, residuals]))
-
-    # results.to_csv("%s/p50_random_global_optimization_results.csv" % results_dir)
-    # results_local.to_csv("%s/p50_random_local_optimization_results.csv" % results_dir)
+    results.to_csv("%s/p50_random_global_optimization_results.csv" % results_dir)
+    results_local.to_csv("%s/p50_random_local_optimization_results.csv" % results_dir)
 
     # Save results with best AIC to use
     results = pd.read_csv("%s/p50_random_global_optimization_results.csv" % results_dir, index_col=0)
