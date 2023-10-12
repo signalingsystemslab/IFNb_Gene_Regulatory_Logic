@@ -98,23 +98,32 @@ def get_steady_state(states0, pars, stim_data_ss, t_eval):
     print("Steady state values found after %.2f hours" % (end_time*i/60))
     return states0
 
-def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8):
+def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None):
     name = "%s_%s_%s" % (name, stimulus, genotype)
 
-    if stimulus not in ["CpG", "LPS", "pIC"]:
-        raise ValueError("Stimulus must be CpG, LPS, or pIC")
+    # Inputs
+    if stimulus in ["CpG", "LPS", "pIC"]:
 
-    ## Inputs
-    P_values = {"WT": 1, "p50KO": 0}
-    I_values = {"CpG": 0.05, "LPS": 0.25, "pIC": 0.75}
-    N_values = {"CpG": 0.25, "LPS": 1, "pIC": 0.5}
-    P_curve = [P_values[genotype] for i in range(stim_time+180)]
-    traj_dir = "../simulation/"
-    cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
+        I_values = {"CpG": 0.05, "LPS": 0.25, "pIC": 0.75}
+        N_values = {"CpG": 0.25, "LPS": 1, "pIC": 0.5}
+        traj_dir = "../simulation/"
+        cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
 
-    N_curve = cell_traj[1,:]
-    N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
-    I_curve = [I_values[stimulus] for i in range(stim_time+60)]
+        N_curve = cell_traj[1,:]
+        N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
+        I_curve = [I_values[stimulus] for i in range(stim_time+60)]
+    elif stimulus == "other":
+        N_curve, I_curve, P_curve = stim_data
+    else:
+        raise ValueError("Stimulus must be CpG, LPS, pIC, or other")
+
+    if genotype in ["WT", "p50KO"]:
+        P_values = {"WT": 1, "p50KO": 0}
+        P_curve = [P_values[genotype] for i in range(stim_time+180)]
+    elif genotype == "other":
+        P_curve = stim_data[2]
+    else:
+        raise ValueError("Genotype must be WT, p50KO, or other")
 
     stim_data = [N_curve, I_curve, P_curve]
     stim_data_ss = [[0.00001 for i in range(stim_time+120)] for i in range(2)]
