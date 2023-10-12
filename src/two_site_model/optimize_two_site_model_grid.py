@@ -33,7 +33,7 @@ def optimize_model(N, I, beta, model_name, num_threads=40):
     print("Optimizing two site model %s globally" % model_name)
     start = time.time()
     print("Starting brute force optimization at %s" % time.ctime())
-    rgs = ((10**-2, 10**2))
+    rgs = ((10**-2, 10**2),)
 
     res = opt.brute(two_site_objective, rgs, args=(N, I, beta, model_name, "rmsd"), Ns=30, full_output=True, finish=None,
                     workers=num_threads)
@@ -53,17 +53,15 @@ def optimize_model(N, I, beta, model_name, num_threads=40):
     return params, rmsd, grid, jout
 
 def plot_optimization(grid, jout, model_name, measure="RMSD"):
-    #  Plot each individual param against corresponding RMSD
+    #  Plot the parameter against corresponding RMSD
     print("Plotting optimization results")
     fig, ax = plt.subplots()
-    par_vals = grid[0].flatten()
-    rmsd_vals = jout.flatten()
-    ax.plot(par_vals, rmsd_vals, 'o')
-    ax.set_xlabel("t%d" % (i+1))
+    ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
+    ax.plot(grid, jout, 'o')
+    ax.set_xlabel("C")
     ax.set_ylabel("%s" % measure)
-    fig.suptitle("%s optimization results for model %s" % (measure, model_name))
-    plt.tight_layout(pad=2)
-    plt.savefig("%s/two_site_grid_%s_%s.png" % (figures_dir, measure, model_name), bbox_inches="tight") 
+    ax.set_title("%s for model %s" % (measure.upper(), model_name))
+    plt.savefig("%s/two_site_grid_%s_%s.png" % (figures_dir, measure, model_name), bbox_inches="tight")
 
 
 def optimize_model_local(N, I, beta, model_name, pars):
@@ -131,11 +129,16 @@ def main():
     len_training = len(N)
 
     res_title = ["C","rmsd", "AIC"]
-    results = pd.DataFrame(columns=res_title)
-    results_local = pd.DataFrame(columns= ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd","aic"] + ["res_%d" % i for i in range(num_pts)])
+    # results = pd.DataFrame(columns=res_title)
+    # results_local = pd.DataFrame(columns= res_title + ["res_%d" % i for i in range(num_pts)])
+    # print(type(results))
+    # print(results)
+
+
+    results_array = np.zeros((len(model_names), len(res_title)))
+    results_array_local = np.zeros((len(model_names), len(res_title) + num_pts))
 
     for model in model_names:
-    # for model in ["B1"]:
         print("\n\n###############################################")
         print("OPTIMIZING MODEL %s" % model)
         print("###############################################\n")
@@ -144,127 +147,103 @@ def main():
         print("\n shape of grid: %s, \n shape of jout: %s" % (grid.shape, jout.shape))
         print("Minimum RMSD: %.4f" % min_rmsd)
 
+        # Calculate AIC from rmsd and number of parameters
+        min_aic = num_pts * np.log(min_rmsd) + 2 * model_par_number
+        print("Minimum AIC: %.4f" % min_aic)
+        
         # save results
         np.save("%s/two_site_grid_rmsd_model_%s.npy" % (results_dir, model), min_rmsd)
         np.save("%s/two_site_grid_params_model_%s.npy" % (results_dir, model), pars)
         np.save("%s/two_site_grid_jout_model_%s.npy" % (results_dir, model), jout)
-        np.save("%s/two_site_grid_grid_model_%s.npy" % (results_dir, model), grid)
-
-        # Calculate AIC from rmsd and number of parameters
-        min_aic = num_pts * np.log(min_rmsd) + 2 * model_par_number
+        np.save("%s/two_site_grid_grid_model_%s.npy" % (results_dir, model), grid)       
         np.save("%s/two_site_grid_aic_model_%s.npy" % (results_dir, model), min_aic)
-        print("Minimum AIC: %.4f" % min_aic)
-        # Save results
-        results = results.loc[model] = np.hstack([pars, min_rmsd, min_aic])
 
-    #     # Plot all rmsd values
-    #     plot_optimization(grid, jout, model, measure="RMSD")
+        # results = results.loc[model] = np.hstack([pars, min_rmsd, min_aic])
+        results_array[model_names.index(model)] = np.hstack([pars, min_rmsd, min_aic])
+
+        # Plot all rmsd values
+        plot_optimization(grid, jout, model, measure="RMSD")
 
         # Local optimization
         pars, cost, residuals = optimize_model_local(N, I, beta, model, pars)
         rmsd = np.sqrt(np.mean(residuals**2))
         aic = num_pts * np.log(rmsd) + 2 * model_par_number
-        results_local = results_local.loc[model] = np.hstack([pars, rmsd, aic, residuals])
+        # results_local = results_local.loc[model] = np.hstack([pars, rmsd, aic, residuals])
+        results_array_local[model_names.index(model)] = np.hstack([pars, rmsd, aic, residuals])
+
+    # Turn results into dataframes
+    results = pd.DataFrame(results_array, index=model_names, columns=res_title)
+    results_local = pd.DataFrame(results_array_local, index=model_names, columns=res_title + ["res_%d" % i for i in range(num_pts)])
 
     results.to_csv("%s/two_site_grid_global_optimization_results.csv" % results_dir)
     results_local.to_csv("%s/two_site_grid_local_optimization_results.csv" % results_dir)
     print("Saved all results to %s \n\n\n" % results_dir)
 
-    # # Save results with best AIC to use
-    # results = pd.read_csv("%s/two_site_grid_global_optimization_results.csv" % results_dir, index_col=0)
-    # best_results = results.iloc[np.argmin(results["rmsd"])]
-    # best_results = best_results.fillna(1)
-    # best_model = best_results.name
-    # K = best_results.loc["K_i2"]
-    # C = best_results.loc["C"]
+    # Save results with best AIC to use
+    results = pd.read_csv("%s/two_site_grid_global_optimization_results.csv" % results_dir, index_col=0)
+    best_results = results.iloc[np.argmin(results["rmsd"])]
+    best_results = best_results.fillna(1)
+    best_model = best_results.name
+    C = best_results.loc["C"]
     
-    # t_pars = best_results[0:6]
-    # t_pars = np.array(t_pars)
-    # f_list_best = [get_f(t_pars, K, C, N[i], I[i], P[i], best_model) for i in range(num_pts)]
-    # print("\n\n ## Best fit model information ## \n\n Model = %s, K = %.2f, C = %.2f" % (best_model, K, C))
-    # for i in range(len(t_pars)):
-    #     print("t%d = %.4f" % (i+1, t_pars[i]))
-    # print("Predicted IFNb values:")
-    # for n, i, p, b, b_train in zip(N, I, P, f_list_best, beta):
-    #     print("NFkB = %.2f, IRF = %.2f, p50= %s, IFNb = %.2f, IFNb training = %.4f" % (n, i, p, b, b_train))
+  
+    f_list_best = [get_f(C, N[i], I[i], best_model) for i in range(num_pts)]
+    print("\n\n ## Best fit model information ## \n\n Model = %s, C = %.2f" % (best_model, C))
 
-    # best_results["scale"] = np.max(training_data["IFNb"]) / np.max(f_list_best)
-    # ifnb_half_life = 2.5*60 # From Rios 2014
-    # best_results["p_deg_ifnb"] = np.log(2) / ifnb_half_life
+    print("Predicted IFNb values:")
+    for n, i, b, b_train in zip(N, I, f_list_best, beta):
+        print("NFkB = %.2f, IRF = %.2f,  IFNb = %.2f, IFNb training = %.4f" % (n, i, b, b_train))
 
-    # print(best_results)
-    # # save without column name
-    # best_results.to_csv("%s/ifnb_best_params_grid_global.csv" % results_dir, header=False, na_rep=1)
-    # print("Best results from model %s:\n" % best_results.name, best_results)
-    # print("Saved best results to %s/ifnb_best_params_grid_global.csv" % os.path.abspath(results_dir))
+    best_results["scale"] = np.max(training_data["IFNb"]) / np.max(f_list_best)
+    ifnb_half_life = 2.5*60 # From Rios 2014
+    best_results["p_deg_ifnb"] = np.log(2) / ifnb_half_life
 
-    # # Make contour plots from best fit parameters
-    # t_pars = results.loc[best_model].values[0:6]
-    # K = best_results.loc["K_i2"]
-    # C = best_results.loc["C"]
-    # I = np.linspace(0, 1, 100)
-    # N= I.copy()
-    # P = {"WT": 1, "p50KO": 0}
+    print(best_results)
+    # save without column name
+    best_results.to_csv("%s/ifnb_best_params_grid_global.csv" % results_dir, header=False, na_rep=1)
+    print("Best results from model %s:\n" % best_results.name, best_results)
+    print("Saved best results to %s/ifnb_best_params_grid_global.csv" % os.path.abspath(results_dir))
 
-    # for model in ["B1", "B2", "B3", "B4"]:
-    #     f_dict = {}
-    #     for genotype in P.keys():
-    #         N_vals, I_vals = np.meshgrid(N, I)
-    #         # N = N_vals.flatten()
-    #         # I = I_vals.flatten()
-    #         f_values = np.zeros((len(N), len(I)))
-    #         with Pool(40) as p:
-    #             for i in range(len(N_vals)):
-    #                 f_values[i,:] = p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) 
-    #             # f_values = p.starmap(get_f, [(t_pars, K, C, N[i], I[i], P[genotype], model) for i in range(len(N))])
-    #         title = "best_fit_grid_%s_%s" % (genotype, model)
-    #         plot_contour(f_values, model, I_vals, N_vals, results_dir, title, condition=genotype)
-    #         f_dict[genotype] = f_values
-    #     # Calculate fold change between WT and p50KO
-    #     f_dict["WT"][f_dict["WT"] == 0] = 10**-10
-    #     f_fold_change = f_dict["p50KO"]/f_dict["WT"]
-    #     title = "best_fit_genotype_fold_change_%s" % model
-    #     plot_contour(f_fold_change, model, I_vals, N_vals, results_dir, title, condition="fold change (p50 KO/WT)", normalize=False)
+    # Make contour plots from best fit parameters
+    C = best_results.loc["C"]
+    I = np.linspace(0, 1, 100)
+    N= I.copy()
 
-    # #  Plot best fit parameters
-    # print("Plotting best fit parameters")
-    # fig, ax = plt.subplots(1,2, width_ratios=[1,2/6])
-    # for axis in ax:
-    #     axis.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
-    # i=0
-    # for model in ["B1", "B2", "B3", "B4"]:
-    #     t = results.loc[model].values[0:6]
-    #     k = results.loc[model].values[6]
-    #     c = results.loc[model].values[7]
-    #     x= np.arange(i, i+6)
-    #     x2= np.arange(i, i+2)
-    #     ax[0].plot(x, t, label=model, marker="o", linestyle="none")
-    #     ax[1].plot(x2, [k, c], marker="o", linestyle="none")
-    #     i+=0.1
-    # ax[0].set_xticks(np.arange(0.15,6.15), [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"], 
-    #            rotation=45)
-    # ax[1].set_xticks(np.arange(0.05,2.05), ["$K_{i2}$", "C"])
+    for model in model_names:
+        N_vals, I_vals = np.meshgrid(N, I)
+        # N = N_vals.flatten()
+        # I = I_vals.flatten()
+        f_values = np.zeros((len(N), len(I)))
+        with Pool(40) as p:
+            for i in range(len(N_vals)):
+                f_values[i,:] = p.starmap(get_f, [(C, N_vals[i,j], I_vals[i,j], model) for j in range(len(N_vals))])
+        title = "best_fit_grid_%s" % model
+        plot_contour(f_values, model, I_vals, N_vals, results_dir, title)
 
-    # fig.text(0.5, 0.04, 'Parameter', ha='center', size=14)
-    # fig.text(0.04, 0.5, 'Transcription capability (t)', va='center', rotation='vertical', size=14)
-    # plt.grid(False)
-    # plt.suptitle("Best fit parameters for two site model with grid optimization")
-    # plt.tight_layout(pad = 4)
-    # fig.legend(bbox_to_anchor=(1.1,0.5))
-    # plt.savefig("%s/two_site_grid_best_fit_parameters.png" % figures_dir, bbox_inches="tight")
+    #  Plot best fit parameters
+    print("Plotting best fit parameters")
+    fig, ax = plt.subplots()
+    ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
+    C_pars = results["C"]
+    ax.plot(C_pars, 'o')
+    # ax.set_xticks(np.arange(0,4), model_names)
+    ax.set_xlabel("Model")
+    ax.set_ylabel("C")
+    plt.title("Best fit C for each model grid optimization")
+    plt.savefig("%s/two_site_grid_best_fit_parameters.png" % figures_dir, bbox_inches="tight")
 
-    # # Plot RMSD, AIC for each model
-    # print("Plotting RMSD, AIC for each model")
-    # for measure in ["rmsd", "AIC"]:
-    #     fig, ax = plt.subplots()
-    #     ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
-    #     plt.plot(results[measure], 'o')
-    #     plt.xlabel("Model")
-    #     plt.ylabel("%s" % measure)
-    #     plt.title("%s for each model" % measure.upper())
-    #     plt.savefig("%s/two_site_grid_%s.png" % (figures_dir, measure), bbox_inches="tight")
+    # Plot RMSD, AIC for each model
+    print("Plotting RMSD, AIC for each model")
+    for measure in ["rmsd", "AIC"]:
+        fig, ax = plt.subplots()
+        ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
+        plt.plot(results[measure], 'o')
+        plt.xlabel("Model")
+        plt.ylabel("%s" % measure)
+        plt.title("%s for each model" % measure.upper())
+        plt.savefig("%s/two_site_grid_%s.png" % (figures_dir, measure), bbox_inches="tight")
 
-    # print("Done")
+    print("Done")
 
     # # Load local optimization results
     # results_local = pd.read_csv("%s/two_site_grid_local_optimization_results.csv" % results_dir, index_col=0)
