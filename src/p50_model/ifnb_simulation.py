@@ -78,8 +78,8 @@ for p in pars:
 
 t_pars = [pars["t1"], pars["t2"], pars["t3"], pars["t4"], pars["t5"], pars["t6"]]
 
-### Test simulation of IFNb model
-def test_simulation(pars,name, stimulus="CpG"):
+### Simulation of IFNb model
+def ifnb_simulation(pars,name, stimulus="CpG"):
     name = "%s_%s" % (name, stimulus)
     p_syn_ifnb = [10, 1, 0.1, 0.01]
     t_pars = [pars["t1"], pars["t2"], pars["t3"], pars["t4"], pars["t5"], pars["t6"]]
@@ -209,9 +209,9 @@ def test_simulation(pars,name, stimulus="CpG"):
 
 def main():
     print("Testing IFNb model simulation")
-    cpg_values, cpg_fc = test_simulation(pars,"fit_t_pars", stimulus="CpG")
-    lps_values, lps_fc = test_simulation(pars,"fit_t_pars", stimulus="LPS")
-    pic_values, pic_fc = test_simulation(pars,"fit_t_pars", stimulus="pIC")
+    cpg_values, cpg_fc = ifnb_simulation(pars,"fit_t_pars", stimulus="CpG")
+    lps_values, lps_fc = ifnb_simulation(pars,"fit_t_pars", stimulus="LPS")
+    pic_values, pic_fc = ifnb_simulation(pars,"fit_t_pars", stimulus="pIC")
     t_eval = np.linspace(0, 60*8+120, 60*8+120+1)
     p_syn_ifnb = [10, 1, 0.1, 0.01]
 
@@ -365,7 +365,6 @@ def main():
         plt.suptitle("IFNb values for %d min stimulations, p_syn_ifnb = %.3f" % (60*8, p_syn_ifnb[i]), fontsize=16)
         plt.savefig("%s/IFNb_values_timecourse_by_stim_%d.png" % (dir, i))
         plt.close()
-
 
 if __name__ == "__main__":
     main()

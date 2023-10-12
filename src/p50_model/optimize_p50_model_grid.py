@@ -41,13 +41,6 @@ def p50_objective(pars, *args):
         rmsd = np.sqrt(np.mean(residuals**2))
         return rmsd
 
-def select_params(num_params, par_length, seed=5, lower=0, upper=1):
-    params = np.zeros((num_params, par_length))
-    np.random.seed(seed)
-    for i in range(num_params):
-        params[i] = np.random.uniform(lower, upper, par_length)
-    return params
-
 def optimize_model(N, I, P, beta, model_name, num_threads=40):
     print("###############################################\n")
     print("Optimizing p50 model %s globally" % model_name)
@@ -174,41 +167,41 @@ def main():
     results = pd.DataFrame(columns=res_title)
     results_local = pd.DataFrame(columns= ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd","aic"] + ["res_%d" % i for i in range(num_pts)])
 
-    for model in model_par_numbers.keys():
-    # for model in ["B1"]:
-        print("\n\n###############################################")
-        print("OPTIMIZING MODEL %s" % model)
-        print("###############################################\n")
-        # Grid search
-        pars, min_rmsd, grid, jout = optimize_model(N, I, P, beta, model, num_threads=num_threads)
-        # print("\n shape of grid: %s, \n shape of jout: %s" % (grid.shape, jout.shape))
-        # print("Minimum RMSD: %.4f" % min_rmsd)
+    # for model in model_par_numbers.keys():
+    # # for model in ["B1"]:
+    #     print("\n\n###############################################")
+    #     print("OPTIMIZING MODEL %s" % model)
+    #     print("###############################################\n")
+    #     # Grid search
+    #     pars, min_rmsd, grid, jout = optimize_model(N, I, P, beta, model, num_threads=num_threads)
+    #     # print("\n shape of grid: %s, \n shape of jout: %s" % (grid.shape, jout.shape))
+    #     # print("Minimum RMSD: %.4f" % min_rmsd)
 
-        # save results
-        np.save("%s/p50_grid_rmsd_model_%s.npy" % (results_dir, model), min_rmsd)
-        np.save("%s/p50_grid_params_model_%s.npy" % (results_dir, model), pars)
-        np.save("%s/p50_grid_jout_model_%s.npy" % (results_dir, model), jout)
-        np.save("%s/p50_grid_grid_model_%s.npy" % (results_dir, model), grid)
+    #     # save results
+    #     np.save("%s/p50_grid_rmsd_model_%s.npy" % (results_dir, model), min_rmsd)
+    #     np.save("%s/p50_grid_params_model_%s.npy" % (results_dir, model), pars)
+    #     np.save("%s/p50_grid_jout_model_%s.npy" % (results_dir, model), jout)
+    #     np.save("%s/p50_grid_grid_model_%s.npy" % (results_dir, model), grid)
 
-        # Calculate AIC from rmsd and number of parameters
-        min_aic = num_pts * np.log(min_rmsd) + 2 * model_par_numbers[model]
-        np.save("%s/p50_grid_aic_model_%s.npy" % (results_dir, model), min_aic)
-        print("Minimum AIC: %.4f" % min_aic)
-        # Save results
-        results = save_results(results, model, pars, [min_rmsd, min_aic])
+    #     # Calculate AIC from rmsd and number of parameters
+    #     min_aic = num_pts * np.log(min_rmsd) + 2 * model_par_numbers[model]
+    #     np.save("%s/p50_grid_aic_model_%s.npy" % (results_dir, model), min_aic)
+    #     print("Minimum AIC: %.4f" % min_aic)
+    #     # Save results
+    #     results = save_results(results, model, pars, [min_rmsd, min_aic])
 
-        # Plot all rmsd values
-        plot_optimization(grid, jout, model, measure="RMSD")
+    #     # Plot all rmsd values
+    #     plot_optimization(grid, jout, model, measure="RMSD")
 
-        # Local optimization
-        pars, cost, residuals = optimize_model_local(N, I, P, beta, model, pars)
-        rmsd = np.sqrt(np.mean(residuals**2))
-        aic = num_pts * np.log(rmsd) + 2 * model_par_numbers[model]
-        results_local = save_results(results_local, model, pars, np.hstack([rmsd, aic, residuals]))
+    #     # Local optimization
+    #     pars, cost, residuals = optimize_model_local(N, I, P, beta, model, pars)
+    #     rmsd = np.sqrt(np.mean(residuals**2))
+    #     aic = num_pts * np.log(rmsd) + 2 * model_par_numbers[model]
+    #     results_local = save_results(results_local, model, pars, np.hstack([rmsd, aic, residuals]))
 
-    results.to_csv("%s/p50_grid_global_optimization_results.csv" % results_dir)
-    results_local.to_csv("%s/p50_grid_local_optimization_results.csv" % results_dir)
-    print("Saved all results to %s \n\n\n" % results_dir)
+    # results.to_csv("%s/p50_grid_global_optimization_results.csv" % results_dir)
+    # results_local.to_csv("%s/p50_grid_local_optimization_results.csv" % results_dir)
+    # print("Saved all results to %s \n\n\n" % results_dir)
 
     # Save results with best AIC to use
     results = pd.read_csv("%s/p50_grid_global_optimization_results.csv" % results_dir, index_col=0)
@@ -239,14 +232,15 @@ def main():
     print("Saved best results to %s/ifnb_best_params_grid_global.csv" % os.path.abspath(results_dir))
 
     # Make contour plots from best fit parameters
-    t_pars = results.loc[best_model].values[0:6]
-    K = best_results.loc["K_i2"]
-    C = best_results.loc["C"]
     I = np.linspace(0, 1, 100)
     N= I.copy()
     P = {"WT": 1, "p50KO": 0}
 
     for model in ["B1", "B2", "B3", "B4"]:
+        t_pars = results.loc[model].values[0:6]
+        K = results.loc[model, "K_i2"]
+        C = results.loc[model, "C"]
+
         f_dict = {}
         for genotype in P.keys():
             N_vals, I_vals = np.meshgrid(N, I)
@@ -274,8 +268,8 @@ def main():
     i=0
     for model in ["B1", "B2", "B3", "B4"]:
         t = results.loc[model].values[0:6]
-        k = results.loc[model].values[6]
-        c = results.loc[model].values[7]
+        k = results.loc[model, "K_i2"]
+        c = results.loc[model, "C"]
         x= np.arange(i, i+6)
         x2= np.arange(i, i+2)
         ax[0].plot(x, t, label=model, marker="o", linestyle="none")
@@ -316,8 +310,8 @@ def main():
     i=0
     for model in ["B1", "B2", "B3", "B4"]:
         t = results_local.loc[model].values[0:6]
-        k = results_local.loc[model].values[6]
-        c = results_local.loc[model].values[7]
+        k = results_local.loc[model, "K_i2"]
+        c = results_local.loc[model, "C"]
         x= np.arange(i, i+6)
         x2= np.arange(i, i+2)
         ax[0].plot(x, t, label=model, marker="o", linestyle="none")
@@ -337,7 +331,7 @@ def main():
 
     # Plot RMSD, AIC for each model from local optimization
     print("Plotting RMSD, AIC for each model from local optimization")
-    for measure in ["rmsd", "AIC"]:
+    for measure in ["rmsd", "aic"]:
         fig, ax = plt.subplots()
         ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
         plt.plot(results_local[measure], 'o')
@@ -360,6 +354,31 @@ def main():
     plt.title("Residuals for each model local optimization")
     plt.legend()
     plt.savefig("%s/p50_grid_residuals_local.png" % figures_dir, bbox_inches="tight")
+
+    # Make contour plots from best fit parameters
+    I = np.linspace(0, 1, 100)
+    N= I.copy()
+    P = {"WT": 1, "p50KO": 0}
+
+    for model in ["B1", "B2", "B3", "B4"]:
+        t_pars = results_local.loc[model].values[0:6]
+        K = results_local.loc[model, "K_i2"]
+        C = results_local.loc[model, "C"]
+        f_dict = {}
+        for genotype in P.keys():
+            N_vals, I_vals = np.meshgrid(N, I)
+            f_values = np.zeros((len(N), len(I)))
+            with Pool(40) as p:
+                for i in range(len(N_vals)):
+                    f_values[i,:] = p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) 
+            title = "best_fit_grid_%s_%s_local" % (genotype, model)
+            plot_contour(f_values, model, I_vals, N_vals, results_dir, title, condition=genotype)
+            f_dict[genotype] = f_values
+        # Calculate fold change between WT and p50KO
+        f_dict["WT"][f_dict["WT"] == 0] = 10**-10
+        f_fold_change = f_dict["p50KO"]/f_dict["WT"]
+        title = "best_fit_genotype_fold_change_%s_local" % model
+        plot_contour(f_fold_change, model, I_vals, N_vals, results_dir, title, condition="fold change (p50 KO/WT)", normalize=False)
 
 if __name__ == "__main__":
     main()
