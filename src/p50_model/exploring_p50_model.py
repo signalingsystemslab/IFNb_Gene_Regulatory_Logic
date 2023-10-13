@@ -82,6 +82,7 @@ def make_contour_plot(f_values, N_values, I_values, filename, dir, title):
 def main():
     dir = "results/exploring_p50_model/"
     os.makedirs(dir, exist_ok=True)
+    best_model = "B2"
 
     # Get final parameters
     print("Getting parameters")
@@ -113,8 +114,8 @@ def main():
         for i in range(len(P_list)):
             p = list(P_list.keys())[i]
             print("Calculating f values for %s" % p)
-            # get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1)
-            f_values[:,i] = pl.starmap(get_f, [(t_pars, K, C, N, I, P_list[p], "B2", 1) for N in N_list for I in I_list])
+            # get_f(t_pars, K, C, N, I, P, model_name=best_model, scaling=1)
+            f_values[:,i] = pl.starmap(get_f, [(t_pars, K, C, N, I, P_list[p], best_model, 1) for N in N_list for I in I_list])
             N_values[:,i] = [N for N in N_list for I in I_list]
             I_values[:,i] = [I for N in N_list for I in I_list]
     end = time.time()
@@ -178,6 +179,48 @@ def main():
     make_contour_plot(log2_fold_change, N_values[:,:,0], I_values[:,:,0],
                         "log2_fold_change", dir, r"Log2 fold change IFN$\beta$ w/ p50 KO, model B2")
     print("Finished")
+
+
+    # Determine relative contribution of each TF
+    N = np.linspace(0, 1, 50)
+    I = np.linspace(0, 1, 50)
+
+    n, i = np.meshgrid(N, I)
+    f_WT = np.zeros((len(N), len(I)))
+    f_KO = np.zeros((len(N), len(I)))
+    for j in range(len(N)):
+        for k in range(len(I)):
+            f_WT[j,k] = get_f(t_pars, K, C, n[j,k], i[j,k], 1, best_model, 1)
+            f_KO[j,k] = get_f(t_pars, K, C, n[j,k], i[j,k], 0, best_model, 1)
+    f_WT_divide = f_WT[f_WT==0] = 10e-10
+    f_FC = f_KO / f_WT_divide
+    
+    f_values = {"WT": f_WT, "KO": f_KO, "FC": f_FC}
+    for f_name, f in f_values.items():
+        # Plot minimum and maximum ifnb for each nfkb
+        fig, ax = plt.subplots()
+        ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0, 1, 5)))
+        ax.plot(N, np.max(f, axis=0), label=r"Maximum IFN$\beta$", linewidth=3)
+        ax.fill_between(N, np.min(f, axis=0), np.max(f, axis=0), alpha=0.2, label = "Contribution of IRF")
+        ax.plot(N, np.min(f, axis=0), label=r"Minimum IFN$\beta$", linewidth=3)
+        ax.set_xlabel(r"$NF\kappa B$")
+        ax.set_ylabel(r"IFN$\beta$")
+        ax.set_title("Model %s, %s" % (best_model, f_name))
+        fig.legend(bbox_to_anchor=(1.23, 0.5))
+        fig.savefig("%s/nfkb_vs_min_max_ifnb_%s_%s.png" % (dir, best_model, f_name))
+
+        # Plot minimum and maximum ifnb for each irf
+        fig, ax = plt.subplots()
+        ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0, 1, 5)))
+        ax.plot(I, np.max(f, axis=1), label=r"Maximum IFN$\beta$", linewidth=3)
+        ax.fill_between(I, np.min(f, axis=1), np.max(f, axis=1), alpha=0.2, label = "Contribution of NF$\kappa$B")
+        ax.plot(I, np.min(f, axis=1), label=r"Minimum IFN$\beta$", linewidth=3)
+        ax.set_xlabel(r"$IRF$")
+        ax.set_ylabel(r"IFN$\beta$")
+        ax.set_title("Model %s, %s" % (best_model, f_name))
+        fig.legend(bbox_to_anchor=(1.25, 0.5))
+        fig.savefig("%s/irf_vs_min_max_ifnb_%s_%s.png" % (dir, best_model, f_name))
+
 
 if __name__ == "__main__":
     main()
