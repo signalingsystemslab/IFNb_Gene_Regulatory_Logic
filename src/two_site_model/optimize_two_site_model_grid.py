@@ -195,8 +195,6 @@ def main():
         print("NFkB = %.2f, IRF = %.2f,  IFNb = %.2f, IFNb training = %.4f" % (n, i, b, b_train))
 
     best_results["scale"] = np.max(training_data["IFNb"]) / np.max(f_list_best)
-    ifnb_half_life = 2.5*60 # From Rios 2014
-    best_results["p_deg_ifnb"] = np.log(2) / ifnb_half_life
 
     print(best_results)
     # save without column name
