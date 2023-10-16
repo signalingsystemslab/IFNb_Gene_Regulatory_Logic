@@ -98,59 +98,65 @@ def get_steady_state(states0, pars, stim_data_ss, t_eval):
     print("Steady state values found after %.2f hours" % (end_time*i/60))
     return states0
 
-def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None):
+def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None, plot = True):
     name = "%s_%s_%s" % (name, stimulus, genotype)
 
-    # Inputs
-    if stimulus in ["CpG", "LPS", "pIC"]:
+    if stim_data is None:
+        # Inputs
+        if stimulus in ["CpG", "LPS", "pIC"]:
 
-        I_values = {"CpG": 0.05, "LPS": 0.25, "pIC": 0.75}
-        N_values = {"CpG": 0.25, "LPS": 1, "pIC": 0.5}
-        traj_dir = "../simulation/"
-        cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
+            I_values = {"CpG": 0.05, "LPS": 0.25, "pIC": 0.75}
+            N_values = {"CpG": 0.25, "LPS": 1, "pIC": 0.5}
+            traj_dir = "../simulation/"
+            cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
 
-        N_curve = cell_traj[1,:]
-        N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
-        I_curve = [I_values[stimulus] for i in range(stim_time+60)]
-    elif stimulus == "other":
+            N_curve = cell_traj[1,:]
+            N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
+            I_curve = [I_values[stimulus] for i in range(stim_time+60)]
+        elif stimulus == "other":
+            N_curve, I_curve, P_curve = stim_data
+        else:
+            raise ValueError("Stimulus must be CpG, LPS, pIC, or other")
+
+        if genotype in ["WT", "p50KO"]:
+            P_values = {"WT": 1, "p50KO": 0}
+            P_curve = [P_values[genotype] for i in range(stim_time+180)]
+        elif genotype == "other":
+            P_curve = stim_data[2]
+        else:
+            raise ValueError("Genotype must be WT, p50KO, or other")
+
+        stim_data = [N_curve, I_curve, P_curve]
+    else:
         N_curve, I_curve, P_curve = stim_data
-    else:
-        raise ValueError("Stimulus must be CpG, LPS, pIC, or other")
+        stim_data = [N_curve, I_curve, P_curve]
 
-    if genotype in ["WT", "p50KO"]:
-        P_values = {"WT": 1, "p50KO": 0}
-        P_curve = [P_values[genotype] for i in range(stim_time+180)]
-    elif genotype == "other":
-        P_curve = stim_data[2]
-    else:
-        raise ValueError("Genotype must be WT, p50KO, or other")
-
-    stim_data = [N_curve, I_curve, P_curve]
     stim_data_ss = [[0.00001 for i in range(stim_time+120)] for i in range(2)]
     stim_data_ss = [stim_data_ss[0], stim_data_ss[1], P_curve]
 
-    # Plot inputs
-    input_t = np.linspace(0, stim_time+120, stim_time+120+1)
-    input_N = [get_input(N_curve, t) for t in input_t]
-    input_I = [get_input(I_curve, t) for t in input_t]
-    input_P = [get_input(P_curve, t) for t in input_t]
+    if plot:
+        # Plot inputs
+        input_t = np.linspace(0, stim_time+120, stim_time+120+1)
+        input_N = [get_input(N_curve, t) for t in input_t]
+        input_I = [get_input(I_curve, t) for t in input_t]
+        input_P = [get_input(P_curve, t) for t in input_t]
 
-    fig, ax = plt.subplots(1,3)
-    if genotype == "WT":
+        fig, ax = plt.subplots(1,3)
+        if genotype == "WT":
+            for i in range(3):
+                ax[i].set_prop_cycle(plt.cycler("color", ["k"]))
+        fig.set_size_inches(12,4)
+        ax[0].plot(input_N)
+        ax[0].set_title("N")
+        ax[1].plot(input_I)
+        ax[1].set_title("I")
+        ax[2].plot(input_P)
+        ax[2].set_title("P")
         for i in range(3):
-            ax[i].set_prop_cycle(plt.cycler("color", ["k"]))
-    fig.set_size_inches(12,4)
-    ax[0].plot(input_N)
-    ax[0].set_title("N")
-    ax[1].plot(input_I)
-    ax[1].set_title("I")
-    ax[2].plot(input_P)
-    ax[2].set_title("P")
-    for i in range(3):
-        ax[i].set_ylim([-0.01, 1.01])
-    plt.suptitle("Input curves for %s stimulation" % name)
-    plt.savefig("%s/input_curves_%s.png" % (directory, name))
-    plt.close()
+            ax[i].set_ylim([-0.01, 1.01])
+        plt.suptitle("Input curves for %s stimulation" % name)
+        plt.savefig("%s/input_curves_%s.png" % (directory, name))
+        plt.close()
 
     ## Simulate model
     t_eval = np.linspace(0, stim_time+120, stim_time+120+1)
