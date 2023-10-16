@@ -163,7 +163,7 @@ def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_tim
 
     # Get steady state
     states0 = get_steady_state(states0, pars, stim_data_ss, t_eval)
-    print("Steady state IFNb values for %s: %s" % (name, states0))
+    print("Steady state IFNb values for %s: %s" % (name, states0), flush=True)
 
     # Integrate model
     states = solve_ivp(IFN_model, [0, t_eval[-1]], states0, t_eval=t_eval, args=(pars, stim_data))
