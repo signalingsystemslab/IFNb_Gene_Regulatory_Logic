@@ -59,22 +59,9 @@ def generate_synthetic_dataset(training_data, seed):
 def generate_synthetic_data(training_data, num_datasets, seed):
     num_pts = training_data.shape[0]
     synthetic_data = pd.DataFrame(columns=training_data.columns)
-    # row where Stimulus == LPS and Genotype == WT
-
-    # print("LPS WT row #%d\nLPS 2KO row #%d\npIC 2KO row #%d\npIC 3KO row #%d" % (lps_wt_loc, lps_irf_2ko, pic_irf_2ko, pic_irf_3ko))
     for i in range(num_datasets):
         seed += i
         synthetic_data = pd.concat([synthetic_data, generate_synthetic_dataset(training_data, seed+i)])
-
-    # for i in range(num_pts):
-    #     IRF = training_data.iloc[i]["IRF"]
-    #     NFkB = training_data.iloc[i]["NFkB"]
-    #     # geneerate num_datasets synthetic points within 5% of the original point
-    #     IRF_synthetic = np.random.normal(max(IRF-0.05,0), min(IRF+0.05,1), size = num_datasets)
-    #     NFkB_synthetic = np.random.normal(max(NFkB-0.05,0), min(NFkB+0.05,1), size = num_datasets)
-    #     # keep other columns the same
-    #     other_cols = training_data.iloc[i][2:]
-    #     synthetic_data = pd.concat([synthetic_data, pd.DataFrame({"IRF": IRF_synthetic, "NFkB": NFkB_synthetic, **other_cols})])
     return synthetic_data
 
 def main():
@@ -91,32 +78,57 @@ def main():
     # Save to csv
     all_data.to_csv("../data/p50_training_data_plus_synthetic.csv", index=False)
 
+    font = {'size'   : 18}
+    plt.rc('font', **font)
+
+    markers = {"CpG": "o", "LPS": "s", "polyIC": "^"}
+
     # Plot all data where p50=1
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(dpi = 300)
     ax.set_prop_cycle('color', plt.cm.viridis(np.linspace(0, 1, num_datasets+1)))
-    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==1]["IRF"], synthetic_data.loc[synthetic_data["p50"]==1]["NFkB"], c=synthetic_data.loc[synthetic_data["p50"]==1]["IFNb"], s=10, alpha=0.5)
-    ax.scatter(training_data.loc[training_data["p50"]==1]["IRF"], training_data.loc[training_data["p50"]==1]["NFkB"], c="#E85460", s=10, alpha=1)
+    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==1]["IRF"], 
+               synthetic_data.loc[synthetic_data["p50"]==1]["NFkB"], 
+               c=synthetic_data.loc[synthetic_data["p50"]==1]["IFNb"], s=25, alpha=0.5, edgecolor="none")
+    for i in range(len(training_data["Stimulus"].unique())):
+        stimulus = training_data["Stimulus"].unique()[i]
+        marker = markers[stimulus]
+        ax.scatter(training_data.loc[(training_data["p50"]==1) & (training_data["Stimulus"]==stimulus)]["IRF"], 
+                   training_data.loc[(training_data["p50"]==1) & (training_data["Stimulus"]==stimulus)]["NFkB"], 
+                   c="#E85460", s=25, alpha=1, marker=marker, label=stimulus)
     ax.set_xlabel("IRF")
     ax.set_ylabel(r"$NF\kappa B$")
-    # ax.set_xlim(0,1)
-    # ax.set_ylim(0,1)
     ax.set_title("All WT training data (with synthetic points)")
-    fig.savefig("./figures/all_training_data_with_synthetic_WT.png")
+    ax.set_aspect("equal")
+    fig.legend(bbox_to_anchor=(1.1,0.5))
+    plt.tight_layout()
+    ax.spines[['right', 'top']].set_visible(False)
+    fig.savefig("./figures/all_training_data_with_synthetic_WT.png", bbox_inches="tight")
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     plt.close()
 
     # Plot all data where p50=0
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(dpi = 300)
     ax.set_prop_cycle('color', plt.cm.viridis(np.linspace(0, 1, num_datasets+1)))
-    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==0]["IRF"], synthetic_data.loc[synthetic_data["p50"]==0]["NFkB"], c=synthetic_data.loc[synthetic_data["p50"]==0]["IFNb"], s=10, alpha=0.5)
-    ax.scatter(training_data.loc[training_data["p50"]==0]["IRF"], training_data.loc[training_data["p50"]==0]["NFkB"], c="#E85460", s=10, alpha=1)
+    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==0]["IRF"], 
+               synthetic_data.loc[synthetic_data["p50"]==0]["NFkB"], 
+               c=synthetic_data.loc[synthetic_data["p50"]==0]["IFNb"], s=25, alpha=0.5, edgecolor="none")
+    for i in range(len(training_data["Stimulus"].unique())):
+        stimulus = training_data["Stimulus"].unique()[i]
+        marker = markers[stimulus]
+        ax.scatter(training_data.loc[(training_data["p50"]==0) & (training_data["Stimulus"]==stimulus)]["IRF"], 
+                   training_data.loc[(training_data["p50"]==0) & (training_data["Stimulus"]==stimulus)]["NFkB"], 
+                   c="#E85460", s=25, alpha=1, marker=marker, label=stimulus)
     ax.set_xlabel("IRF")
     ax.set_ylabel(r"$NF\kappa B$")
+    ax.set_title("All KO training data (with synthetic points)")
+    ax.set_aspect("equal")
+    fig.legend(bbox_to_anchor=(1.1,0.5))
+    plt.tight_layout()
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.set_title("All p50 KO training data (with synthetic points)")
-    fig.savefig("./figures/all_training_data_with_synthetic_KO.png")
+    ax.spines[['right', 'top']].set_visible(False)
+    fig.savefig("./figures/all_training_data_with_synthetic_KO.png", bbox_inches="tight")
     plt.close()
 
 
