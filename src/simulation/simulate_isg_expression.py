@@ -113,7 +113,8 @@ def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_tim
             traj_dir = "../simulation/"
             cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
 
-            which_N_curve = {"CpG": 2, "LPS": 1, "pIC": 1}
+            # Cheng 2011: CpG 100 nM, LPS 0.1 mg/ml
+            which_N_curve = {"CpG": 3, "LPS": 4, "pIC": 2}
             N_curve = cell_traj[which_N_curve[stimulus],:]
             N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
             I_curve = [I_values[stimulus] for i in range(stim_time+60)]
