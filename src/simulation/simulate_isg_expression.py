@@ -81,11 +81,14 @@ def get_steady_state(states0, pars, stim_data_ss, t_eval):
     state_names = ["IFNb", "IFNAR", "IFNAR*", "ISGF3", "ISGF3*", "ISG mRNA"]
     end_time = t_eval[-1]
 
+    # print("Starting first iteration", flush=True)
     states0 = solve_ivp(IFN_model, [0, end_time], states0, t_eval=t_eval, args=(pars, stim_data_ss))
+    # print("Finished first iteration", flush=True)
     states0 = states0.y
     diff = np.max(np.abs(states0[:,-1] - states0[:,0]))
     i = 0
     while diff > 0.01:
+        # print("Difference = %.4f after %d iterations" % (diff, i+1))
         states0 = solve_ivp(IFN_model, [0, end_time], states0[:,-1], t_eval=t_eval, args=(pars, stim_data_ss))
         states0 = states0.y
         diff = np.max(np.abs(states0[:,-1] - states0[:,0]))
@@ -110,7 +113,8 @@ def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_tim
             traj_dir = "../simulation/"
             cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
 
-            N_curve = cell_traj[1,:]
+            which_N_curve = {"CpG": 2, "LPS": 1, "pIC": 1}
+            N_curve = cell_traj[which_N_curve[stimulus],:]
             N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
             I_curve = [I_values[stimulus] for i in range(stim_time+60)]
         elif stimulus == "other":
