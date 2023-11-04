@@ -220,10 +220,12 @@ def main():
 
     #  Plot best fit parameters
     print("Plotting best fit parameters")
+    
     fig, ax = plt.subplots()
     ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
     C_pars = results["C"]
-    ax.plot(C_pars, 'o')
+    model_names = results.index
+    ax.bar(model_names, C_pars)
     # ax.set_xticks(np.arange(0,4), model_names)
     ax.set_xlabel("Model")
     ax.set_ylabel("C")
@@ -235,7 +237,7 @@ def main():
     for measure in ["rmsd", "AIC"]:
         fig, ax = plt.subplots()
         ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
-        plt.plot(results[measure], 'o')
+        ax.bar(model_names, results[measure])
         plt.xlabel("Model")
         plt.ylabel("%s" % measure)
         plt.title("%s for each model" % measure.upper())
