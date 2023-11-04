@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+import pandas as pd
 from ifnar_module import change_equations as ifnar_change_equations
 from isg_module import change_equations as isg_change_equations
 from ifnb_module import change_equations as ifnb_change_equations
@@ -15,16 +16,28 @@ def get_params(file):
             params[key] = float(val)
     return params
 
+def read_inputs(protein, stimulus):
+    filename = "../simulation/%s_timecourse.csv" % protein
+    df = pd.read_csv(filename)
+    
+    time = df["Time"].values
+    val = df[stimulus].values
+
+    curve = np.array([time, val])
+    return curve
+
 def get_input(curve, t, input_name=""):
+    max_time = curve[0,-1]
+    
     if t < 0:
         return 0
-    elif t > len(curve) - 1:
+    elif t > max_time:
         if input_name != "p50":
-          val = curve[-1] * np.exp(-(t - len(curve) + 1)/60)
+          val = curve[1,-1] * np.exp(-(t - max_time + 1)/60)
         else:
-          val = curve[-1]
+          val = curve[1,-1]
     else:
-        f = interp1d(range(len(curve)), curve)
+        f = interp1d(curve[0], curve[1])
         val = f([t])[0]
     return val
 
@@ -101,23 +114,17 @@ def get_steady_state(states0, pars, stim_data_ss, t_eval):
     print("Steady state values found after %.2f hours" % (end_time*i/60))
     return states0
 
+def scale_inputs():
+    pass
+
 def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None, plot = True):
     name = "%s_%s_%s" % (name, stimulus, genotype)
 
     if stim_data is None:
         # Inputs
         if stimulus in ["CpG", "LPS", "pIC"]:
-
-            I_values = {"CpG": 0.05, "LPS": 0.25, "pIC": 0.75}
-            N_values = {"CpG": 0.25, "LPS": 1, "pIC": 0.5}
-            traj_dir = "../simulation/"
-            cell_traj = np.loadtxt("%sRepresentativeCellTraj_NFkBn_%s.csv" % (traj_dir, stimulus), delimiter=",")
-
-            # Cheng 2011: CpG 100 nM, LPS 0.1 mg/ml
-            which_N_curve = {"CpG": 3, "LPS": 4, "pIC": 2}
-            N_curve = cell_traj[which_N_curve[stimulus],:]
-            N_curve = N_values[stimulus]*N_curve/np.max(N_curve)
-            I_curve = [I_values[stimulus] for i in range(stim_time+60)]
+            I_curve = read_inputs("IRF", stimulus)
+            N_curve = read_inputs("NFkB", stimulus)
         elif stimulus == "other":
             N_curve, I_curve, P_curve = stim_data
         else:
@@ -125,7 +132,8 @@ def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_tim
 
         if genotype in ["WT", "p50KO"]:
             P_values = {"WT": 1, "p50KO": 0}
-            P_curve = [P_values[genotype] for i in range(stim_time+180)]
+            P_curve_vals = [P_values[genotype] for i in range(stim_time+180)]
+            P_curve = np.array([np.arange(stim_time+180), P_curve_vals])
         elif genotype == "other":
             P_curve = stim_data[2]
         else:
