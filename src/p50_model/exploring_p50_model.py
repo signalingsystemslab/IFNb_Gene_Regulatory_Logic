@@ -28,9 +28,8 @@ def calcuate_f_p_range(params, N, I, P_range, model_name="B2", scaling=1):
     
     return f_values, p50_values, K_values
 
-def make_p50_plot(params, N, I, P_range, filename):
+def make_p50_plot(params, N, I, P_range, directory, filename):
     f_values, p50_values, K_values = calcuate_f_p_range(params, N, I, P_range, model_name="B2", scaling=1)
-    dir = "../p50_model/figures/exploring_p50_model/"
 
     # Plot f as a function of p50 for all values of k
     best_fit_color="#575757"
@@ -46,8 +45,9 @@ def make_p50_plot(params, N, I, P_range, filename):
     plt.xlabel("p50")
     plt.ylabel(r"IFN$\beta$ f-value, I=%.2f, N=%.2f" % (I, N))
     plt.title(r"IFN$\beta$ f-value as a function of p50, model B2")
-    plt.legend()
-    plt.savefig("%s/p50_plot_%s.png" % (dir, filename))
+    plt.legend(bbox_to_anchor=(1.25, 0.5))
+    plt.savefig("%s/p50_plot_%s.png" % (directory, filename))
+    plt.close()
 
     # Create a boxplot of f values at 5 p50 values
     p50_subset = [int(np.round(len(p50_values)/5)*i) for i in range(5)] + [len(p50_values)-1]
@@ -58,7 +58,7 @@ def make_p50_plot(params, N, I, P_range, filename):
     plt.xlabel("p50")
     plt.ylabel(r"IFN$\beta$ mRNA")
     plt.title(r"IFN$\beta$ mRNA for different K values, model B2")
-    plt.savefig("%s/p50_boxplot_%s.png" % (dir, filename))
+    plt.savefig("%s/p50_boxplot_%s.png" % (directory, filename))
     plt.close()
     
 # Get final parameters
@@ -78,10 +78,13 @@ def make_contour_plot(f_values, N_values, I_values, filename, dir, title):
     plt.ylabel(r"NF$\kappa$B")
     plt.title(title)
     plt.savefig("%s/contour_plot_%s.png" % (dir, filename))
+    plt.close()
 
 def main():
-    dir = "results/exploring_p50_model/"
-    os.makedirs(dir, exist_ok=True)
+    directory = "results/exploring_p50_model/"
+    p50_plot_dir = "%s/p50_plots/" % directory
+    os.makedirs(directory, exist_ok=True)
+    os.makedirs(p50_plot_dir, exist_ok=True)
     best_model = "B2"
 
     # Get final parameters
@@ -95,10 +98,15 @@ def main():
     # Make p50 plots for a range of I and N values
     print("Making p50 plots")
     P_range = [0, 2]
-    for I in np.arange(0, 1.25, 0.25):
-        for N in np.arange(0, 1.25, 0.25):
-            filename = "I%.2f_N%.2f" % (I, N)
-            make_p50_plot(params, N, I, P_range, filename)
+    # for I in np.arange(0, 1.1, 0.2):
+    #     for N in np.arange(0, 1.1, 0.2):
+    #         filename = "I%.2f_N%.2f" % (I, N)
+    #         make_p50_plot(params, N, I, P_range, p50_plot_dir, filename)
+
+    for I, N in zip([0.1, 0.05], [1, 0.5]):
+        filename = "I%.2f_N%.2f" % (I, N)
+        print("Making p50 plot for I=%.2f, N=%.2f" % (I, N))
+        make_p50_plot(params, N, I, P_range, p50_plot_dir, filename)
 
     # Calculate f values for WT and KO for a range of N and I values
     N_list = np.linspace(0, 1, 100)
@@ -126,14 +134,14 @@ def main():
     I_values = I_values.reshape((len(N_list), len(I_list), len(P_list)))
 
     # Save all values
-    np.save("%s/f_values.npy" % dir, f_values)
-    np.save("%s/N_values.npy" % dir, N_values)
-    np.save("%s/I_values.npy" % dir, I_values)
+    np.save("%s/f_values.npy" % directory, f_values)
+    np.save("%s/N_values.npy" % directory, N_values)
+    np.save("%s/I_values.npy" % directory, I_values)
 
     # Calculate fold change KO vs WT
-    f_values = np.load("%s/f_values.npy" % dir)
-    N_values = np.load("%s/N_values.npy" % dir)
-    I_values = np.load("%s/I_values.npy" % dir)
+    f_values = np.load("%s/f_values.npy" % directory)
+    N_values = np.load("%s/N_values.npy" % directory)
+    I_values = np.load("%s/I_values.npy" % directory)
 
     # Replace 0 values in :,:,0 with 10e-10 to avoid divide by 0 error
     f_values[:,:,0][f_values[:,:,0]==0] = 10e-10
@@ -150,19 +158,19 @@ def main():
     # Plot fold change between WT and KO
     print("Plotting fold change heatmap")
     make_contour_plot(fold_change, N_values[:,:,0], I_values[:,:,0], 
-                      "WT_KO_fold_change", dir, r"Fold change IFN$\beta$ w/ p50 KO, model B2")
+                      "WT_KO_fold_change", directory, r"Fold change IFN$\beta$ w/ p50 KO, model B2")
 
     # Plot f values for WT and KO
     print("Plotting WT and KO heatmap")
     make_contour_plot(f_values[:,:,0], N_values[:,:,0], I_values[:,:,0],
-                        "WT_f-values", dir, r"IFN$\beta$ mRNA in WT, model B2")
+                        "WT_f-values", directory, r"IFN$\beta$ mRNA in WT, model B2")
     make_contour_plot(f_values[:,:,1], N_values[:,:,1], I_values[:,:,1],
-                        "KO_f-values", dir, r"IFN$\beta$ mRNA in KO, model B2")
+                        "KO_f-values", directory, r"IFN$\beta$ mRNA in KO, model B2")
     # Verify that N and I values are correct
     make_contour_plot(N_values[:,:,0], N_values[:,:,0], I_values[:,:,0],
-                        "N-values_verify_coordinates", dir, r"NF$\kappa$B in WT, model B2")
+                        "N-values_verify_coordinates", directory, r"NF$\kappa$B in WT, model B2")
     make_contour_plot(I_values[:,:,0], N_values[:,:,0], I_values[:,:,0],
-                      "I-values_verify_coordinates", dir, r"IRF in WT, model B2")
+                      "I-values_verify_coordinates", directory, r"IRF in WT, model B2")
     
     # Plot N and I values that maximize fold change
     print("Plotting N and I values that maximize fold change")
@@ -172,12 +180,12 @@ def main():
     plt.xlabel(r"NF$\kappa$B")
     plt.ylabel(r"IRF")
     plt.title(r" Top 5 $NF\kappa B$ and $IRF$ values for fold change, model B2")
-    plt.savefig("%s/N_I_values_fold_change.png" % dir)
+    plt.savefig("%s/N_I_values_fold_change.png" % directory)
 
     # Calculate log 2 fold change
     log2_fold_change = np.log2(fold_change)
     make_contour_plot(log2_fold_change, N_values[:,:,0], I_values[:,:,0],
-                        "log2_fold_change", dir, r"Log2 fold change IFN$\beta$ w/ p50 KO, model B2")
+                        "log2_fold_change", directory, r"Log2 fold change IFN$\beta$ w/ p50 KO, model B2")
     print("Finished")
 
 
@@ -207,7 +215,7 @@ def main():
         ax.set_ylabel(r"IFN$\beta$")
         ax.set_title("Model %s, %s" % (best_model, f_name))
         fig.legend(bbox_to_anchor=(1.23, 0.5))
-        fig.savefig("%s/nfkb_vs_min_max_ifnb_%s_%s.png" % (dir, best_model, f_name))
+        fig.savefig("%s/nfkb_vs_min_max_ifnb_%s_%s.png" % (directory, best_model, f_name))
 
         # Plot minimum and maximum ifnb for each irf
         fig, ax = plt.subplots()
@@ -219,7 +227,7 @@ def main():
         ax.set_ylabel(r"IFN$\beta$")
         ax.set_title("Model %s, %s" % (best_model, f_name))
         fig.legend(bbox_to_anchor=(1.25, 0.5))
-        fig.savefig("%s/irf_vs_min_max_ifnb_%s_%s.png" % (dir, best_model, f_name))
+        fig.savefig("%s/irf_vs_min_max_ifnb_%s_%s.png" % (directory, best_model, f_name))
 
 
 if __name__ == "__main__":

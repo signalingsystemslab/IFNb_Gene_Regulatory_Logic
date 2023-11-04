@@ -31,7 +31,7 @@ def p50_objective(pars, *args):
         # pars = np.hstack([pars[6:8], pars[0:6]])
 
     f_list = [get_f(t_pars, K, C, N[i], I[i], P[i], model_name) for i in range(num_pts)]
-    # Normalize to highest value
+    # # Normalize to highest value
     if np.max(f_list) != 0:
         f_list = f_list / np.max(f_list)
     residuals = np.array(f_list) - beta
@@ -160,7 +160,7 @@ def main():
     beta = training_data["IFNb"]
     model_par_numbers = {"B1": 6, "B2": 7, "B3": 7, "B4": 8}
     num_pts = len(N)
-    num_threads = 40
+    num_threads = 30
     print("The total number of data points is %d" % num_pts)
 
     res_title = ["t1", "t2", "t3", "t4", "t5", "t6","K_i2", "C","rmsd", "AIC"]
@@ -249,7 +249,7 @@ def main():
             # N = N_vals.flatten()
             # I = I_vals.flatten()
             f_values = np.zeros((len(N), len(I)))
-            with Pool(40) as p:
+            with Pool(num_threads) as p:
                 for i in range(len(N_vals)):
                     f_values[i,:] = p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) 
                 # f_values = p.starmap(get_f, [(t_pars, K, C, N[i], I[i], P[genotype], model) for i in range(len(N))])
@@ -371,7 +371,7 @@ def main():
         for genotype in P.keys():
             N_vals, I_vals = np.meshgrid(N, I)
             f_values = np.zeros((len(N), len(I)))
-            with Pool(40) as p:
+            with Pool(num_threads) as p:
                 for i in range(len(N_vals)):
                     f_values[i,:] = p.starmap(get_f, [(t_pars, K, C, N_vals[i,j], I_vals[i,j], P[genotype], model) for j in range(len(N_vals[i,:]))]) 
             title = "best_fit_grid_%s_%s_local" % (genotype, model)

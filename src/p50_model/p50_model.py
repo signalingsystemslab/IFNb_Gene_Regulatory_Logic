@@ -74,11 +74,14 @@ class Modelp50:
 # 	# print(model.f)
 # 	return model.f
 
-def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize=True):
+def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize=True, cbar_scaling=True):
 	if normalize:
 		f_values = f_values / np.max(f_values)
 	fig=plt.figure()
-	plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
+	if cbar_scaling:
+		plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r", vmin=0, vmax=1)
+	else:
+		plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
 	plt.grid(False)
 	plt.colorbar(format="%.1f")
 	plt.title("Model %s contour plot %s" % (model_name, condition))
@@ -86,13 +89,6 @@ def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize
 	fig.gca().set_xlabel(r"$IRF$")
 	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
 	plt.close()
-
-# def calculateFvalues(model_name, pars, I, N, P=0):
-# 	f_values = np.zeros((len(N), len(I)))
-# 	for n in range(len(N)):
-# 		for i in range(len(I)):
-# 			f_values[n,i] = explore_modelp50(pars, N[n], I[i], P, model_name)
-# 	return f_values
 
 def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 	if model_name == "B1":
@@ -108,3 +104,59 @@ def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 	model.calculateState(N, I, P)
 	model.calculateF()
 	return model.f * scaling
+
+def get_product(t_pars, K, C, model_name="B2"):
+	# Return product of beta and t
+	if model_name == "B1":
+		other_pars = []
+	elif model_name == "B2":
+		other_pars = [K]
+	elif model_name == "B3":
+		other_pars = [C]
+	elif model_name == "B4":
+		other_pars = [K, C]
+
+	model = Modelp50(np.concatenate((other_pars, t_pars)), model_name)
+	state_names = ["none", "IRF", r"$IRF_G$", r"IRF + p50", r"NF$\kappa$B", r"NF$\kappa$B + p50", "p50", r"IRF + $IRF_G$",
+		r"IRF + NF$\kappa$B", r"$IRF_G$ + NF$\kappa$B", r"IRF + NF$\kappa$B + p50", r"IRF + $IRF_G$ + NF$\kappa$B"]
+	return model.beta * model.t, state_names
+
+def get_state_prob(t_pars, K, C, N, I, P, model_name="B2"):
+	# Return probability of each state
+	if model_name == "B1":
+		other_pars = []
+	elif model_name == "B2":
+		other_pars = [K]
+	elif model_name == "B3":
+		other_pars = [C]
+	elif model_name == "B4":
+		other_pars = [K, C]
+
+	model = Modelp50(np.concatenate((other_pars, t_pars)), model_name)
+	model.calculateState(N, I, P)
+	probabilities = model.state  / np.sum(model.state)
+
+	state_names = ["none", "IRF", r"$IRF_G$", r"IRF + p50", r"NF$\kappa$B", r"NF$\kappa$B + p50", "p50", r"IRF + $IRF_G$",
+		r"IRF + NF$\kappa$B", r"$IRF_G$ + NF$\kappa$B", r"IRF + NF$\kappa$B + p50", r"IRF + $IRF_G$ + NF$\kappa$B"]
+
+	return probabilities, state_names
+
+def get_f_contribution(t_pars, K, C, N, I, P, model_name="B2"):
+	# Return fraction of f contributed by each state
+	if model_name == "B1":
+		other_pars = []
+	elif model_name == "B2":
+		other_pars = [K]
+	elif model_name == "B3":
+		other_pars = [C]
+	elif model_name == "B4":
+		other_pars = [K, C]
+
+	model = Modelp50(np.concatenate((other_pars, t_pars)), model_name)
+	model.calculateState(N, I, P)
+
+	f_contributions = model.beta * model.t * model.state / np.dot(np.transpose(model.state), model.beta)
+	state_names = ["none", "IRF", r"$IRF_G$", r"IRF + p50", r"NF$\kappa$B", r"NF$\kappa$B + p50", "p50", r"IRF + $IRF_G$",
+		r"IRF + NF$\kappa$B", r"$IRF_G$ + NF$\kappa$B", r"IRF + NF$\kappa$B + p50", r"IRF + $IRF_G$ + NF$\kappa$B"]
+	
+	return f_contributions, state_names

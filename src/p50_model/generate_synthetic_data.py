@@ -14,7 +14,7 @@ import time
 from p50_model import *
 from multiprocessing import Pool
 
-def generate_synthetic_dataset(training_data, seed):
+def generate_synthetic_dataset(training_data, seed, starting_seed=5):
     lps_wt_loc = training_data.loc[(training_data["Stimulus"]=="LPS") & (training_data["Genotype"]=="WT")].index[0]
     lps_irf_2ko = training_data.loc[(training_data["Stimulus"]=="LPS") & (training_data["Genotype"]=="irf3irf7KO")].index[0]
     pic_irf_2ko = training_data.loc[(training_data["Stimulus"]=="polyIC") & (training_data["Genotype"]=="irf3irf7KO")].index[0]
@@ -52,26 +52,35 @@ def generate_synthetic_dataset(training_data, seed):
             sys.exit(1)
 
     other_cols = training_data.iloc[:,2:]
-    synthetic_data = pd.DataFrame({"IRF": IRF_synthetic, "NFkB": NFkB_synthetic, **other_cols})
+    dataset_name = "synthetic_%d" % (seed - starting_seed)
+    synthetic_data = pd.DataFrame({"IRF": IRF_synthetic, "NFkB": NFkB_synthetic, **other_cols, "Dataset": dataset_name})
     return synthetic_data
 
 
-def generate_synthetic_data(training_data, num_datasets, seed):
+def generate_synthetic_data(training_data, num_datasets, original_seed):
     num_pts = training_data.shape[0]
     synthetic_data = pd.DataFrame(columns=training_data.columns)
+    seed = original_seed
     for i in range(num_datasets):
-        seed += i
-        synthetic_data = pd.concat([synthetic_data, generate_synthetic_dataset(training_data, seed+i)])
+        seed += i # oops, oh well
+        synthetic_data = pd.concat([synthetic_data, generate_synthetic_dataset(training_data, seed+i, original_seed)])
     return synthetic_data
 
 def main():
     # Load training data from "../data/p50_training_data.csv" with pandas
     training_data = pd.read_csv("../data/p50_training_data.csv")
-    
+    dataset_name = "original_data"
+    training_data["Dataset"] = dataset_name
+
     # Generate synthetic data
     num_datasets = 99
     seed = 5
     synthetic_data = generate_synthetic_data(training_data, num_datasets, seed)
+    # Rename datasets
+    dataset_names = synthetic_data["Dataset"].unique()
+    new_dataset_names = ["synthetic_%d" % i for i in range(num_datasets)]
+    dataset_name_dict = dict(zip(dataset_names, new_dataset_names))
+    synthetic_data["Dataset"] = synthetic_data["Dataset"].map(dataset_name_dict)
     print(synthetic_data)
 
     all_data = pd.concat([training_data, synthetic_data])
@@ -85,10 +94,11 @@ def main():
 
     # Plot all data where p50=1
     fig, ax = plt.subplots(dpi = 300)
-    ax.set_prop_cycle('color', plt.cm.viridis(np.linspace(0, 1, num_datasets+1)))
-    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==1]["IRF"], 
+    cmap = plt.cm.viridis
+    map = ax.scatter(synthetic_data.loc[synthetic_data["p50"]==1]["IRF"], 
                synthetic_data.loc[synthetic_data["p50"]==1]["NFkB"], 
-               c=synthetic_data.loc[synthetic_data["p50"]==1]["IFNb"], s=25, alpha=0.5, edgecolor="none")
+               c=synthetic_data.loc[synthetic_data["p50"]==1]["IFNb"], s=25, alpha=0.5, edgecolor="none", cmap=cmap)
+    plt.colorbar(map, label=r"$IFN\beta$")
     for i in range(len(training_data["Stimulus"].unique())):
         stimulus = training_data["Stimulus"].unique()[i]
         marker = markers[stimulus]
@@ -99,7 +109,7 @@ def main():
     ax.set_ylabel(r"$NF\kappa B$")
     ax.set_title("All WT training data (with synthetic points)")
     ax.set_aspect("equal")
-    fig.legend(bbox_to_anchor=(1.1,0.5))
+    fig.legend(bbox_to_anchor=(1.2,0.5))
     plt.tight_layout()
     ax.spines[['right', 'top']].set_visible(False)
     fig.savefig("./figures/all_training_data_with_synthetic_WT.png", bbox_inches="tight")
@@ -109,10 +119,10 @@ def main():
 
     # Plot all data where p50=0
     fig, ax = plt.subplots(dpi = 300)
-    ax.set_prop_cycle('color', plt.cm.viridis(np.linspace(0, 1, num_datasets+1)))
-    ax.scatter(synthetic_data.loc[synthetic_data["p50"]==0]["IRF"], 
+    map = ax.scatter(synthetic_data.loc[synthetic_data["p50"]==0]["IRF"], 
                synthetic_data.loc[synthetic_data["p50"]==0]["NFkB"], 
-               c=synthetic_data.loc[synthetic_data["p50"]==0]["IFNb"], s=25, alpha=0.5, edgecolor="none")
+               c=synthetic_data.loc[synthetic_data["p50"]==0]["IFNb"], s=25, alpha=0.5, edgecolor="none", cmap=cmap)
+    plt.colorbar(map, label=r"$IFN\beta$")
     for i in range(len(training_data["Stimulus"].unique())):
         stimulus = training_data["Stimulus"].unique()[i]
         marker = markers[stimulus]
@@ -123,11 +133,11 @@ def main():
     ax.set_ylabel(r"$NF\kappa B$")
     ax.set_title("All KO training data (with synthetic points)")
     ax.set_aspect("equal")
-    fig.legend(bbox_to_anchor=(1.1,0.5))
+    fig.legend(bbox_to_anchor=(1.2,0.5))
     plt.tight_layout()
+    ax.spines[['right', 'top']].set_visible(False)
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.spines[['right', 'top']].set_visible(False)
     fig.savefig("./figures/all_training_data_with_synthetic_KO.png", bbox_inches="tight")
     plt.close()
 
