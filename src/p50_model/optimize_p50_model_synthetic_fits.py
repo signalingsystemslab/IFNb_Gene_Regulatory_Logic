@@ -128,8 +128,7 @@ def main():
     num_pars = model_par_numbers[model]
     print("The total number of data points is %d" % num_pts)
 
-    aic_all = np.zeros(num_datasets)
-    rmsd_all = np.zeros(num_datasets)
+
     pars_all = np.zeros((num_datasets, num_pars))
     residuals_all = np.zeros((num_datasets, num_pts))
     cost_all = np.zeros(num_datasets)
@@ -142,58 +141,61 @@ def main():
     print("OPTIMIZING MODEL %s" % model)
     print("###############################################\n", flush=True)
 
-    for i in range(num_datasets):
-        dataset = training_data.loc[training_data["Dataset"] == datasets[i]]
-        print("###############################################\n")
-        dataset_name = datasets[i]
-        print("Globally optimizing model %s for dataset %s" % (model, dataset_name), flush=True)
-        print(dataset, flush=True)
-        start = time.time()
-        print("Starting at %s" % time.ctime(), flush=True)
-        N = dataset["NFkB"].values
-        I = dataset["IRF"].values
-        P = dataset["p50"].values
-        beta = dataset["IFNb"].values
+    # for i in range(num_datasets):
+    #     dataset = training_data.loc[training_data["Dataset"] == datasets[i]]
+    #     print("###############################################\n")
+    #     dataset_name = datasets[i]
+    #     print("Globally optimizing model %s for dataset %s" % (model, dataset_name), flush=True)
+    #     print(dataset, flush=True)
+    #     start = time.time()
+    #     print("Starting at %s" % time.ctime(), flush=True)
+    #     N = dataset["NFkB"].values
+    #     I = dataset["IRF"].values
+    #     P = dataset["p50"].values
+    #     beta = dataset["IFNb"].values
         
-        # Grid search
-        pars, min_rmsd, grid, jout = optimize_model(N, I, P, beta, model, num_threads=num_threads)
-        pars_global_all[i] = pars
-        rmsd_global_all[i] = min_rmsd
-        np.save("%s/p50_all_datasets_grid_%s.npy" % (results_dir, dataset_name), grid)
-        np.save("%s/p50_all_datasets_jout_%s.npy" % (results_dir, dataset_name), jout)
+    #     # Grid search
+    #     pars, min_rmsd, grid, jout = optimize_model(N, I, P, beta, model, num_threads=num_threads)
+    #     pars_global_all[i] = pars
+    #     rmsd_global_all[i] = min_rmsd
+    #     np.save("%s/p50_all_datasets_grid_%s.npy" % (results_dir, dataset_name), grid)
+    #     np.save("%s/p50_all_datasets_jout_%s.npy" % (results_dir, dataset_name), jout)
         
-        # Calculate AIC from rmsd and number of parameters
-        min_aic = num_pts * np.log(min_rmsd) + 2 * num_pars
-        aic_global_all[i] = min_aic
+    #     # Calculate AIC from rmsd and number of parameters
+    #     min_aic = num_pts * np.log(min_rmsd) + (2 * num_pars)
+    #     aic_global_all[i] = min_aic
         
-        end = time.time()
-        # print("Finished at %s, after %.2f minutes" % (time.ctime(), (end-start)/60), flush=True)
-        print("Minimum rmsd: %.4f, minimum aic: %.4f" % (min_rmsd, min_aic), flush=True)
+    #     end = time.time()
+    #     # print("Finished at %s, after %.2f minutes" % (time.ctime(), (end-start)/60), flush=True)
+    #     print("Minimum rmsd: %.4f, minimum aic: %.4f" % (min_rmsd, min_aic), flush=True)
 
-        # Local optimization
-        print("###############################################\n")
-        print("Locally optimizing model %s for dataset %s" % (model, dataset_name), flush=True)
+    #     # Local optimization
+    #     print("###############################################\n")
+    #     print("Locally optimizing model %s for dataset %s" % (model, dataset_name), flush=True)
 
-        pars, cost, residuals = optimize_model_local(N, I, P, beta, model, pars)
-        pars_all[i] = pars
-        residuals_all[i] = residuals
-        cost_all[i] = cost
+    #     pars, cost, residuals = optimize_model_local(N, I, P, beta, model, pars)
+    #     pars_all[i] = pars
+    #     residuals_all[i] = residuals
+    #     cost_all[i] = cost
         
 
-    # Save results
-    np.savetxt("%s/p50_all_datasets_aic_local.csv" % results_dir, aic_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_rmsd_local.csv" % results_dir, rmsd_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_pars_local.csv" % results_dir, pars_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_cost_local.csv" % results_dir, cost_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_residuals_local.csv" % results_dir, residuals_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_aic_global.csv" % results_dir, aic_global_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_rmsd_global.csv" % results_dir, rmsd_global_all, delimiter=",")
-    np.savetxt("%s/p50_all_datasets_pars_global.csv" % results_dir, pars_global_all, delimiter=",")
+    # # Save results
+    # np.savetxt("%s/p50_all_datasets_cost_local.csv" % results_dir, cost_all, delimiter=",")
+    # np.savetxt("%s/p50_all_datasets_residuals_local.csv" % results_dir, residuals_all, delimiter=",")
+    # np.savetxt("%s/p50_all_datasets_pars_local.csv" % results_dir, pars_all, delimiter=",")
+    # np.savetxt("%s/p50_all_datasets_aic_global.csv" % results_dir, aic_global_all, delimiter=",")
+    # np.savetxt("%s/p50_all_datasets_rmsd_global.csv" % results_dir, rmsd_global_all, delimiter=",")
+    # np.savetxt("%s/p50_all_datasets_pars_global.csv" % results_dir, pars_global_all, delimiter=",")
 
     # Load results
-    aic_all = np.loadtxt("%s/p50_all_datasets_aic_local.csv" % results_dir, delimiter=",")
-    rmsd_all = np.loadtxt("%s/p50_all_datasets_rmsd_local.csv" % results_dir, delimiter=",")
     pars_all = np.loadtxt("%s/p50_all_datasets_pars_local.csv" % results_dir, delimiter=",")
+    residuals = np.loadtxt("%s/p50_all_datasets_residuals_local.csv" % results_dir, delimiter=",")
+
+    # Calculate rmsd and aic for each dataset
+    rmsd = np.sqrt(np.mean(residuals**2, axis=1))
+    np.savetxt("%s/p50_all_datasets_rmsd_local.csv" % results_dir, rmsd, delimiter=",")
+    aic = num_pts * np.log(rmsd) + (2 * num_pars)
+    np.savetxt("%s/p50_all_datasets_aic_local.csv" % results_dir, aic, delimiter=",")
 
     print("\n\n###############################################")
     print("PLOTTING RESULTS")
@@ -210,23 +212,28 @@ def main():
 
     par_names = [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"]
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    colors = rmsd[1:]
     for i in range(num_pars):
-        dots = ax.scatter(np.full(num_datasets, i), pars_all[1:,i], c=rmsd_all, cmap="viridis", s=50, alpha=0.5)
+        # print(np.full(num_datasets-1, i))
+        # print(colors)
+        # print("##################")
+        dots = ax.scatter(np.full(num_datasets-1, i), pars_all[1:,i], c=colors, cmap="viridis", s=50, alpha=0.5)
         dots = jitter_dots(dots)
-        ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=0.5)
+        ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=1)
     ax.set_xticks(np.arange(num_pars))
     ax.set_xticklabels(par_names)
     ax.set_xlim([-0.5, num_pars-0.5])
     ax.set_ylabel("Optimized parameter (t) value")
     ax.set_xlabel("Parameter")
     ax.set_title("Optimized parameter values for model %s" % model)
-    plt.colorbar()
+    plt.colorbar(dots, label="RMSD")
     plt.savefig("%s/p50_all_datasets_pars_local.png" % figures_dir)
+
 
     # Plot parameters all black
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     for i in range(num_pars):
-        dots = ax.scatter(np.full(num_datasets, i), pars_all[1:,i], c="k", s=50, alpha=0.5)
+        dots = ax.scatter(np.full(num_datasets-1, i), pars_all[1:,i], c="k", s=50, alpha=0.5)
         dots = jitter_dots(dots)
         ax.scatter(i, pars_all[0,i], c="r", s=50, alpha=0.5)
     ax.set_xticks(np.arange(num_pars))
@@ -236,12 +243,32 @@ def main():
     ax.set_xlabel("Parameter")
     ax.set_title("Optimized parameter values for model %s" % model)
     plt.savefig("%s/p50_all_datasets_pars_local_black.png" % figures_dir)
+    
+
+    # Plot top 10 parameters with lowest rmsd
+    fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    colors = rmsd[1:]
+    top_10 = np.argsort(colors)[0:10]
+    for i in range(num_pars):
+        dots = ax.scatter(np.full(10, i), pars_all[top_10,i], c=colors[top_10], cmap="viridis", s=50, alpha=0.5,
+                            vmin=np.min(colors), vmax=np.max(colors))
+        dots = jitter_dots(dots)
+        ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=1)
+    ax.set_xticks(np.arange(num_pars))
+    ax.set_xticklabels(par_names)
+    ax.set_xlim([-0.5, num_pars-0.5])
+    ax.set_ylabel("Optimized parameter (t) value")
+    ax.set_xlabel("Parameter")
+    ax.set_title("Optimized parameter values for model %s" % model)
+    plt.colorbar(dots, label="RMSD")
+    plt.savefig("%s/p50_all_datasets_pars_local_top_10.png" % figures_dir)
 
     # Plot rmsd for each dataset
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
-    ax.scatter(np.arange(num_datasets), rmsd_all, c="k", s=50)
+    ax.scatter(np.arange(num_datasets), rmsd, c="k", s=50)
     ax.set_ylabel("RMSD")
     ax.set_xlabel("Dataset")
+    ax.set_xticks(np.arange(num_datasets))
     ax.set_xticklabels(datasets, rotation=90)
     ax.set_title("RMSD for each dataset")
     plt.savefig("%s/p50_all_datasets_rmsd_local.png" % figures_dir)
@@ -268,6 +295,20 @@ def main():
     plt.tight_layout()
     plt.savefig("%s/p50_all_datasets_pars_local_joint.png" % figures_dir)
 
+    # Make contour plots from top 10 parameters
+    top_pars = pars_all[top_10, :]
+    for i in range(10):
+        t_pars = top_pars[i]
+        K = 1
+        C = 1
+        N = np.linspace(0, 1, 50)
+        I = np.linspace(0, 1, 50)
+        P = np.ones(50)
+        f_values = np.zeros((len(N), len(I)))
+        for j in range(len(N)):
+            for k in range(len(I)):
+                f_values[j,k] = get_f(t_pars, K, C, N[j], I[k], P[k], model)
+        plot_contour(f_values, model, I, N, figures_dir, "top_10_%d" % i, condition="top 10 #%d" % i, normalize=True)
 
 if __name__ == "__main__":
     main()
