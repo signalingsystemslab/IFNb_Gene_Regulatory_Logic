@@ -244,71 +244,116 @@ def main():
     ax.set_title("Optimized parameter values for model %s" % model)
     plt.savefig("%s/p50_all_datasets_pars_local_black.png" % figures_dir)
     
-
-    # Plot top 10 parameters with lowest rmsd
+    # Plot contributions for each parameter
+    num_states = 12
+    parameter_contributions = np.zeros((num_datasets, num_states))
+    # LPS
+    N = 1.0
+    I = 0.25
+    P = 1.0
+    for i in range(num_datasets):
+        parameter_contributions[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
+        parameter_contributions[i,:] = parameter_contributions[i,:] / np.sum(parameter_contributions[i,:])
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
-    colors = rmsd[1:]
-    top_10 = np.argsort(colors)[0:10]
-    for i in range(num_pars):
-        dots = ax.scatter(np.full(10, i), pars_all[top_10,i], c=colors[top_10], cmap="viridis", s=50, alpha=0.5,
-                            vmin=np.min(colors), vmax=np.max(colors))
+    for i in range(num_states):
+        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions[:,i], c="k", s=50, alpha=0.5)
         dots = jitter_dots(dots)
-        ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=1)
-    ax.set_xticks(np.arange(num_pars))
-    ax.set_xticklabels(par_names)
-    ax.set_xlim([-0.5, num_pars-0.5])
-    ax.set_ylabel("Optimized parameter (t) value")
+    ax.set_xticks(np.arange(num_states))
+    ax.set_xticklabels(state_names, rotation=90)
+    ax.set_xlim([-0.5, num_states-0.5])
+    ax.set_ylabel(r"Contribution to IFN$\beta$")
     ax.set_xlabel("Parameter")
-    ax.set_title("Optimized parameter values for model %s" % model)
-    plt.colorbar(dots, label="RMSD")
-    plt.savefig("%s/p50_all_datasets_pars_local_top_10.png" % figures_dir)
+    ax.set_title("Contribution of each TF (fraction) for LPS stimulation")
+    plt.savefig("%s/p50_all_datasets_contributions_LPS_WT.png" % figures_dir)
+    ylim = ax.get_ylim()
 
-    # Plot rmsd for each dataset
+    # CpG
+    N = 0.75
+    I = 0.05
+    parameter_contributions = np.zeros((num_datasets, num_states))
+    for i in range(num_datasets):
+        parameter_contributions[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
+        parameter_contributions[i,:] = parameter_contributions[i,:] / np.sum(parameter_contributions[i,:])
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
-    ax.scatter(np.arange(num_datasets), rmsd, c="k", s=50)
-    ax.set_ylabel("RMSD")
-    ax.set_xlabel("Dataset")
-    ax.set_xticks(np.arange(num_datasets))
-    ax.set_xticklabels(datasets, rotation=90)
-    ax.set_title("RMSD for each dataset")
-    plt.savefig("%s/p50_all_datasets_rmsd_local.png" % figures_dir)
+    for i in range(num_states):
+        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions[:,i], c="k", s=50, alpha=0.5)
+        dots = jitter_dots(dots)
+    ax.set_xticks(np.arange(num_states))
+    ax.set_xticklabels(state_names, rotation=90)
+    ax.set_xlim([-0.5, num_states-0.5])
+    ax.set_ylim(ylim)
+    ax.set_ylabel(r"Contribution to IFN$\beta$")
+    ax.set_xlabel("Parameter")
+    ax.set_title("Contribution of each TF (fraction) for CpG stimulation")
+    plt.savefig("%s/p50_all_datasets_contributions_CpG_WT.png" % figures_dir)
+    
 
-    # Plot each parameter distribution as density plot
-    fig, ax = plt.subplots(2,3, figsize=(12,8), dpi=300)
-    ax = ax.flatten()
-    for i in range(num_pars):
-        ax[i].hist(pars_all[:,i], bins=20, density=True, color="k", alpha=0.5)
-        ax[i].set_title(par_names[i])
-        ax[i].set_xlabel("Optimized parameter (t) value")
-        ax[i].set_ylabel("Density")
-    plt.tight_layout()
-    plt.suptitle("Parameter distributions for model %s" % model)
-    plt.savefig("%s/p50_all_datasets_pars_local_hist.png" % figures_dir) 
+    # # Plot top 10 parameters with lowest rmsd
+    # fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    # colors = rmsd[1:]
+    # top_10 = np.argsort(colors)[0:10]
+    # for i in range(num_pars):
+    #     dots = ax.scatter(np.full(10, i), pars_all[top_10,i], c=colors[top_10], cmap="viridis", s=50, alpha=0.5,
+    #                         vmin=np.min(colors), vmax=np.max(colors))
+    #     dots = jitter_dots(dots)
+    #     ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=1)
+    # ax.set_xticks(np.arange(num_pars))
+    # ax.set_xticklabels(par_names)
+    # ax.set_xlim([-0.5, num_pars-0.5])
+    # ax.set_ylabel("Optimized parameter (t) value")
+    # ax.set_xlabel("Parameter")
+    # ax.set_title("Optimized parameter values for model %s" % model)
+    # plt.colorbar(dots, label="RMSD")
+    # plt.savefig("%s/p50_all_datasets_pars_local_top_10.png" % figures_dir)
 
-    # Plot joint distribution of parameters
-    fig, ax = plt.subplots(num_pars, num_pars, figsize=(12,12), dpi=300)
-    for i in range(num_pars):
-        for j in range(num_pars):
-            ax[i,j].scatter(pars_all[:,i], pars_all[:,j], c="k", s=50, alpha=0.5)
-            ax[i,j].set_xlabel(par_names[i])
-            ax[i,j].set_ylabel(par_names[j])
-    plt.tight_layout()
-    plt.savefig("%s/p50_all_datasets_pars_local_joint.png" % figures_dir)
+    # # Plot rmsd for each dataset
+    # fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    # ax.scatter(np.arange(num_datasets), rmsd, c="k", s=50)
+    # ax.set_ylabel("RMSD")
+    # ax.set_xlabel("Dataset")
+    # ax.set_xticks(np.arange(num_datasets))
+    # ax.set_xticklabels(datasets, rotation=90)
+    # ax.set_title("RMSD for each dataset")
+    # plt.savefig("%s/p50_all_datasets_rmsd_local.png" % figures_dir)
 
-    # Make contour plots from top 10 parameters
-    top_pars = pars_all[top_10, :]
-    for i in range(10):
-        t_pars = top_pars[i]
-        K = 1
-        C = 1
-        N = np.linspace(0, 1, 50)
-        I = np.linspace(0, 1, 50)
-        P = np.ones(50)
-        f_values = np.zeros((len(N), len(I)))
-        for j in range(len(N)):
-            for k in range(len(I)):
-                f_values[j,k] = get_f(t_pars, K, C, N[j], I[k], P[k], model)
-        plot_contour(f_values, model, I, N, figures_dir, "top_10_%d" % i, condition="top 10 #%d" % i, normalize=True)
+    # # Plot each parameter distribution as density plot
+    # fig, ax = plt.subplots(2,3, figsize=(12,8), dpi=300)
+    # ax = ax.flatten()
+    # for i in range(num_pars):
+    #     ax[i].hist(pars_all[:,i], bins=20, density=True, color="k", alpha=0.5)
+    #     ax[i].set_title(par_names[i])
+    #     ax[i].set_xlabel("Optimized parameter (t) value")
+    #     ax[i].set_ylabel("Density")
+    # plt.tight_layout()
+    # plt.suptitle("Parameter distributions for model %s" % model)
+    # plt.savefig("%s/p50_all_datasets_pars_local_hist.png" % figures_dir) 
+
+    # # Plot joint distribution of parameters
+    # fig, ax = plt.subplots(num_pars, num_pars, figsize=(12,12), dpi=300)
+    # for i in range(num_pars):
+    #     for j in range(num_pars):
+    #         ax[i,j].scatter(pars_all[:,i], pars_all[:,j], c="k", s=50, alpha=0.5)
+    #         ax[i,j].set_xlabel(par_names[i])
+    #         ax[i,j].set_ylabel(par_names[j])
+    # plt.tight_layout()
+    # plt.savefig("%s/p50_all_datasets_pars_local_joint.png" % figures_dir)
+
+    # # Make contour plots from top 10 parameters
+    # top_pars = pars_all[top_10, :]
+    # for i in range(10):
+    #     t_pars = top_pars[i]
+    #     K = 1
+    #     C = 1
+    #     N = np.linspace(0, 1, 50)
+    #     I = np.linspace(0, 1, 50)
+    #     P = np.ones(50)
+    #     f_values = np.zeros((len(N), len(I)))
+    #     for j in range(len(N)):
+    #         for k in range(len(I)):
+    #             f_values[j,k] = get_f(t_pars, K, C, N[j], I[k], P[k], model)
+    #     plot_contour(f_values, model, I, N, figures_dir, "top_10_%d" % i, condition="top 10 #%d" % i, normalize=True)
+
+
 
 if __name__ == "__main__":
     main()
