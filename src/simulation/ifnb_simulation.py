@@ -8,8 +8,8 @@ import os
 import time
 plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
 
-dir = "results/ifnb_simulation_syn_pars/"
-os.makedirs(dir, exist_ok=True)
+parent_dir = "results/ifnb_simulation_syn_pars/"
+os.makedirs(parent_dir, exist_ok=True)
 
 def get_params(file):
     params = {}
@@ -19,7 +19,7 @@ def get_params(file):
             params[key] = float(val)
     return params
 
-def read_inputs(protein, stimulus):
+def read_inputs(protein, stimulus, scale = False):
     filename = "../simulation/%s_timecourse.csv" % protein
     df = pd.read_csv(filename)
     
@@ -27,6 +27,12 @@ def read_inputs(protein, stimulus):
     val = df[stimulus].values
 
     curve = np.array([time, val])
+
+    if scale:
+        if protein == "NFkB":
+            curve[1] = curve[1] / 255 # max of all stimuli is at 255 nM
+        elif protein == "IRF":
+            curve[1] = curve[1] / 60 # max of all stimuli is at 60 nM
     return curve
 
 def get_input(curve, t, input_name=""):
@@ -100,14 +106,19 @@ def plot_inputs(input_t, N_curve, I_curve, P_curve, name, directory):
     plt.savefig("%s/input_curves_%s.png" % (directory, name))
     plt.close()
 
-def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None, plot = True):
+def full_simulation(states0, params, name, stimulus, genotype, directory, stim_time = 60*8, stim_data=None, plot = True, p_deg_ifnb = 1, p_syn_ifnb = 1):
     name = "%s_%s_%s" % (name, stimulus, genotype)
+
+    # Make pars a dictionary
+    pars = {"K_i2": 1, "C": 1, "p_syn_ifnb": p_syn_ifnb, "p_deg_ifnb": p_deg_ifnb}
+    for i in range(len(params)):
+        pars["t%d" % (i+1)] = params[i]
 
     if stim_data is None:
         # Inputs
         if stimulus in ["CpG", "LPS", "pIC"]:
-            I_curve = read_inputs("IRF", stimulus)
-            N_curve = read_inputs("NFkB", stimulus)
+            I_curve = read_inputs("IRF", stimulus, scale=True)
+            N_curve = read_inputs("NFkB", stimulus, scale=True)
         else:
             raise ValueError("Stimulus must be CpG, LPS, pIC, or other")
 
@@ -125,8 +136,9 @@ def full_simulation(states0, pars, name, stimulus, genotype, directory, stim_tim
         N_curve, I_curve, P_curve = stim_data
         stim_data = [N_curve, I_curve, P_curve]
 
-    stim_data_ss = [[0.00001 for i in range(stim_time+120)] for i in range(2)]
-    stim_data_ss = [stim_data_ss[0], stim_data_ss[1], P_curve]
+    stim_data_ss = [0.00001 for i in range(stim_time+120)]
+    stim_data_ss = np.array([np.arange(stim_time+120), stim_data_ss])
+    stim_data_ss = [stim_data_ss, stim_data_ss, P_curve]
 
     if plot:
         # Plot inputs
@@ -154,150 +166,268 @@ def main():
     params = np.loadtxt("../p50_model/opt_syn_datasets/results/p50_all_datasets_pars_local.csv", delimiter=",")
     num_par_reps = np.size(params,0)
 
-    # Simulate for cpg and lps
+    synthesis_rates = np.logspace(-5, 0, 6)
+    fc_diffs = []
+    for p_syn_ifnb in synthesis_rates:
+        dir = "%s/p_syn_ifnb_%.5f" % (parent_dir, p_syn_ifnb)
+        os.makedirs(dir, exist_ok=True)
 
-    with Pool(40) as p:
-        cpg_results = p.starmap(full_simulation, [(states0, params[i,:], "CpG_%d" % i, "CpG", genotype, dir, stim_time, None, False) for i in range(num_par_reps)])
-        lps_results = p.starmap(full_simulation, [(states0, params[i,:], "LPS_%d" % i, "LPS", genotype, dir, stim_time, None, False) for i in range(num_par_reps)])
+        # Simulate for cpg and lps
+        with Pool(40) as p:
+            cpg_results = p.starmap(full_simulation, [(states0, params[i,:], "CpG_%d" % i, "CpG", genotype, dir, stim_time, None, False, 1, p_syn_ifnb) for i in range(num_par_reps)])
+            lps_results = p.starmap(full_simulation, [(states0, params[i,:], "LPS_%d" % i, "LPS", genotype, dir, stim_time, None, False, 1, p_syn_ifnb) for i in range(num_par_reps)])
 
-    cpg_timecourses = [cpg_results[i][0].y for i in range(num_par_reps)]
-    lps_timecourses = [lps_results[i][0].y for i in range(num_par_reps)]
-    t_eval = cpg_results[0][1]
-    np.savetxt("%s/cpg_results.csv" % dir, cpg_timecourses, delimiter=",")
-    np.savetxt("%s/lps_results.csv" % dir, lps_timecourses, delimiter=",")
-    np.savetxt("%s/t_eval.csv" % dir, t_eval, delimiter=",")
+        # print(cpg_results[1][0].y[0,:])
+        cpg_timecourses = [cpg_results[i][0].y[0,:] for i in range(num_par_reps)]
+        cpg_timecourses = np.array(cpg_timecourses)
+        lps_timecourses = [lps_results[i][0].y[0,:] for i in range(num_par_reps)]
+        lps_timecourses = np.array(lps_timecourses)
+        t_eval = cpg_results[0][1]
+        np.savetxt("%s/cpg_results.csv" % dir, cpg_timecourses, delimiter=",")
+        np.savetxt("%s/lps_results.csv" % dir, lps_timecourses, delimiter=",")
+        np.savetxt("%s/t_eval.csv" % dir, t_eval, delimiter=",")
 
-    # Plot inputs
-    cpg_stim_data = cpg_results[0][2]
-    lps_stim_data = lps_results[0][2]
+        # Plot inputs
+        cpg_stim_data = cpg_results[0][2]
+        lps_stim_data = lps_results[0][2]
 
-    input_t = np.linspace(0, stim_time+120, stim_time+120+1)
-    plot_inputs(input_t, cpg_stim_data[0], cpg_stim_data[1], cpg_stim_data[2], "CpG", dir)
-    plot_inputs(input_t, lps_stim_data[0], lps_stim_data[1], lps_stim_data[2], "LPS", dir)
+        input_t = np.linspace(0, stim_time+120, stim_time+120+1)
+        plot_inputs(input_t, cpg_stim_data[0], cpg_stim_data[1], cpg_stim_data[2], "CpG", dir)
+        plot_inputs(input_t, lps_stim_data[0], lps_stim_data[1], lps_stim_data[2], "LPS", dir)
 
-    # Load results
-    cpg_timecourses = np.loadtxt("%s/cpg_results.csv" % dir, delimiter=",")
-    lps_results = np.loadtxt("%s/lps_results.csv" % dir, delimiter=",")
-    t_eval = np.loadtxt("%s/t_eval.csv" % dir, delimiter=",")
+        # Load results
+        cpg_timecourses = np.loadtxt("%s/cpg_results.csv" % dir, delimiter=",")
+        lps_timecourses = np.loadtxt("%s/lps_results.csv" % dir, delimiter=",")
+        t_eval = np.loadtxt("%s/t_eval.csv" % dir, delimiter=",")
 
-    # Plot results
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("CpG stimulation, all parameter sets")
-    plt.savefig("%s/cpg_timecourses.png" % dir)
-    plt.close()
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("LPS stimulation, all parameter sets")
-    plt.savefig("%s/lps_timecourses.png" % dir)
-
-    # Calculate fold change for all parameter sets
-    cpg_fc = np.zeros(num_par_reps)
-    lps_fc = np.zeros(num_par_reps)
-
-    for i in range(num_par_reps):
-        cpg_fc[i] = np.max(cpg_timecourses[i,:]) / cpg_timecourses[i,0]
-        lps_fc[i] = np.max(lps_timecourses[i,:]) / lps_timecourses[i,0]
-
-    # Plot fold change
-    cpg_fc_sort = np.sort(cpg_fc)
-    lps_fc_sort = np.sort(lps_fc)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(cpg_fc_sort, color="b", label="CpG")
-    ax.plot(lps_fc_sort, color="r", label="LPS")
-    ax.set_xlabel("Parameter set (sorted)")
-    ax.set_ylabel("Fold change")
-    ax.set_title("Fold change in IFN$\beta$ mRNA")
-    plt.legend()
-    plt.savefig("%s/fold_change.png" % dir)
-
-    # mRNA data
-    mRNA_data = pd.read_csv("../data/ifnb_mRNA_counts_cheng17.csv")
-    cpg_mRNA = mRNA_data[mRNA_data["stimulus"] == "CPG" and mRNA_data["time"] > 0]
-    cpg_fc_data = max(cpg_mRNA["fold_change"])
-    lps_mRNA = mRNA_data[mRNA_data["stimulus"] == "LPS" and mRNA_data["time"] > 0]
-    lps_fc_data = max(lps_mRNA["fold_change"])
-
-    print("CpG mRNA fold change: %.2f" % cpg_fc_data)
-    print("LPS mRNA fold change: %.2f" % lps_fc_data)
-
-    # Find row in cpg_fc closest to cpg_fc_data
-    cpg_fc_closest = np.argmin(np.abs(cpg_fc - cpg_fc_data))
-    lps_fc_closest = np.argmin(np.abs(lps_fc - lps_fc_data))
-
-    print("CpG parameter set closest to data: %s" % params[cpg_fc_closest,:])
-    print("LPS parameter set closest to data: %s" % params[lps_fc_closest,:])
-
-    # plot results
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        if i == cpg_fc_closest:
-            ax.plot(t_eval, cpg_timecourses[i,:], color="r", alpha=1)
-        else:
+        # Plot results
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for i in range(num_par_reps):
             ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("CpG stimulation, parameter set closest to CpG data")
-    plt.savefig("%s/cpg_timecourses_closest.png" % dir)
-    plt.close()
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel(r"IFN$\beta$ mRNA")
+        ax.set_title("CpG stimulation, all parameter sets")
+        plt.savefig("%s/cpg_timecourses.png" % dir)
+        plt.close()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        if i == lps_fc_closest:
-            ax.plot(t_eval, lps_timecourses[i,:], color="r", alpha=1)
-        else:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for i in range(num_par_reps):
             ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("LPS stimulation, parameter set closest to LPS data")
-    plt.savefig("%s/lps_timecourses_closest.png" % dir)
-    plt.close()
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel(r"IFN$\beta$ mRNA")
+        ax.set_title("LPS stimulation, all parameter sets")
+        plt.savefig("%s/lps_timecourses.png" % dir)
+        plt.close()
 
-    # Find parameter set where LPS and CpG are both close to data
-    cpg_diffs = np.abs(cpg_fc - cpg_fc_data)
-    lps_diffs = np.abs(lps_fc - lps_fc_data)
-    both_closest = np.argmin(cpg_diffs + lps_diffs)
-    print("Parameter set closest to both data sets: %s" % params[both_closest,:])
+        # # PLot initial IFNb mRNA for each parameter set
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111)
+        # ax.plot(cpg_timecourses[:,0], "bo", label="CpG")
+        # ax.plot(lps_timecourses[:,0], "ro", label="LPS")
+        # ax.set_xlabel("Parameter set")
+        # ax.set_ylabel(r"IFN$\beta$ mRNA (initial)")
+        # ax.set_title(r"Initial IFN$\beta$ mRNA for all parameter sets")
+        # plt.legend()
+        # plt.savefig("%s/initial_mRNA_by_par.png" % dir)
+        # plt.close()   
 
-    # plot results
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        if i == both_closest:
-            ax.plot(t_eval, cpg_timecourses[i,:], color="r", alpha=1)
-        else:
-            ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("CpG stimulation, parameter set closest to both data sets")
-    plt.savefig("%s/cpg_timecourses_both_close.png" % dir)
-    plt.close()
+        # Calculate fold change between CpG at 1h and LPs at 1h
+        t_eval_closest = np.argmin(np.abs(t_eval - 60))
+        cpg_1h = cpg_timecourses[:,t_eval_closest]
+        lps_1h = lps_timecourses[:,t_eval_closest]
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for i in len(num_par_reps):
-        if i == both_closest:
-            ax.plot(t_eval, lps_timecourses[i,:], color="r", alpha=1)
-        else:
-            ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel(r"IFN$\beta$ mRNA")
-    ax.set_title("LPS stimulation, parameter set closest to both data sets")
-    plt.savefig("%s/lps_timecourses_both_close.png" % dir)
+        cpg_lps_1h_fc = lps_1h / cpg_1h
+
+        # Plot 1h fold change
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(cpg_lps_1h_fc, "bo")
+        ax.set_xlabel("Parameter set")
+        ax.set_ylabel(r"IFN$\beta$ mRNA fold change")
+        ax.set_title(r"Fold change in IFN$\beta$ mRNA at 1h between CpG and LPS")
+        plt.savefig("%s/1h_fold_change_by_par.png" % dir)
+
+        # mRNA data
+        mRNA_data = pd.read_csv("../data/ifnb_mRNA_counts_cheng17.csv")
+        cpg_1h_data = mRNA_data[(mRNA_data["stimulus"] == "CPG") & (mRNA_data["time"] == 1)]
+        cpg_1h_data = cpg_1h_data["counts"].values[0]
+        lps_1h_data = mRNA_data[(mRNA_data["stimulus"] == "LPS") & (mRNA_data["time"] == 1)]
+        lps_1h_data = lps_1h_data["counts"].values[0]
+
+        cpg_lps_1h_fc_data = lps_1h_data / cpg_1h_data
+
+        print("CpG mRNA at 1h: %.2f" % cpg_1h_data)
+        print("LPS mRNA at 1h: %.2f" % lps_1h_data)
+        print("Fold change CpG to LPS at 1h: %.2f" % cpg_lps_1h_fc_data)
+
+        fc_closest = np.argmin(np.abs(cpg_lps_1h_fc - cpg_lps_1h_fc_data))
+        fc_diff = cpg_lps_1h_fc[fc_closest] - cpg_lps_1h_fc_data
+        fc_diffs.append(fc_diff)
+
+        print("Parameter set closest to data: %s" % params[fc_closest,:])
+        print("Fold change CpG to LPS simulation: %.3f" % cpg_lps_1h_fc[fc_closest])
+
+        # plot results
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for i in range(num_par_reps):
+            if i == fc_closest:
+                ax.plot(t_eval, cpg_timecourses[i,:], color="r", alpha=1)
+            else:
+                ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel(r"IFN$\beta$ mRNA")
+        ax.set_title("CpG stimulation, parameter set closest to data")
+        plt.savefig("%s/cpg_timecourses_closest.png" % dir)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for i in range(num_par_reps):
+            if i == fc_closest:
+                ax.plot(t_eval, lps_timecourses[i,:], color="r", alpha=1)
+            else:
+                ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel(r"IFN$\beta$ mRNA")
+        ax.set_title("LPS stimulation, parameter set closest to data")
+        plt.savefig("%s/lps_timecourses_closest.png" % dir)
 
 
+    #     # Calculate fold change for all parameter sets
+    #     cpg_fc = np.zeros(num_par_reps)
+    #     lps_fc = np.zeros(num_par_reps)
+
+    #     for i in range(num_par_reps):
+    #         cpg_fc[i] = np.max(cpg_timecourses[i,:]) / cpg_timecourses[i,0]
+    #         lps_fc[i] = np.max(lps_timecourses[i,:]) / lps_timecourses[i,0]
+
+    #     # Plot fold change
+    #     cpg_fc_sort = np.sort(cpg_fc)
+    #     lps_fc_sort = np.sort(lps_fc)
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.plot(cpg_fc_sort, "bo", label="CpG")
+    #     ax.plot(lps_fc_sort, "ro", label="LPS")
+    #     ax.set_xlabel("Parameter set (sorted)")
+    #     ax.set_ylabel("Fold change")
+    #     ax.set_title(r"Fold change in IFN$\beta$ mRNA")
+    #     plt.legend()
+    #     plt.savefig("%s/fold_change_by_par.png" % dir)
+
+    #     # mRNA data
+    #     mRNA_data = pd.read_csv("../data/ifnb_mRNA_counts_cheng17.csv")
+    #     cpg_mRNA = mRNA_data[(mRNA_data["stimulus"] == "CPG") & (mRNA_data["time"] > 0)]
+    #     cpg_fc_data = max(cpg_mRNA["fold_change"])
+    #     lps_mRNA = mRNA_data[(mRNA_data["stimulus"] == "LPS") & (mRNA_data["time"] > 0)]
+    #     lps_fc_data = max(lps_mRNA["fold_change"])
+
+    #     print("CpG mRNA fold change: %.2f" % cpg_fc_data)
+    #     print("LPS mRNA fold change: %.2f" % lps_fc_data)
+
+    #     # Find row in cpg_fc closest to cpg_fc_data
+    #     cpg_fc_closest = np.argmin(np.abs(cpg_fc - cpg_fc_data))
+    #     lps_fc_closest = np.argmin(np.abs(lps_fc - lps_fc_data))
+
+    #     print("CpG parameter set closest to data: %s" % params[cpg_fc_closest,:])
+    #     print("CpG fold change: %.3f" % cpg_fc[cpg_fc_closest])
+    #     print("LPS parameter set closest to data: %s" % params[lps_fc_closest,:])
+    #     print("LPS fold change: %.3f" % lps_fc[lps_fc_closest])
+
+    #     cpg_fc_diffs.append(cpg_fc[cpg_fc_closest] - cpg_fc_data)
+    #     lps_fc_diffs.append(lps_fc[lps_fc_closest] - lps_fc_data)
+
+    #     # plot results
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == cpg_fc_closest:
+    #             ax.plot(t_eval, cpg_timecourses[i,:], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA")
+    #     ax.set_title("CpG stimulation, parameter set closest to CpG data")
+    #     plt.savefig("%s/cpg_timecourses_closest.png" % dir)
+    #     plt.close()
+
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == lps_fc_closest:
+    #             ax.plot(t_eval, lps_timecourses[i,:], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA")
+    #     ax.set_title("LPS stimulation, parameter set closest to LPS data")
+    #     plt.savefig("%s/lps_timecourses_closest.png" % dir)
+    #     plt.close()
+
+    #     # Plot fold change over time for each parameter set
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == cpg_fc_closest:
+    #             ax.plot(t_eval, cpg_timecourses[i,:]/cpg_timecourses[i,0], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, cpg_timecourses[i,:]/cpg_timecourses[i,0], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA fold change")
+    #     ax.set_title("CpG stimulation, all parameter sets")
+    #     plt.savefig("%s/cpg_fold_change.png" % dir)
+    #     plt.close()
+
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == lps_fc_closest:
+    #             ax.plot(t_eval, lps_timecourses[i,:]/lps_timecourses[i,0], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, lps_timecourses[i,:]/lps_timecourses[i,0], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA fold change")
+    #     ax.set_title("LPS stimulation, all parameter sets")
+    #     plt.savefig("%s/lps_fold_change.png" % dir)
+
+    #     # Find parameter set where LPS and CpG are both close to data
+    #     cpg_diffs = np.abs(cpg_fc - cpg_fc_data)
+    #     lps_diffs = np.abs(lps_fc - lps_fc_data)
+    #     print("\nCpG parameter differences: %s" % cpg_diffs)
+    #     print("LPS parameter differences: %s" % lps_diffs)
+    #     both_closest = np.argmin(cpg_diffs + lps_diffs)
+    #     print("Parameter set closest to both data sets: %s" % params[both_closest,:])
+
+    #     # plot results
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == both_closest:
+    #             ax.plot(t_eval, cpg_timecourses[i,:], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, cpg_timecourses[i,:], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA")
+    #     ax.set_title("CpG stimulation, parameter set closest to both data sets")
+    #     plt.savefig("%s/cpg_timecourses_both_close.png" % dir)
+    #     plt.close()
+
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     for i in range(num_par_reps):
+    #         if i == both_closest:
+    #             ax.plot(t_eval, lps_timecourses[i,:], color="r", alpha=1)
+    #         else:
+    #             ax.plot(t_eval, lps_timecourses[i,:], color="b", alpha=0.1)
+    #     ax.set_xlabel("Time (min)")
+    #     ax.set_ylabel(r"IFN$\beta$ mRNA")
+    #     ax.set_title("LPS stimulation, parameter set closest to both data sets")
+    #     plt.savefig("%s/lps_timecourses_both_close.png" % dir)
+
+    print("Fold change differences:")
+    for syn_rate, diff in zip(synthesis_rates, fc_diffs):
+        print("synthesis rate %.5f: difference of %.3f" % (syn_rate, diff))
 
 if __name__ == "__main__":
     main()
