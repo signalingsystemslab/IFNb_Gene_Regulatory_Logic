@@ -28,7 +28,7 @@ def generate_synthetic_dataset(training_data, seed, starting_seed=5):
     LPS_IRF_2KO_val = 1
     PIC_IRF_2KO_val = 0
     PIC_IRF_3KO_val = 1
-    # Generate synthetic dataset with length corresponding to the number of data points in the training data with +/- 5% noise around IRF and NFkB values
+    
     std_err = 0.05
     std_dev = std_err
     
@@ -115,6 +115,24 @@ def main():
     fig.savefig("./figures/all_training_data_with_synthetic_WT.png", bbox_inches="tight")
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
+    plt.close()
+
+    # plot only training data
+    fig, ax = plt.subplots(dpi = 300)
+    for i in range(len(training_data["Stimulus"].unique())):
+        stimulus = training_data["Stimulus"].unique()[i]
+        marker = markers[stimulus]
+        ax.scatter(training_data.loc[(training_data["p50"]==1) & (training_data["Stimulus"]==stimulus)]["IRF"], 
+                   training_data.loc[(training_data["p50"]==1) & (training_data["Stimulus"]==stimulus)]["NFkB"], 
+                   c="#E85460", s=25, alpha=1, marker=marker, label=stimulus)
+    ax.set_xlabel("IRF")
+    ax.set_ylabel(r"$NF\kappa B$")
+    ax.set_title("All WT training data (with synthetic points)")
+    ax.set_aspect("equal")
+    fig.legend(bbox_to_anchor=(1.2,0.5))
+    plt.tight_layout()
+    ax.spines[['right', 'top']].set_visible(False)
+    fig.savefig("./figures/all_training_data_WT_only.png", bbox_inches="tight")
     plt.close()
 
     # Plot all data where p50=0

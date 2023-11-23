@@ -202,24 +202,25 @@ def main():
     print("###############################################\n", flush=True)
 
     # Plot parameters
-    def jitter_dots(dots):
+    def jitter_dots(dots, jitter=0.3):
         offsets = dots.get_offsets()
         jittered_offsets = offsets
         # only jitter in the x-direction
-        jittered_offsets[:, 0] += np.random.uniform(-0.3, 0.3, offsets.shape[0])
+        jittered_offsets[:, 0] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
         dots.set_offsets(jittered_offsets)
         return dots
 
     par_names = [r"IRF_1", r"IRF_2", r"NF$\kappa$B", r"IRF_1 IRF_2", r"IRF_1 NF$\kappa$B", r"IRF_2 NF$\kappa$B"]
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     colors = rmsd[1:]
+    rmsd_og = rmsd[0]
     for i in range(num_pars):
         # print(np.full(num_datasets-1, i))
         # print(colors)
         # print("##################")
         dots = ax.scatter(np.full(num_datasets-1, i), pars_all[1:,i], c=colors, cmap="viridis", s=50, alpha=0.5)
         dots = jitter_dots(dots)
-        ax.scatter(i, pars_all[0,i], c="k", s=50, alpha=1)
+        ax.scatter(i, pars_all[0,i], c=rmsd_og, cmap="viridis", s=50, alpha=1, edgecolors="red", linewidths=1, vmin=np.min(colors), vmax=np.max(colors))
     ax.set_xticks(np.arange(num_pars))
     ax.set_xticklabels(par_names)
     ax.set_xlim([-0.5, num_pars-0.5])
@@ -246,17 +247,17 @@ def main():
     
     # Plot contributions for each parameter
     num_states = 12
-    parameter_contributions = np.zeros((num_datasets, num_states))
+    parameter_contributions_LPS = np.zeros((num_datasets, num_states))
     # LPS
     N = 1.0
     I = 0.25
     P = 1.0
     for i in range(num_datasets):
-        parameter_contributions[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
-        parameter_contributions[i,:] = parameter_contributions[i,:] / np.sum(parameter_contributions[i,:])
+        parameter_contributions_LPS[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
+        parameter_contributions_LPS[i,:] = parameter_contributions_LPS[i,:] / np.sum(parameter_contributions_LPS[i,:])
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     for i in range(num_states):
-        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions[:,i], c="k", s=50, alpha=0.5)
+        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions_LPS[:,i], c="k", s=50, alpha=0.5)
         dots = jitter_dots(dots)
     ax.set_xticks(np.arange(num_states))
     ax.set_xticklabels(state_names, rotation=90)
@@ -270,13 +271,13 @@ def main():
     # CpG
     N = 0.75
     I = 0.05
-    parameter_contributions = np.zeros((num_datasets, num_states))
+    parameter_contributions_CpG = np.zeros((num_datasets, num_states))
     for i in range(num_datasets):
-        parameter_contributions[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
-        parameter_contributions[i,:] = parameter_contributions[i,:] / np.sum(parameter_contributions[i,:])
+        parameter_contributions_CpG[i,:], state_names = get_f_contribution(pars_all[i,:], 1, 1, N, I, P, model)
+        parameter_contributions_CpG[i,:] = parameter_contributions_CpG[i,:] / np.sum(parameter_contributions_CpG[i,:])
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     for i in range(num_states):
-        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions[:,i], c="k", s=50, alpha=0.5)
+        dots = ax.scatter(np.full(num_datasets, i), parameter_contributions_CpG[:,i], c="k", s=50, alpha=0.5)
         dots = jitter_dots(dots)
     ax.set_xticks(np.arange(num_states))
     ax.set_xticklabels(state_names, rotation=90)
@@ -287,6 +288,26 @@ def main():
     ax.set_title("Contribution of each TF (fraction) for CpG stimulation")
     plt.savefig("%s/p50_all_datasets_contributions_CpG_WT.png" % figures_dir)
     
+    # both LPS and CpG
+    # get first viridis color
+    color1 = plt.cm.viridis(0)
+    color2 = plt.cm.viridis(0.5)
+    fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    for i in range(num_states):
+        dots = ax.scatter(np.full(num_datasets, i) - 0.2, parameter_contributions_LPS[:,i], color=color1, s=30, alpha=0.5, label="LPS" if i==0 else None)
+        dots = jitter_dots(dots, jitter=0.15)
+        dots = ax.scatter(np.full(num_datasets, i) + 0.2, parameter_contributions_CpG[:,i], color=color2, s=30, alpha=0.5, label="CpG" if i==0 else None)
+        dots = jitter_dots(dots, jitter=0.15)
+    ax.set_xticks(np.arange(num_states))
+    ax.set_xticklabels(state_names, rotation=90)
+    ax.set_xlim([-0.7, num_states-0.3])
+    ax.set_ylim(ylim)
+    ax.set_ylabel(r"Contribution to IFN$\beta$")
+    ax.set_xlabel("Parameter")
+    ax.set_title("Contribution of each TF (fraction) for LPS and CpG stimulation")
+    fig.legend(bbox_to_anchor=(1.1,0.5))
+    plt.savefig("%s/p50_all_datasets_contributions_LPS_CpG_WT.png" % figures_dir)
+
 
     # # Plot top 10 parameters with lowest rmsd
     # fig, ax = plt.subplots(figsize=(8,6), dpi=300)
