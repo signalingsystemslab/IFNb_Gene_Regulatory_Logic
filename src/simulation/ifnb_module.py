@@ -17,7 +17,8 @@ def change_equations(t, states, pars, inputs):
     K = pars["K_i2"]
     C = pars["C"]
     p_syn_ifnb = pars["p_syn_ifnb"]
-    p_deg_ifnb = pars["p_deg_ifnb"]
+    t_half_ifnb = pars["t_half_ifnb"]
+    p_deg_ifnb = np.log(2) / t_half_ifnb
 
     # Unpack inputs
     nfkb = inputs["nfkb"]
