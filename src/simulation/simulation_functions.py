@@ -134,6 +134,29 @@ def plot_inputs(input_t, N_curve, I_curve, P_curve, name, directory, ylimits= Tr
     if ylimits:
         for i in range(3):
             ax[i].set_ylim([-0.01, 1.01])
+    xticks = np.arange(0, max(input_t)+1, 60)
+    for i in range(3):
+        ax[i].set_xticks(xticks)
+        ax[i].set_xticklabels(xticks/60)
+        ax[i].set_xlabel("Time (hours)")
     plt.suptitle("Input curves for %s stimulation" % name)
     plt.savefig("%s/input_curves_%s.png" % (directory, name))
     plt.close()
+
+def plot_state_mult_pars(num_par_reps, t_eval, timecourse, state, state_names, state_titles, colors, dir, condition, ylim=None):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for i in range(num_par_reps):
+        ax.plot(t_eval, timecourse[i,state,:], color=colors[state], alpha=0.1)
+    ax.set_ylabel(r"%s (nM)" % state_names[state])
+    ax.set_title("%s stimulation, all parameter sets" % condition)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    xticks = np.arange(0, max(t_eval)+1, 60)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(["%d" % (t/60) for t in xticks])
+    ax.set_xlabel("Time (hours)")
+    plt.savefig("%s/%s_timecourses_%s.png" % (dir, condition, state_titles[state]))
+    ylim = ax.get_ylim()
+    plt.close()
+    return ylim
