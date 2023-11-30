@@ -6,7 +6,8 @@ def change_equations(t, states, pars, inputs):
 
     # Unpack pars
     p_syn_isg = pars["p_syn_isg"]
-    p_deg_isg = pars["p_deg_isg"]
+    t_half_isg= pars["t_half_isg"]
+    p_deg_isg = np.log(2) / t_half_isg
 
     # Unpack inputs
     isgf3 = inputs["isgf3"]

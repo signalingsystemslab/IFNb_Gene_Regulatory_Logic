@@ -196,6 +196,38 @@ def main():
             plt.savefig("%s/p50KO_cpg_timecourses_%s.png" % (dir, state_titles[state]))
             plt.close()
         
+        # Load WT results
+        cpg_timecourses_WT = np.load("%s/cpg_results.npy" % dir)
+        lps_timecourses_WT = np.load("%s/lps_results.npy" % dir)
+
+        # Calculate fold change p50KO/WT
+        cpg_fold_change = np.zeros(np.shape(cpg_timecourses))
+        lps_fold_change = np.zeros(np.shape(lps_timecourses))
+        for i in range(num_par_reps):
+            cpg_fold_change[i,:,:] = cpg_timecourses[i,:,:]/cpg_timecourses_WT[i,:,:]
+            lps_fold_change[i,:,:] = lps_timecourses[i,:,:]/lps_timecourses_WT[i,:,:]
+
+        # Plot fold change
+        for state in range(num_states):
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            for i in range(num_par_reps):
+                ax.plot(t_eval, lps_fold_change[i,state,:], color=colors[state], alpha=0.1)
+            ax.set_xlabel("Time (min)")
+            ax.set_ylabel(r"%s fold change" % state_names[state])
+            ax.set_title("LPS stimulation fold change p50 KO/WT")
+            plt.savefig("%s/p50KO_lps_fold_change_%s.png" % (dir, state_titles[state]))
+            plt.close()
+
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            for i in range(num_par_reps):
+                ax.plot(t_eval, cpg_fold_change[i,state,:], color=colors[state], alpha=0.1)
+            ax.set_xlabel("Time (min)")
+            ax.set_ylabel(r"%s fold change" % state_names[state])
+            ax.set_title("CpG stimulation fold change p50 KO/WT")
+            plt.savefig("%s/p50KO_cpg_fold_change_%s.png" % (dir, state_titles[state]))
+            plt.close()
 
 if __name__ == "__main__":
     main()

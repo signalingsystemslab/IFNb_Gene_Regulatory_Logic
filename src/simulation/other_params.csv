@@ -1,8 +1,8 @@
-p_syn_isg,0.01
-p_deg_isg,0.5
+p_syn_isg,0.001
+t_half_isg,100
 p_trans_ifnb,30
 t_half_ifnb_prot,60
 t_half_ifnb,30
 K_i2,1
 C,1
-p_syn_ifnb,0.01
+p_syn_ifnb,0.001
