@@ -142,6 +142,7 @@ def plot_inputs(input_t, N_curve, I_curve, P_curve, name, directory, ylimits= Tr
     plt.suptitle("Input curves for %s stimulation" % name)
     plt.savefig("%s/input_curves_%s.png" % (directory, name))
     plt.close()
+    return input_N, input_I, input_P
 
 def plot_state_mult_pars(num_par_reps, t_eval, timecourse, state, state_names, state_titles, colors, dir, condition, ylim=None):
     fig = plt.figure()
