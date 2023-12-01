@@ -309,6 +309,27 @@ def main():
     plt.savefig("%s/p50_all_datasets_contributions_LPS_CpG_WT.png" % figures_dir)
 
 
+    # # Plot f-value for each parameter set in WT
+    # N = training_data.loc[training_data["Genotype"] == "WT"]["NFkB"].values
+    # I = training_data.loc[training_data["Genotype"] == "WT"]["IRF"].values
+    # P = 1.0
+    # f_values_WT = np.zeros((num_datasets, num_pts))
+    # max_f = np.zeros(num_datasets)
+    # for i in range(num_datasets):
+    #     f_values_WT[i,:] = [get_f(pars_all[i,:], 1, 1, N[j], I[j], P, model) for j in range(num_pts)]
+    #     max_f[i] = np.max(f_values_WT[i,:])
+    #     f_values_WT[i,:] = f_values_WT[i,:] / max_f[i]
+
+    # cmap = plt.cm.viridis
+    # fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    # for i in range(num_datasets):
+    #     ax.scatter(N, I, c=f_values_WT[i,:], cmap=cmap, s=50, alpha=0.5, vmin=0, vmax=1)
+    # ax.set_xlabel(r"$NF\kappa B$")
+    # ax.set_ylabel(r"$IRF$")
+    # ax.set_title("Model %s f-values for WT dataset" % model)
+    # plt.colorbar(label="f-value")
+    # plt.savefig("%s/p50_all_datasets_f_values_WT.png" % figures_dir)
+
     # # Plot top 10 parameters with lowest rmsd
     # fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     # colors = rmsd[1:]
