@@ -26,6 +26,6 @@ def change_equations(t, states, pars, inputs):
     p50 = inputs["p50"]
 
     # Calculate derivatives
-    f = get_f(t_pars, K, C, nfkb, irf, p50)
+    f = get_f(t_pars, K, C, nfkb, irf, p50, "B1", True)
     difnb = f * p_syn_ifnb - p_deg_ifnb * ifnb
     return [difnb]

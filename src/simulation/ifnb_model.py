@@ -63,7 +63,7 @@ def explore_modelp50(parsT, N, I, P, model_name):
 	model.calculateF()
 	return model.f
 
-def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
+def get_f(t_pars, K, C, N, I, P, model_name="B1", scaling=False):
 	if model_name == "B1":
 		other_pars = []
 	elif model_name == "B2":
@@ -72,8 +72,17 @@ def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 		other_pars = [C]
 	elif model_name == "B4":
 		other_pars = [K, C]
+	else:
+		raise ValueError("Invalid model name")
 
-	model = Modelp50(other_pars + t_pars, model_name)
+	pars = np.concatenate((other_pars, t_pars))
+	model = Modelp50(pars, model_name)
 	model.calculateState(N, I, P)
 	model.calculateF()
-	return model.f * scaling
+	if scaling:
+		m2 = Modelp50(pars, model_name)
+		m2.calculateState(1, 1, 1)
+		m2.calculateF()
+		return model.f / m2.f
+	else:
+		return model.f
