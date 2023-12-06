@@ -7,5 +7,5 @@ IRF,NFkB,IFNb,p50,Stimulus,Genotype
 0.01,1,0,1,LPS,irf3irf7KO
 0.75,0.5,1,1,polyIC,WT
 1,0,1,1,polyIC,relacrelKO
-0.075,0.5,0.4,1,polyIC,irf3irf7KO
+0.075,0.5,0.01,1,polyIC,irf3irf7KO
 0,0.5,0,1,polyIC,irf3irf5irf7KO
