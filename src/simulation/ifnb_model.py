@@ -81,7 +81,7 @@ def get_f(t_pars, K, C, N, I, P, model_name="B1", scaling=False):
 	model.calculateF()
 	if scaling:
 		m2 = Modelp50(pars, model_name)
-		m2.calculateState(1, 1, 1)
+		m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
 		m2.calculateF()
 		return model.f / m2.f
 	else:

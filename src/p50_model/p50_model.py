@@ -90,7 +90,7 @@ def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize
 	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
 	plt.close()
 
-def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
+def get_f(t_pars, K, C, N, I, P, model_name="B1", scaling=False):
 	if model_name == "B1":
 		other_pars = []
 	elif model_name == "B2":
@@ -100,12 +100,19 @@ def get_f(t_pars, K, C, N, I, P, model_name="B2", scaling=1):
 	elif model_name == "B4":
 		other_pars = [K, C]
 
-	model = Modelp50(np.concatenate((other_pars, t_pars)), model_name)
+	pars = np.concatenate((other_pars, t_pars))
+	model = Modelp50(pars, model_name)
 	model.calculateState(N, I, P)
 	model.calculateF()
-	return model.f * scaling
+	if scaling:
+		m2 = Modelp50(pars, model_name)
+		m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
+		m2.calculateF()
+		return model.f / m2.f
+	else:
+		return model.f
 
-def get_product(t_pars, K, C, model_name="B2"):
+def get_product(t_pars, K, C, model_name="B1"):
 	# Return product of beta and t
 	if model_name == "B1":
 		other_pars = []
