@@ -107,9 +107,9 @@ def main():
         lps_stim_data = lps_results[0][2]
 
         input_t = np.linspace(0, stim_time+1, stim_time+1+1)
-        N_curve_lps, I_curve_lps, P_curve_lps = plot_inputs(input_t, cpg_stim_data[0], cpg_stim_data[1], cpg_stim_data[2], "CpG", dir)
-        N_curve_cpg, I_curve_cpg, P_curve_cpg = plot_inputs(input_t, lps_stim_data[0], lps_stim_data[1], lps_stim_data[2], "LPS", dir)
-
+        N_curve_cpg, I_curve_cpg, P_curve_cpg = plot_inputs(input_t, cpg_stim_data[0], cpg_stim_data[1], cpg_stim_data[2], "CpG", dir)
+        N_curve_lps, I_curve_lps, P_curve_lps = plot_inputs(input_t, lps_stim_data[0], lps_stim_data[1], lps_stim_data[2], "LPS", dir)
+        
         # # Plot inputs unscaled
         # I_curve_cpg = read_inputs("IRF", "CpG", scale=False)
         # N_curve_cpg = read_inputs("NFkB", "CpG", scale=False)
