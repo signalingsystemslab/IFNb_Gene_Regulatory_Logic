@@ -32,15 +32,23 @@ def p50_objective(pars, *args):
 
     f_list = [get_f(t_pars, K, C, N[i], I[i], P[i], model_name, True) for i in range(num_pts)]
     residuals = np.array(f_list) - beta
-    if strategy != "rmsd":
+    if strategy == "residuals":
         return residuals
-    else:
+    elif strategy == "rmsd":
         # Enforce fitting to CpG points
         if np.abs(residuals[2]) > 0.1 or np.abs(residuals[3]) > 0.1:
             rmsd = 100
         else:
             rmsd = np.sqrt(np.mean(residuals**2))
         return rmsd
+    elif strategy == "cost":
+        if np.abs(residuals[2]) > 0.1 or np.abs(residuals[3]) > 0.1:
+            cost = 100
+        else:
+            cost = 0.5 * np.sum(residuals**2)
+        return cost
+    else:
+        raise ValueError("Strategy %s not implemented" % strategy)
 
 def optimize_model(N, I, P, beta, model_name, num_threads=40):
     print("###############################################\n")
@@ -96,13 +104,14 @@ def optimize_model_local(N, I, P, beta, model_name, pars, full_output=True):
         print("###############################################\n")
         print("Optimizing model %s locally" % model_name)
     start = time.time()
-    if True:
-        method = "trf"
-    else:
-        method = "lm"
-    m_name = {"lm": "Levenberg-Marquardt", "trf": "Trust Region Reflective"}
+    # if True:
+    #     method = "trf"
+    # else:
+    #     method = "lm"
+    # m_name = {"lm": "Levenberg-Marquardt", "trf": "Trust Region Reflective"}
+    method = "trust-constr"
     if full_output:
-        print("Using %s method to locally optimize model %s" % (m_name[method], model_name))
+        print("Using %s method to locally optimize model %s" % (method, model_name))
         print("Starting local optimization at ", time.ctime())
     upper = np.array([1 for i in range(6)])
     lower = np.array([0 for i in range(6)])
@@ -120,8 +129,14 @@ def optimize_model_local(N, I, P, beta, model_name, pars, full_output=True):
         print("Upper bounds: ", upper)
         print("Lower bounds: ", lower)
         print("Initial parameters: ", pars)
-    res = opt.least_squares(p50_objective, pars, bounds = (lower, upper),
-                            args=(N, I, P, beta, model_name, "residuals"), method=method, loss = "linear")
+
+    bnds = [(lower[i], upper[i]) for i in range(len(upper))]
+    bnds = tuple(bnds)
+
+    res = opt.minimize(p50_objective, pars, args=(N, I, P, beta, model_name, "cost"), method=method, bounds = bnds)
+
+    # res = opt.least_squares(p50_objective, pars, bounds = (lower, upper),
+    #                         args=(N, I, P, beta, model_name, "residuals"), method=method, loss = "linear")
     end = time.time()
     if full_output:
         print("Optimized parameters:\n", res.x)
@@ -133,8 +148,8 @@ def optimize_model_local(N, I, P, beta, model_name, pars, full_output=True):
         else:
             print("Time elapsed: %.2f hours" % (t/3600))
     pars = res.x
-    residuals = res.fun
-    cost = res.cost
+    cost = res.fun
+    residuals = p50_objective(pars, N, I, P, beta, model_name, "residuals")
     return pars, cost, residuals
 
 # def save_results(results_df, model, pars, other):
@@ -267,61 +282,61 @@ def main():
     rmsd = np.loadtxt("%s/p50_grid_rmsd_%s.csv" % (results_dir, model), delimiter=",")
     residuals = np.loadtxt("%s/p50_grid_residuals_%s.csv" % (results_dir, model), delimiter=",")
 
-    # Plot residuals as a heatmap where y-axis is the starting parameter set and x-axis is the data point
-    # To the right, plot heatmap of RMSD values
-    rmsd_sorted = np.sort(rmsd)
-    residuals_sorted = np.abs(residuals[np.argsort(rmsd)])
+    # # Plot residuals as a heatmap where y-axis is the starting parameter set and x-axis is the data point
+    # # To the right, plot heatmap of RMSD values
+    # rmsd_sorted = np.sort(rmsd)
+    # residuals_sorted = np.abs(residuals[np.argsort(rmsd)])
 
-    print("Plotting residuals as heatmap", flush=True)
-    fig, ax = plt.subplots(1,2, figsize=(10,6), gridspec_kw={'width_ratios': [1, 0.05]})
-    im = ax[0].imshow(residuals_sorted, cmap="viridis", aspect="auto", interpolation = "nearest")
-    ax[0].set_xlabel("Data point")
-    ax[0].set_ylabel("Parameter set")
-    ax[0].set_title("Residuals, absolute value (grid)")
-    cbar = ax[0].figure.colorbar(im, ax=ax[0])
-    im = ax[1].imshow(np.expand_dims(rmsd_sorted, axis=1), cmap="viridis", aspect="auto", interpolation = "nearest")
-    ax[1].set_xlabel("RMSD")
-    ax[1].set_title("RMSD")
-    cbar = ax[1].figure.colorbar(im, ax=ax[1])
-    plt.tight_layout(pad=2)
-    plt.savefig("%s/p50_grid_residuals_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # print("Plotting residuals as heatmap", flush=True)
+    # fig, ax = plt.subplots(1,2, figsize=(10,6), gridspec_kw={'width_ratios': [1, 0.05]})
+    # im = ax[0].imshow(residuals_sorted, cmap="viridis", aspect="auto", interpolation = "nearest")
+    # ax[0].set_xlabel("Data point")
+    # ax[0].set_ylabel("Parameter set")
+    # ax[0].set_title("Residuals, absolute value (grid)")
+    # cbar = ax[0].figure.colorbar(im, ax=ax[0])
+    # im = ax[1].imshow(np.expand_dims(rmsd_sorted, axis=1), cmap="viridis", aspect="auto", interpolation = "nearest")
+    # ax[1].set_xlabel("RMSD")
+    # ax[1].set_title("RMSD")
+    # cbar = ax[1].figure.colorbar(im, ax=ax[1])
+    # plt.tight_layout(pad=2)
+    # plt.savefig("%s/p50_grid_residuals_%s.png" % (figures_dir, model), bbox_inches="tight")
 
-    # Plot residuals as line plot
-    print("Plotting residuals as line plot", flush=True)
-    fig, ax = plt.subplots()
-    for i in range(len(rmsd)):
-        ax.plot(residuals[i], alpha=0.5, color = plt.cm.viridis(rmsd[i]/np.max(rmsd)))
-    ax.set_xlabel("Data point")
-    ax.set_ylabel("Residual")
-    ax.set_title("Residuals for each parameter set (grid)")
-    # add colorbar
-    sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
-    sm._A = []
-    cbar = fig.colorbar(sm)
-    plt.savefig("%s/p50_grid_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # # Plot residuals as line plot
+    # print("Plotting residuals as line plot", flush=True)
+    # fig, ax = plt.subplots()
+    # for i in range(len(rmsd)):
+    #     ax.plot(residuals[i], alpha=0.5, color = plt.cm.viridis(rmsd[i]/np.max(rmsd)))
+    # ax.set_xlabel("Data point")
+    # ax.set_ylabel("Residual")
+    # ax.set_title("Residuals for each parameter set (grid)")
+    # # add colorbar
+    # sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
+    # sm._A = []
+    # cbar = fig.colorbar(sm)
+    # plt.savefig("%s/p50_grid_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
     
-    print("Finished plotting residuals", flush=True)
+    # print("Finished plotting residuals", flush=True)
 
-    # Plot residuals as jittered scatter plot
-    def jitter_dots(dots, jitter=0.3, y_jitter=False):
-        offsets = dots.get_offsets()
-        jittered_offsets = offsets
-        # only jitter in the x-direction
-        jittered_offsets[:, 0] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
-        if y_jitter:
-            jittered_offsets[:, 1] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
-        dots.set_offsets(jittered_offsets)
-        return dots
+    # # Plot residuals as jittered scatter plot
+    # def jitter_dots(dots, jitter=0.3, y_jitter=False):
+    #     offsets = dots.get_offsets()
+    #     jittered_offsets = offsets
+    #     # only jitter in the x-direction
+    #     jittered_offsets[:, 0] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
+    #     if y_jitter:
+    #         jittered_offsets[:, 1] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
+    #     dots.set_offsets(jittered_offsets)
+    #     return dots
     
-    print("Plotting residuals as jittered scatter plot", flush=True)
-    fig, ax = plt.subplots()
-    for i in range(num_pars):
-        dots = ax.scatter(np.ones(len(residuals[:,i]))*i, residuals[:,i], alpha=0.3, c = rmsd, cmap="viridis")
-        jitter_dots(dots)
-    ax.set_xlabel("Parameter")
-    ax.set_ylabel("Residual")
-    ax.set_title("Residuals for each parameter set (grid)")
-    plt.savefig("%s/p50_grid_residuals_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # print("Plotting residuals as jittered scatter plot", flush=True)
+    # fig, ax = plt.subplots()
+    # for i in range(num_pars):
+    #     dots = ax.scatter(np.ones(len(residuals[:,i]))*i, residuals[:,i], alpha=0.3, c = rmsd, cmap="viridis")
+    #     jitter_dots(dots)
+    # ax.set_xlabel("Parameter")
+    # ax.set_ylabel("Residual")
+    # ax.set_title("Residuals for each parameter set (grid)")
+    # plt.savefig("%s/p50_grid_residuals_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
 
 
     ###############################################
@@ -358,10 +373,8 @@ def main():
     ax.set_xlabel("Data point")
     ax.set_ylabel("Residual")
     ax.set_title("Residuals for each parameter set (locally optimized)")
-    # add colorbar
     sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
-    sm._A = []
-    cbar = fig.colorbar(sm)
+    plt.colorbar(sm)
     plt.savefig("%s/p50_locally_optimized_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
     
     print("Finished plotting residuals", flush=True)
@@ -379,7 +392,7 @@ def main():
     
     print("Plotting residuals as jittered scatter plot", flush=True)
     fig, ax = plt.subplots()
-    for i in range(num_pars):
+    for i in range(residuals.shape[1]):
         dots = ax.scatter(np.ones(len(residuals[:,i]))*i, residuals[:,i], alpha=0.3, c = rmsd, cmap="viridis")
         jitter_dots(dots)
     ax.set_xlabel("Parameter")
@@ -387,6 +400,17 @@ def main():
     ax.set_title("Residuals for each parameter set (locally optimized)")
     plt.savefig("%s/p50_locally_optimized_residuals_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
 
+    # Plot parameters as a jittered scatter plot
+    print("Plotting parameters as jittered scatter plot", flush=True)
+    fig, ax = plt.subplots()
+    for i in range(num_pars):
+        dots = ax.scatter(np.ones(len(pars[:,i]))*i, pars[:,i], alpha=0.3, c = rmsd, cmap="viridis")
+        jitter_dots(dots)
+    ax.set_xlabel("Parameter")
+    ax.set_ylabel("Value")
+    ax.set_title("Parameters for each parameter set (locally optimized)")
+    plt.colorbar(dots)
+    plt.savefig("%s/p50_locally_optimized_parameters_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
 
     # # old
     # for model in ["B1", "B2", "B3", "B4"]:
