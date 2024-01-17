@@ -45,8 +45,8 @@ def get_state_prob(t_pars, k_pars, N, I, P):
 	model.calculateState(N, I, P)
 	binding_amount = model.state * model.beta
 	probabilities = binding_amount / np.sum(binding_amount)
-
-	state_names = ["none", "IRF", r"$IRF_G$", r"p50", r"$IRF$ \cdot p50", r"$IRF \cdot IRF_G$"]
+	
+	state_names = ["none", "IRF", r"$IRF_G$", r"p50", r"$IRF \cdot p50$", r"$IRF \cdot IRF_G$"]
 
 	return probabilities, state_names
 
