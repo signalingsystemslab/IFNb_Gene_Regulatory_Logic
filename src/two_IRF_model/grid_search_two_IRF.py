@@ -7,14 +7,22 @@ import scipy.optimize as opt
 import time
 from multiprocessing import Pool
 import argparse
-plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
+import seaborn as sns
+# plt.style.use("~/IFN_paper/src/theme_bw.mplstyle")
 
+# Global directories
 figures_dir = "grid_search/figures/"
 results_dir = "grid_search/results/"
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
+
+# Global parameters
 num_t_pars = 2
 num_k_pars = 3
+
+# Plot settings
+sns.set_style("white")
+sns.set_context("notebook")
 
 def calculate_ifnb(pars, data):
     t_pars, k_pars = pars[:num_t_pars], pars[num_t_pars:]
@@ -85,6 +93,65 @@ def calc_state_prob(k_pars, N, I, P):
     t_pars = [1,1]
     probabilities, state_names = get_state_prob(t_pars, k_pars, N, I, P)
     return probabilities, state_names
+
+def plot_state_probabilities(state_probabilities, state_names, name):
+        df_state_probabilities = pd.DataFrame(state_probabilities, columns=state_names)
+        df_state_probabilities["par_set"] = np.arange(len(df_state_probabilities))
+        df_state_probabilities = df_state_probabilities.melt(var_name="State", value_name="Probability", id_vars="par_set")
+
+        fig, ax = plt.subplots()
+        p = sns.lineplot(data=df_state_probabilities, x = "State", y="Probability", color="black", alpha=0.5,
+                            estimator=None, units="par_set", legend=False)
+        sns.despine()
+        plt.xticks(rotation=90)
+        # Save plot
+        plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+def plot_predictions(ifnb_predicted, beta, conditions, subset="All",name="ifnb_predictions"):
+        if type(subset) == str:
+            if subset == "All":
+                subset = np.arange(len(ifnb_predicted))
+
+        df_ifnb_predicted = pd.DataFrame(ifnb_predicted, columns=conditions)
+        df_ifnb_predicted["par_set"] = np.arange(len(df_ifnb_predicted))
+        df_ifnb_predicted = df_ifnb_predicted.melt(var_name="Data point", value_name=r"IFN$\beta$", id_vars="par_set")
+
+        df_ifnb_predicted_data = pd.DataFrame({"Data point":conditions, r"IFN$\beta$":beta, "par_set":"Data"})
+        df_ifnb_predicted = pd.concat([df_ifnb_predicted, df_ifnb_predicted_data], ignore_index=True)
+
+        fig, ax = plt.subplots()
+        sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"].isin(subset)], x="Data point", y=r"IFN$\beta$", 
+                     units="par_set", color="black", alpha=0.5, estimator=None, ax=ax)
+        sns.scatterplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", 
+                        color="red", marker="o", ax=ax, legend=False)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+        plt.savefig("%s/%s.png" % (figures_dir, name))
+        plt.close()
+
+def plot_parameters(pars, subset="All", name="parameters"):
+    if type(subset) == str:
+        if subset == "All":
+            subset = np.arange(len(pars))
+
+    par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)]
+    df_pars = pd.DataFrame(pars[subset,:], columns=par_names)
+    df_pars["par_set"] = np.arange(len(df_pars))
+    df_pars = df_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
+    df_t_pars = df_pars[df_pars["Parameter"].str.startswith("t")]
+    df_k_pars = df_pars[df_pars["Parameter"].str.startswith("k")]
+
+    fig, ax = plt.subplots(1,2, figsize=(10,5))
+    sns.lineplot(data=df_t_pars, x="Parameter", y="Value", units="par_set", color="black", alpha=0.5, estimator=None, ax=ax[0])
+    sns.lineplot(data=df_k_pars, x="Parameter", y="Value", units="par_set", color="black", alpha=0.5, estimator=None, ax=ax[1])
+    sns.despine()
+    plt.tight_layout()
+    plt.savefig("%s/%s.png" % (figures_dir, name))
+    plt.close()
+
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -157,32 +224,13 @@ def main():
         for stimulus, genotype in zip(stimuli, genotypes):
             state_probabilities = np.loadtxt("%s/%s_%s_%s_state_probabilities.csv" % (results_dir, model, stimulus, genotype), delimiter=",")
             probabilities[stimulus] = state_probabilities
-            # Plot all state probabilities
-            fig = plt.figure()
-            for i in range(len(kgrid)):
-                plt.plot(state_probabilities[i], color = "black", alpha=0.5)
-            plt.xticks(range(len(state_names)), state_names, rotation=90)
-            plt.ylabel("Probability")
-            plt.title("Probability of each state for all %d k values, %s WT" % (len(kgrid), stimulus))
-            # plt.ylim([0,1])
-            plt.tight_layout()
-            plt.savefig("%s/%s_all_state_probabilities.png" % (figures_dir, stimulus))
-            plt.close()
+
+            plot_state_probabilities(state_probabilities, state_names, "%s_%s_%s_all_state_probabilities" % (model, stimulus, genotype))
+
 
         # Plot all ifnb predictions
-        print("Plotting all IFNb predictions", flush=True)
-        fig = plt.figure()
-        for i in range(len(pars)):
-            plt.plot(ifnb_predicted[i], color = "black", alpha=0.5, label = "Predicted" if i == 0 else None)
-        plt.plot(beta, color="red", label="Data", marker="o", linestyle="None")
-        plt.xticks(range(len(conditions)), conditions, rotation=90)
-        plt.ylabel(r"IFN$\beta$ production")
-        plt.xlabel("Data point")
-        plt.title(r"Predicted IFN$\beta$ for all %d parameter values" % len(pars))
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("%s/%s_all_ifnb_predictions.png" % (figures_dir, model))
-        print("Done plotting all IFNb predictions", flush=True)
+        plot_predictions(ifnb_predicted, beta, conditions, subset="All", name="ifnb_predictions")
+
 
         # Calculate residuals
         residuals = ifnb_predicted - np.stack([beta for _ in range(len(pars))])
@@ -199,49 +247,18 @@ def main():
         # Plot best 20 state probabilities
         print("Plotting best 20 state probabilities", flush=True)
         for stimulus in probabilities.keys():
-            fig = plt.figure()
-            for i in best_20_k_indices:
-                plt.plot(probabilities[stimulus][i], color = "black", alpha=0.5)
-            plt.xticks(range(len(state_names)), state_names, rotation=90)
-            plt.ylabel("Probability")
-            plt.title("Probability of each state for best 20 parameter values by RMSD, %s WT" % stimulus)
-            # plt.ylim([0,1])
-            plt.tight_layout()
-            plt.savefig("%s/%s_best_20_state_probabilities.png" % (figures_dir, stimulus))
-            plt.close()
+            plot_state_probabilities(probabilities[stimulus][best_20_k_indices], state_names,
+                                      "%s_%s_best_20_state_probabilities" % (model, stimulus))
+        print("Done plotting best 20 state probabilities", flush=True)
 
         # Plot best 20 ifnb predictions
         print("Plotting best 20 IFNb predictions", flush=True)
-        fig = plt.figure()
-        for i in best_20:
-            plt.plot(ifnb_predicted[i], color = "black", alpha=0.5, label = "Predicted" if i == 0 else None)
-        plt.plot(beta, color="red", label="Data", marker="o", linestyle="None")
-        plt.xticks(range(len(conditions)), conditions, rotation=90)
-        plt.ylabel(r"IFN$\beta$ production")
-        plt.xlabel("Data point")
-        plt.title(r"Predicted IFN$\beta$ for best 20 parameter values by RMSD")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("%s/%s_best_20_ifnb_predictions.png" % (figures_dir, model))
-        plt.close()
+        plot_predictions(ifnb_predicted, beta, conditions, subset=best_20, name="ifnb_predictions_best_20")
         print("Done plotting best 20 IFNb predictions", flush=True)
 
         # Plot best 20 parameters
         print("Plotting best 20 parameters", flush=True)
-        fig, ax = plt.subplots(1,2, figsize=(10,5))
-        for i in best_20:
-            ax[0].plot(range(num_t_pars), pars[i,:num_t_pars], color = "black", alpha=0.5) 
-            ax[1].plot(range(num_k_pars), pars[i,num_t_pars:], color = "black", alpha=0.5)
-        ax[0].set_xticks(range(num_t_pars))
-        ax[0].set_xticklabels(["t1", "t2"])
-        ax[1].set_xticks(range(num_k_pars))
-        ax[1].set_xticklabels(["k1", "k2", "kp"])
-        plt.ylabel("Parameter value")
-        plt.xlabel("Parameter")
-        plt.title("Parameter values for best 20 parameter values by RMSD")
-        plt.tight_layout()
-        plt.savefig("%s/%s_best_20_parameters.png" % (figures_dir, model))
-        plt.close()
+        plot_parameters(pars, subset=best_20, name="parameters_best_20")
 
         # Calculate RMSD to IRF and p50 points: 0,1,2,3,5,6,8,9
         print("Calculating RMSD to IRF and p50 points training data points", flush=True)
@@ -260,77 +277,37 @@ def main():
         # Plot best 20 state probabilities
         print("Plotting best 20 state probabilities by RMSD to IRF and p50 points", flush=True)
         for stimulus in probabilities.keys():
-            fig = plt.figure()
-            for i in best_20_k_indices:
-                plt.plot(probabilities[stimulus][i], color = "black", alpha=0.5)
-            plt.xticks(range(len(state_names)), state_names, rotation=90)
-            plt.ylabel("Probability")
-            plt.title("Probability of each state for best 20 parameter values by RMSD to IRF and p50 points, %s WT" % stimulus)
-            # plt.ylim([0,1])
-            plt.tight_layout()
-            plt.savefig("%s/%s_best_20_state_probabilities_IRF_p50.png" % (figures_dir, stimulus))
-            plt.close()
+            plot_state_probabilities(probabilities[stimulus][best_20_k_indices], state_names,
+                                      "%s_%s_best_20_state_probabilities_IRF_p50" % (model, stimulus))
 
         # Plot best 20 ifnb predictions
         print("Plotting best 20 IFNb predictions by RMSD to IRF and p50 points", flush=True)
-        fig = plt.figure()
-        for i in best_20:
-            plt.plot(ifnb_predicted[i], color = "black", alpha=0.5, label = "Predicted" if i == 0 else None)
-        plt.plot(beta, color="red", label="Data", marker="o", linestyle="None")
-        plt.xticks(range(len(conditions)), conditions, rotation=90)
-        plt.ylabel(r"IFN$\beta$ production")
-        plt.xlabel("Data point")
-        plt.title(r"Predicted IFN$\beta$ for best 20 parameter values by RMSD to IRF and p50 points")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("%s/%s_best_20_ifnb_predictions_IRF_p50.png" % (figures_dir, model))
-        plt.close()
+        plot_predictions(ifnb_predicted, beta, conditions, subset=best_20, name="ifnb_predictions_best_20_IRF_p50")
 
         # Plot best 20 parameters
         print("Plotting best 20 parameters by RMSD to IRF and p50 points", flush=True)
-        fig, ax = plt.subplots(1,2, figsize=(10,5))
-        for i in best_20:
-            ax[0].plot(range(num_t_pars), pars[i,:num_t_pars], color = "black", alpha=0.5) 
-            ax[1].plot(range(num_k_pars), pars[i,num_t_pars:], color = "black", alpha=0.5)
-        ax[0].set_xticks(range(num_t_pars))
-        ax[0].set_xticklabels(["t1", "t2"])
-        ax[1].set_xticks(range(num_k_pars))
-        ax[1].set_xticklabels(["k1", "k2", "kp"])
-        plt.ylabel("Parameter value")
-        plt.xlabel("Parameter")
-        plt.title("Parameter values for best 20 parameter values by RMSD (No NFkB KO)")
-        plt.tight_layout()
-        plt.savefig("%s/%s_best_20_parameters_IRF_p50.png" % (figures_dir, model))
-        plt.close()
+        plot_parameters(pars, subset=best_20, name="parameters_best_20_IRF_p50")
 
         # Separate pars from top 20 where t1<0.4 or t1>0.4
         print("Separating parameters where t1<0.4 or t1>0.4", flush=True)
-        t1_small_inds = np.where(best_20_params[:,0] < 0.4)[0]
-        t1_small_params = best_20_params[t1_small_inds]
-        t1_large_inds = np.where(best_20_params[:,0] > 0.4)[0]
-        t1_large_params = best_20_params[t1_large_inds]
 
         # Plot pars and color by t1 value
         print("Plotting parameters and color by t1 value", flush=True)
-        # use two viridis colors
-        colors = ["#440154FF", "#21908CFF"]
-        fig, ax = plt.subplots(1,2, figsize=(10,5))
-        for i in t1_small_inds:
-            ax[0].plot(range(num_t_pars), best_20_params[i,:num_t_pars], color = colors[0], alpha=0.5)
-            ax[1].plot(range(num_k_pars), best_20_params[i,num_t_pars:], color = colors[0], alpha=0.5, label="t1<0.4" if i == t1_small_inds[0] else None)
-        for i in t1_large_inds:
-            ax[0].plot(range(num_t_pars), best_20_params[i,:num_t_pars], color = colors[1], alpha=0.5)
-            ax[1].plot(range(num_k_pars), best_20_params[i,num_t_pars:], color = colors[1], alpha=0.5, label="t1>0.4" if i == t1_large_inds[0] else None)
-        ax[0].set_xticks(range(num_t_pars))
-        ax[0].set_xticklabels(["t1", "t2"])
-        ax[1].set_xticks(range(num_k_pars))
-        ax[1].set_xticklabels(["k1", "k2", "kp"])
-        ax[1].legend(bbox_to_anchor=(1.05, 0.5), loc="center left")
-        ax[0].set_ylabel("Parameter value")
-        # fig.text(0.5, 0.04, "Parameter", ha="center")
-        plt.suptitle("Parameter values for best 20 parameter values by RMSD (No NFkB KO)")
-        plt.tight_layout()
-        plt.savefig("%s/%s_best_20_parameters_IRF_p50_t1_small_large.png" % (figures_dir, model))
+        par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)]
+        df_params = pd.DataFrame(best_20_params, columns=par_names)
+        df_params["size"] = np.where(df_params["t1"] < 0.4, "small", "large")
+        df_params["par_set"] = np.arange(len(df_params))
+        df_params = df_params.melt(var_name="Parameter", value_name="Value", id_vars=["par_set", "size"])
+        df_t_pars = df_params[df_params["Parameter"].str.startswith("t")]
+        df_k_pars = df_params[df_params["Parameter"].str.startswith("k")]
+
+        with sns.color_palette("viridis", 3):
+            fig, ax = plt.subplots(1,2, figsize=(10,5))
+            sns.lineplot(data=df_t_pars, x="Parameter", y="Value", hue="size", units="par_set", alpha=0.5, estimator=None, ax=ax[0])
+            sns.lineplot(data=df_k_pars, x="Parameter", y="Value", hue="size", units="par_set", alpha=0.5, estimator=None, ax=ax[1])
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s_parameters_IRF_p50_t1_small_large.png" % (figures_dir, model))
 
     end_end = time.time()
     t = end_end - start_start
