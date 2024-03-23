@@ -2,111 +2,245 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Modelp50:
-	def __init__(self, t_pars, k_pars=None):
-		self.parsT = t_pars
+    def __init__(self, t_pars, k_pars=None, c_par=None, h_pars=None):
+        self.parsT = t_pars
+        
+        if len(t_pars) != 6:
+            print("Got %d pars when expected %d") % (len(t_pars), 6)
+            print("pars = " + str(t_pars))
+            raise ValueError("Incorrect number of t parameters in input")
 
-		if len(t_pars) != 6:
-			print("Got %d pars when expected %d") % (len(t_pars), 6)
-			print("pars = " + str(t_pars))
-			raise ValueError("Incorrect number of t parameters in input")
+        if k_pars is not None:
+            if len(k_pars) != 4:
+                print("Got %d pars when expected %d" % (len(k_pars), 4))
+                print("pars = " + str(k_pars))
+                raise ValueError("Incorrect number of k parameters in input")
 
-		if k_pars is not None:
-			if len(k_pars) != 4:
-				print("Got %d pars when expected %d" % (len(k_pars), 4))
-				print("pars = " + str(k_pars))
-				raise ValueError("Incorrect number of k parameters in input")
+            self.k1 = k_pars[0]
+            self.k2 = k_pars[1]
+            self.kn = k_pars[2]
+            self.kp = k_pars[3]
+        else:
+            self.k1 = 1
+            self.k2 = 1
+            self.kn = 1
+            self.kp = 1
 
-			self.k1 = k_pars[0]
-			self.k2 = k_pars[1]
-			self.kn = k_pars[2]
-			self.kp = k_pars[3]
+        if c_par is not None:
+            # functional cooperativity between IRF and NFkB
+            self.c = c_par
+        else:
+            self.c = 1
 
-		# beta will contain values from this matrix: \begin{pmatrix} 
-		# \begin{pmatrix} 
-		# 1 \\ k_{I1} \\ k_{I2} \\ k_{I1} k_p \\ k_N \\ k_N k_p \\ k_p \\ k_{I1} k_{12} \\ k_{I1} k_N \\ k_{I2} k_N \\ k_{I1} k_N k_p \\ k_{I1} k_{12} k_N
-		# \end{pmatrix}
-		self.beta = np.array([1.0 for i in range(12)])
-		
-		self.beta[1] = self.k1
-		self.beta[2] = self.k2
-		self.beta[3] = self.k1 * self.kp
-		self.beta[4] = self.kn
-		self.beta[5] = self.kn * self.kp
-		self.beta[6] = self.kp
-		self.beta[7] = self.k1 * self.k2
-		self.beta[8] = self.k1 * self.kn
-		self.beta[9] = self.k2 * self.kn
-		self.beta[10] = self.k1 * self.kn * self.kp
-		self.beta[11] = self.k1 * self.k2 * self.kn
-
-
-		# Self t array will contain: 0, t1, t2, t1, t3, t3, 0, t4, t5, t6, t5, 1 where t1 is 
-		# the 0th element of self.parsT, etc
-		self.t = np.array([0.0 for i in range(12)])
-		self.t[1] = self.parsT[0]
-		self.t[2] = self.parsT[1]
-		self.t[3] = self.parsT[0]
-		self.t[4] = self.parsT[2]
-		self.t[5] = self.parsT[2]
-		self.t[7] = self.parsT[3]
-		self.t[8] = self.parsT[4]
-		self.t[9] = self.parsT[5]
-		self.t[10] = self.parsT[4]
-		self.t[11] = 1
+        if h_pars is not None:
+            # Hill coefficient for each IRF binding event
+            if type(h_pars) in [int, float]:
+                self.h1 = h_pars
+                self.h2 = h_pars
+            else:
+                if len(h_pars) != 2:
+                    print("Got %d pars when expected %d" % (len(h_pars), 2))
+                    print("pars = " + str(h_pars))
+                    raise ValueError("Incorrect number of h parameters in input")
+                self.h1 = h_pars[0]
+                self.h2 = h_pars[1]
 
 
-	def calculateState(self, N, I, P=0):
-		self.state = np.array([1, I, I, I*P, N, N*P, P, I**2, I*N, I*N, I*N*P, I**2*N])
+        # States
+        # 1, I, Ig, I*P, N, N*P, P, I*Ig, I*N, Ig*N, I*N*P, I*Ig*N
 
-	def calculateF(self):
-		self.f = np.dot(np.transpose(self.state),(self.beta * self.t)) / np.dot(np.transpose(self.state), self.beta)
+        self.t = np.array([0.0 for i in range(12)])
+        self.t[1] = self.parsT[0]
+        self.t[2] = self.parsT[1]
+        self.t[3] = self.parsT[0]
+        self.t[4] = self.parsT[2]
+        self.t[5] = self.parsT[2]
+        self.t[7] = self.parsT[3]
+        self.t[8] = self.parsT[4] * self.c
+        self.t[9] = self.parsT[5] * self.c
+        self.t[10] = self.parsT[4]
+        self.t[11] = 1
 
-def get_f(t_pars, k_pars, N, I, P, scaling=False):
-	model = Modelp50(t_pars, k_pars)
-	model.calculateState(N, I, P)
-	model.calculateF()
-	if scaling:
-		m2 = Modelp50(t_pars, k_pars)
-		m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
-		m2.calculateF()
-		return model.f / m2.f
-	else:
-		return model.f
 
-def get_state_prob(t_pars, k_pars, N, I, P):
-	model = Modelp50(t_pars, k_pars)
-	model.calculateState(N, I, P)
-	binding_amount = model.state * model.beta
-	probabilities = binding_amount / np.sum(binding_amount)
-	
-	state_names = ["none", "IRF", r"$IRF_G$", r"p50", r"$IRF \cdot p50$", r"$IRF \cdot IRF_G$"]
+    def calculateBeta(self, I):
+        self.beta = np.array([1.0 for i in range(12)])
+        
+        self.beta[1] = self.k1 * (I ** self.h1)
+        self.beta[2] = self.k2 * (I ** self.h2)
+        self.beta[3] = self.k1 * (I ** self.h1) * self.kp
+        self.beta[4] = self.kn
+        self.beta[5] = self.kn * self.kp
+        self.beta[6] = self.kp
+        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2)
+        self.beta[8] = self.k1 * (I ** self.h1) * self.kn
+        self.beta[9] = self.k2 * (I ** self.h2) * self.kn
+        self.beta[10] = self.k1 * (I ** self.h1) * self.kn * self.kp
+        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn
 
-	return probabilities, state_names
+    def calculateState(self, N, I, P=1):
+        if not hasattr(self, 'beta'):
+            self.calculateBeta(I)
+        self.state = np.array([1, I, I, I*P, N, N*P, P, I**2, I*N, I*N, I*N*P, I**2*N])
 
-def get_f(t_pars, k_pars, N, I, P, scaling=False):
-	model = Modelp50(t_pars, k_pars)
-	model.calculateState(N, I, P)
-	model.calculateF()
-	if scaling:
-		m2 = Modelp50(t_pars, k_pars)
-		m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
-		m2.calculateF()
-		return model.f / m2.f
-	else:
-		return model.f
-	
+    def calculateProb(self):
+        self.prob = self.state * self.beta / np.dot(np.transpose(self.state), self.beta)
+
+    # def calculateF(self):
+    #     self.f = np.dot(np.transpose(self.state),(self.beta * self.t)) / np.dot(np.transpose(self.state), self.beta)
+
+    def calculateF(self):
+        self.f = np.dot(np.transpose(self.prob), self.t)
+
+def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, scaling=False):
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+    model.calculateState(N, I, P)
+    model.calculateProb()
+    model.calculateF()
+    if scaling:
+        m2 = Modelp50(t_pars, k_pars)
+        m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
+        m2.calculateF()
+        return model.f / m2.f
+    else:
+        return model.f
+
+def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+    model.calculateState(N, I, P)
+    model.calculateProb()
+    probabilities = model.prob
+    
+    # 1, I, Ig, I*P, N, N*P, P, I*Ig, I*N, Ig*N, I*N*P, I*Ig*N
+    state_names = ["none", r"$IRF$", r"$IRF_G$", r"$IRF\cdot p50$", r"$NF\kappa B$", 
+                r"$NF\kappa B\cdot p50$", r"$p50$", r"$IRF\cdot IRF_G$", 
+                r"$IRF\cdot NF\kappa B$", r"$IRF_G\cdot NF\kappa B$", r"$IRF\cdot NF\kappa B\cdot p50$", 
+                r"$IRF\cdot IRF_G\cdot NF\kappa B$"]
+
+    return probabilities, state_names
+
+def get_contribution(t_pars, k_pars, N, I, P=1, c_par=None, h_pars=None):
+    # Returns relative contribution of each state to f
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+    probabilties, state_names = get_state_prob(t_pars, k_pars, N, I, P, c_par=c_par, h_pars=h_pars)
+    f_contributions = model.t * probabilties
+    return f_contributions, state_names
+
+# def calc_irf_state_prob(I,k1,k2,kp,P):
+#     irf_prob = (I*k1)/(1+I*k1)
+#     irfg_prob = (I*k2)/(1+I*k2+kp*P)
+#     irf_tot_prob = I*(k1+k2+I*k1*k2+k1*kp*P)/((1+I*k1)*(1+I*k2+kp*P))
+#     return irf_prob, irfg_prob, irf_tot_prob
+
+# def calc_irf_state_prob_hill(I,k1,k2,kp,P,h):
+#     # print("I: %f, k1: %f, k2: %f, kp: %f, P: %f, h: %f" % (I, k1, k2, kp, P, h))
+#     irf_prob=(I**(1+h)*k1*(1+I*k2+kp*P))/(1+I**(2+h)*k1*k2+kp*P+I**(1+h)*(k1+k2+k1*kp*P))
+#     irfg_prob=(I**(1+h)*(1+I*k1)*k2)/(1+I**(2+h)*k1*k2+kp*P+I**(1+h)*(k1+k2+k1*kp*P))
+#     irf_tot_prob=(I**(1+h)*(k1+k2+I*k1*k2+k1*kp*P))/(1+I**(2+h)*k1*k2+kp*P+I**(1+h)*(k1+k2+k1*kp*P))
+#     return irf_prob, irfg_prob, irf_tot_prob
+
+# def get_irf_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
+#     if c_par is None and h_pars is None:
+#         irf_prob, irfg_prob, irf_tot_prob = calc_irf_state_prob(I, k_pars[0], k_pars[1], k_pars[3], P)
+#     elif c_par is None and h_pars is not None:
+#         irf_prob, irfg_prob, irf_tot_prob = calc_irf_state_prob_hill(I, k_pars[0], k_pars[1], k_pars[3], P, h_pars[0])
+#     else:
+#         # Return probabilities of each IRF state
+#         model = Modelp50(t_pars, k_pars)
+#         model.calculateState(N, I, P)
+#         binding_amount = model.state * model.beta
+#         probabilities = binding_amount / np.sum(binding_amount)
+#         irfg_prob = np.sum(probabilities[[2, 7, 9, 11]])
+#         irf_prob = np.sum(probabilities[[1, 3, 7, 8, 10, 11]])
+#         irf_tot_prob = irf_prob + irfg_prob - probabilities[11] - probabilities[7]
+#         return irf_prob, irfg_prob, irf_tot_prob
+
+
 def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize=True, cbar_scaling=True):
-	if normalize:
-		f_values = f_values / np.max(f_values)
-	fig=plt.figure()
-	if cbar_scaling:
-		plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r", vmin=0, vmax=1)
-	else:
-		plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
-	plt.grid(False)
-	plt.colorbar(format="%.1f")
-	plt.title("Model %s contour plot %s" % (model_name, condition))
-	fig.gca().set_ylabel(r"$NF\kappa B$")
-	fig.gca().set_xlabel(r"$IRF$")
-	plt.savefig("%s/contour_plot_%s.png" % (dir,name))
-	plt.close()
+    if normalize:
+        f_values = f_values / np.max(f_values)
+    fig=plt.figure()
+    if cbar_scaling:
+        plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r", vmin=0, vmax=1)
+    else:
+        plt.contourf(I,N, f_values, 100, cmap="RdYlBu_r")
+    plt.grid(False)
+    plt.colorbar(format="%.1f")
+    plt.title("Model %s contour plot %s" % (model_name, condition))
+    fig.gca().set_ylabel(r"$NF\kappa B$")
+    fig.gca().set_xlabel(r"$IRF$")
+    plt.savefig("%s/contour_plot_%s.png" % (dir,name))
+    plt.close()
+
+def p50_objective(pars, *args):
+    """Minimization objective function for the p50 model.
+    Args:
+    pars: array of parameters
+    args: tuple of (N, I, P, beta, par_type)
+    par_type: string of length 1-4, where each character is one of "k", "c", "h", "t"
+    "k" = k_pars, length 4
+    "c" = c_par, length 1
+    "h" = h_pars, length 2
+    "t" = t_pars only
+    """
+
+    N, I, P, beta, par_type = args
+    t_pars = pars[0:6]
+    c_par = None
+    h_pars = None
+    k_pars = None
+    # if par_type == "k":
+    #     k_pars = pars[6:10]
+    # elif par_type == "c":
+    #     c_par = pars[6]
+    # elif par_type == "kc":
+    #     k_pars = pars[6:10]
+    #     c_par = pars[10]
+    # elif par_type == "ck":
+    #     k_pars = pars[7:11]
+    #     c_par = pars[6]
+    # elif par_type == "t":
+    #     pass
+    # elif par_type == "h":
+    #     h_pars = pars[6:8]
+    # elif par_type == "kh":
+    #     k_pars = pars[6:10]
+    #     h_pars = pars[10:12]
+    # elif par_type == "hk":
+    #     k_pars = pars[8:12]
+    #     h_pars = pars[6:8]
+
+    if par_type not in ["k", "c", "kc", "ck", "t", "h", "kh", "hk"]:
+        print("Accepted par_types: k, c, kc, ck, t, h, kh, hk")
+        raise ValueError("par_type %s not recognized" % par_type)
+    
+    if par_type != "t":
+        num_options = len(par_type)
+        startindex = 6
+        if len(pars) < startindex:
+            print("Not enough parameters after startindex %d" % startindex)
+            raise ValueError("Not enough parameters")
+
+        for i in range(num_options):
+            if par_type[i] == "k":
+                if len(pars[startindex:]) < 4:
+                    print("Not enough parameters for k_pars")
+                    raise ValueError("Not enough parameters for k_pars")
+                k_pars = pars[startindex:startindex+4]
+                startindex += 4
+            elif par_type[i] == "c":
+                c_par = pars[startindex]
+                startindex += 1
+            elif par_type[i] == "h":
+                if len(pars[startindex:]) < 2:
+                    print("Not enough parameters for h_pars")
+                    raise ValueError("Not enough parameters for h_pars")
+                h_pars = pars[startindex:startindex+2]
+                startindex += 2
+
+    num_pts = len(N)
+    
+    f_list = [get_f(t_pars, k_pars, N[i], I[i], P[i], c_par=c_par, h_pars=h_pars) for i in range(num_pts)] 
+    residuals = np.array(f_list) - beta
+    
+    rmsd = np.sqrt(np.mean(residuals**2))
+    return rmsd
