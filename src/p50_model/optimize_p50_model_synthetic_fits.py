@@ -242,6 +242,19 @@ def main():
     ax.set_title("Residuals for each dataset")
     plt.savefig("%s/p50_all_datasets_residuals_local.png" % figures_dir)
 
+    # Plot heatmap of residuals
+    fig, ax = plt.subplots(figsize=(8,6), dpi=300)
+    heatmap = ax.imshow(residuals, cmap="viridis", aspect="auto")
+    ax.set_xticks(np.arange(num_pts))
+    ax.set_yticks(np.arange(num_datasets))
+    ax.set_xticklabels(np.arange(num_pts))
+    ax.set_yticklabels(datasets)
+    ax.set_xlabel("Data point")
+    ax.set_ylabel("Dataset")
+    ax.set_title("Residuals for each dataset")
+    plt.colorbar(heatmap, label="Residual")
+    plt.savefig("%s/p50_all_datasets_residuals_local_heatmap.png" % figures_dir)
+
     # Plot parameters all black
     fig, ax = plt.subplots(figsize=(8,6), dpi=300)
     for i in range(num_pars):

@@ -42,7 +42,7 @@ def p50_objective(pars, *args):
             rmsd = np.sqrt(np.mean(residuals**2))
         return rmsd
     elif strategy == "cost":
-        if np.abs(residuals[2]) > 0.1 or np.abs(residuals[3]) > 0.1:
+        if np.abs(residuals[2]) > 0.2 or np.abs(residuals[3]) > 0.2:
             cost = 100
         else:
             cost = 0.5 * np.sum(residuals**2)
@@ -203,7 +203,7 @@ def main():
     num_threads = 40
     len_training = len(N)
 
-    if True:
+    if False:
         print("\n\n###############################################")
         print("OPTIMIZING MODEL %s" % model)
         print("###############################################\n")
@@ -315,7 +315,62 @@ def main():
     # cbar = fig.colorbar(sm)
     # plt.savefig("%s/p50_grid_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
     
-    # print("Finished plotting residuals", flush=True)
+    # Remove grid points that don't fit first four points
+    print("Calculating good grid points", flush=True)
+    residuals_abs = np.abs(residuals)
+
+    is_good = np.all(residuals_abs[:,0:4] < 0.25, axis=1)
+    good = np.transpose(is_good.nonzero())
+    residuals_good = residuals[is_good,:]
+
+    if len(good) < 1:
+        raise ValueError("No grid points fit first four data points by < 0.25")
+
+    print("%d/%d grid points fit first four points by < 0.25" % (len(good), residuals.shape[0]), flush=True)
+
+    rmsd_first_four = np.sqrt(np.mean(residuals_good[:,0:4]**2, axis=1))
+    rmsd_quantiles = np.quantile(rmsd_first_four, [0, 0.25, 0.5, 0.75, 1.0])
+    print("RMSD quantiles: ", rmsd_quantiles, flush=True)
+
+    # Sort grid points by RMSD among first four data points
+    print("Sorting grid points by RMSD among first four data points", flush=True)
+    sorted_good = np.argsort(rmsd_first_four)
+    residuals_good = residuals_good[sorted_good,:]
+   
+    # Plot best 20 points only
+    fig, ax = plt.subplots()
+    for i in range(20):
+        ax.plot(residuals_good[i], alpha=0.3, color = "black")
+    ax.set_xlabel("Data point")
+    ax.set_ylabel("Residual")
+    ax.set_title("Top 20 grid residuals for early data points")
+    ax.set_xticks(np.arange(0, len_training))
+    plt.savefig("%s/p50_grid_residuals_lineplot_%s_top_20.png" % (figures_dir, model), bbox_inches="tight")
+
+    print("Finished plotting residuals", flush=True)
+
+    # For best 20 points, calculate predicted values and plot against data
+    print("Calculating predicted values for best 20 points", flush=True)
+    best_20_residuals = residuals_good[0:20,:]
+
+    beta_values = training_data["IFNb"].values
+    beta_values = np.array([beta_values for i in range(20)])
+    best_20_predicted = beta_values + best_20_residuals
+
+    data_names = ["%s_%s_p50_%s" % (training_data["Genotype"][i], training_data["Stimulus"][i], training_data["p50"][i]) for i in range(len_training)]
+    fig, ax = plt.subplots()
+    for i in range(20):
+        ax.plot(best_20_predicted[i], alpha=0.3, color = "black", label = "Predicted" if i==0 else None)
+    ax.plot(beta_values[0], color="red", label="Data", marker="o", linestyle="none")
+    ax.set_xlabel("Data point")
+    ax.set_ylabel("Predicted IFNb")
+    ax.set_title("Top 20 grid predictions for early data points")
+    ax.set_xticks(np.arange(0, len_training))
+    ax.set_xticklabels(data_names, rotation=90)
+    plt.legend(bbox_to_anchor=(1.3,0.5))
+    plt.savefig("%s/p50_grid_predictions_lineplot_%s_top_20.png" % (figures_dir, model), bbox_inches="tight")
+    
+
 
     # # Plot residuals as jittered scatter plot
     # def jitter_dots(dots, jitter=0.3, y_jitter=False):
@@ -340,77 +395,90 @@ def main():
 
 
     ###############################################
-    # Load locally optimized results
-    print("Loading locally optimized results", flush=True)
-    pars = np.loadtxt("%s/p50_locally_optimized_all_pars_%s.csv" % (results_dir, model), delimiter=",")
-    rmsd = np.loadtxt("%s/p50_locally_optimized_all_rmsd_%s.csv" % (results_dir, model), delimiter=",")
-    residuals = np.loadtxt("%s/p50_locally_optimized_all_residuals_%s.csv" % (results_dir, model), delimiter=",")
+    # # Load locally optimized results
+    # print("Loading locally optimized results", flush=True)
+    # pars = np.loadtxt("%s/p50_locally_optimized_all_pars_%s.csv" % (results_dir, model), delimiter=",")
+    # rmsd = np.loadtxt("%s/p50_locally_optimized_all_rmsd_%s.csv" % (results_dir, model), delimiter=",")
+    # residuals = np.loadtxt("%s/p50_locally_optimized_all_residuals_%s.csv" % (results_dir, model), delimiter=",")
 
-    # Plot residuals as a heatmap where y-axis is the starting parameter set and x-axis is the data point
-    # To the right, plot heatmap of RMSD values
-    rmsd_sorted = np.sort(rmsd)
-    residuals_sorted = np.abs(residuals[np.argsort(rmsd)])
+    # # Plot residuals as a heatmap where y-axis is the starting parameter set and x-axis is the data point
+    # # To the right, plot heatmap of RMSD values
+    # rmsd_sorted = np.sort(rmsd)
+    # residuals_sorted = np.abs(residuals[np.argsort(rmsd)])
 
-    print("Plotting residuals as heatmap", flush=True)
-    fig, ax = plt.subplots(1,2, figsize=(10,6), gridspec_kw={'width_ratios': [1, 0.05]})
-    im = ax[0].imshow(residuals_sorted, cmap="viridis", aspect="auto", interpolation = "nearest")
-    ax[0].set_xlabel("Data point")
-    ax[0].set_ylabel("Parameter set")
-    ax[0].set_title("Residuals, absolute value (locally optimized)")
-    cbar = ax[0].figure.colorbar(im, ax=ax[0])
-    im = ax[1].imshow(np.expand_dims(rmsd_sorted, axis=1), cmap="viridis", aspect="auto", interpolation = "nearest")
-    ax[1].set_xlabel("RMSD")
-    ax[1].set_title("RMSD")
-    cbar = ax[1].figure.colorbar(im, ax=ax[1])
-    plt.tight_layout(pad=2)
-    plt.savefig("%s/p50_locally_optimized_residuals_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # print("Plotting residuals as heatmap", flush=True)
+    # fig, ax = plt.subplots(1,2, figsize=(10,6), gridspec_kw={'width_ratios': [1, 0.05]})
+    # im = ax[0].imshow(residuals_sorted, cmap="viridis", aspect="auto", interpolation = "nearest")
+    # ax[0].set_xlabel("Data point")
+    # ax[0].set_ylabel("Parameter set")
+    # ax[0].set_title("Residuals, absolute value (locally optimized)")
+    # cbar = ax[0].figure.colorbar(im, ax=ax[0])
+    # im = ax[1].imshow(np.expand_dims(rmsd_sorted, axis=1), cmap="viridis", aspect="auto", interpolation = "nearest")
+    # ax[1].set_xlabel("RMSD")
+    # ax[1].set_title("RMSD")
+    # cbar = ax[1].figure.colorbar(im, ax=ax[1])
+    # plt.tight_layout(pad=2)
+    # plt.savefig("%s/p50_locally_optimized_residuals_%s.png" % (figures_dir, model), bbox_inches="tight")
 
-    # Plot residuals as line plot
-    print("Plotting residuals as line plot", flush=True)
-    fig, ax = plt.subplots()
-    for i in range(len(rmsd)):
-        ax.plot(residuals[i], alpha=0.5, color = plt.cm.viridis(rmsd[i]/np.max(rmsd)))
-    ax.set_xlabel("Data point")
-    ax.set_ylabel("Residual")
-    ax.set_title("Residuals for each parameter set (locally optimized)")
-    sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
-    plt.colorbar(sm)
-    plt.savefig("%s/p50_locally_optimized_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # # Plot residuals as line plot
+    # print("Plotting residuals as line plot", flush=True)
+    # fig, ax = plt.subplots()
+    # for i in range(len(rmsd)):
+    #     ax.plot(residuals[i], alpha=0.5, color = plt.cm.viridis(rmsd[i]/np.max(rmsd)))
+    # ax.set_xlabel("Data point")
+    # ax.set_ylabel("Residual")
+    # ax.set_title("Residuals for each parameter set (locally optimized)")
+    # sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
+    # plt.colorbar(sm)
+    # plt.savefig("%s/p50_locally_optimized_residuals_lineplot_%s.png" % (figures_dir, model), bbox_inches="tight")
     
-    print("Finished plotting residuals", flush=True)
+    # print("Finished plotting residuals", flush=True)
 
-    # Plot residuals as jittered scatter plot
-    def jitter_dots(dots, jitter=0.3, y_jitter=False):
-        offsets = dots.get_offsets()
-        jittered_offsets = offsets
-        # only jitter in the x-direction
-        jittered_offsets[:, 0] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
-        if y_jitter:
-            jittered_offsets[:, 1] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
-        dots.set_offsets(jittered_offsets)
-        return dots
+    # # Plot only residuals where RMSD is < 1
+    # print("Plotting residuals where RMSD is < 1", flush=True)
+    # resid_low_rmsd = residuals[rmsd < 1]
+    # fig, ax = plt.subplots()
+    # for i in range(len(resid_low_rmsd)):
+    #     ax.plot(resid_low_rmsd[i], alpha=0.5, color = plt.cm.viridis(rmsd[i]))
+    # ax.set_xlabel("Data point")
+    # ax.set_ylabel("Residual")
+    # ax.set_title("Residuals for each parameter set (locally optimized)")
+    # sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=np.max(rmsd)))
+    # plt.colorbar(sm)
+    # plt.savefig("%s/p50_locally_optimized_residuals_lineplot_%s_low_rmsd.png" % (figures_dir, model), bbox_inches="tight")
+
+    # # Plot residuals as jittered scatter plot
+    # def jitter_dots(dots, jitter=0.3, y_jitter=False):
+    #     offsets = dots.get_offsets()
+    #     jittered_offsets = offsets
+    #     # only jitter in the x-direction
+    #     jittered_offsets[:, 0] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
+    #     if y_jitter:
+    #         jittered_offsets[:, 1] += np.random.uniform(-jitter, jitter, size=offsets.shape[0])
+    #     dots.set_offsets(jittered_offsets)
+    #     return dots
     
-    print("Plotting residuals as jittered scatter plot", flush=True)
-    fig, ax = plt.subplots()
-    for i in range(residuals.shape[1]):
-        dots = ax.scatter(np.ones(len(residuals[:,i]))*i, residuals[:,i], alpha=0.3, c = rmsd, cmap="viridis")
-        jitter_dots(dots)
-    ax.set_xlabel("Parameter")
-    ax.set_ylabel("Residual")
-    ax.set_title("Residuals for each parameter set (locally optimized)")
-    plt.savefig("%s/p50_locally_optimized_residuals_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # print("Plotting residuals as jittered scatter plot", flush=True)
+    # fig, ax = plt.subplots()
+    # for i in range(residuals.shape[1]):
+    #     dots = ax.scatter(np.ones(len(residuals[:,i]))*i, residuals[:,i], alpha=0.3, c = rmsd, cmap="viridis")
+    #     jitter_dots(dots)
+    # ax.set_xlabel("Parameter")
+    # ax.set_ylabel("Residual")
+    # ax.set_title("Residuals for each parameter set (locally optimized)")
+    # plt.savefig("%s/p50_locally_optimized_residuals_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
 
-    # Plot parameters as a jittered scatter plot
-    print("Plotting parameters as jittered scatter plot", flush=True)
-    fig, ax = plt.subplots()
-    for i in range(num_pars):
-        dots = ax.scatter(np.ones(len(pars[:,i]))*i, pars[:,i], alpha=0.3, c = rmsd, cmap="viridis")
-        jitter_dots(dots)
-    ax.set_xlabel("Parameter")
-    ax.set_ylabel("Value")
-    ax.set_title("Parameters for each parameter set (locally optimized)")
-    plt.colorbar(dots)
-    plt.savefig("%s/p50_locally_optimized_parameters_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
+    # # Plot parameters as a jittered scatter plot
+    # print("Plotting parameters as jittered scatter plot", flush=True)
+    # fig, ax = plt.subplots()
+    # for i in range(num_pars):
+    #     dots = ax.scatter(np.ones(len(pars[:,i]))*i, pars[:,i], alpha=0.3, c = rmsd, cmap="viridis")
+    #     jitter_dots(dots)
+    # ax.set_xlabel("Parameter")
+    # ax.set_ylabel("Value")
+    # ax.set_title("Parameters for each parameter set (locally optimized)")
+    # plt.colorbar(dots)
+    # plt.savefig("%s/p50_locally_optimized_parameters_scatter_%s.png" % (figures_dir, model), bbox_inches="tight")
 
     # # old
     # for model in ["B1", "B2", "B3", "B4"]:
