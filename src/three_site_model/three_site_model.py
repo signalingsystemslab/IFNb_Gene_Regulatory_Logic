@@ -7,15 +7,15 @@ class three_site:
         self.parsT = t_pars
         
         if len(t_pars) != 5:
-            print("Got %d pars when expected %d") % (len(t_pars), 5)
-            print("pars = " + str(t_pars))
-            raise ValueError("Incorrect number of t parameters in input")
+            # print("Got %d t pars when expected %d" % (len(t_pars), 5))
+            # print("pars = " + str(t_pars))
+            raise ValueError("Incorrect number of t parameters in input (%d instead of 5)" % len(t_pars))
 
         if k_pars is not None:
             if len(k_pars) != 3:
-                print("Got %d pars when expected %d" % (len(k_pars), 3))
-                print("pars = " + str(k_pars))
-                raise ValueError("Incorrect number of k parameters in input")
+                # print("Got %d k pars when expected %d" % (len(k_pars), 3))
+                # print("pars = " + str(k_pars))
+                raise ValueError("Incorrect number of k parameters in input (%d instead of 3)" % len(k_pars))
 
             self.k1 = k_pars[0]
             self.k2 = k_pars[1]
@@ -31,18 +31,27 @@ class three_site:
         else:
             self.c = 1
 
+        self.h1 = 0
+        self.h2 = 0
+        self.hn = 0
+
         if h_pars is not None:
             # Hill coefficient for each IRF binding event
             if type(h_pars) in [int, float]:
                 self.h1 = h_pars - 1
                 self.h2 = h_pars - 1
             else:
-                if len(h_pars) != 2:
+                if len(h_pars) == 2:
+                    self.h1 = h_pars[0] - 1
+                    self.h2 = h_pars[1] - 1
+                elif len(h_pars) == 3:
+                    self.h1 = h_pars[0] - 1
+                    self.h2 = h_pars[1] - 1
+                    self.hn = h_pars[2] - 1
+                else:
                     print("Got %d pars when expected %d" % (len(h_pars), 2))
                     print("pars = " + str(h_pars))
                     raise ValueError("Incorrect number of h parameters in input")
-                self.h1 = h_pars[0] - 1
-                self.h2 = h_pars[1] - 1
 
 
         # States
@@ -60,20 +69,20 @@ class three_site:
         self.t[7] = 1
 
 
-    def calculateBeta(self, I):
+    def calculateBeta(self, I, N=None):
         self.beta = np.array([1.0 for i in range(8)])
         
         self.beta[1] = self.k1 * (I ** self.h1)
         self.beta[2] = self.k2 * (I ** self.h2)
-        self.beta[3] = self.kn
+        self.beta[3] = self.kn * (N ** self.hn)
         self.beta[4] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2)
-        self.beta[5] = self.k1 * (I ** self.h1) * self.kn
-        self.beta[6] = self.k2 * (I ** self.h2) * self.kn
-        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn
+        self.beta[5] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn)
+        self.beta[6] = self.k2 * (I ** self.h2) * self.kn * (N ** self.hn)
+        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn)
 
     def calculateState(self, N, I):
         if not hasattr(self, 'beta'):
-            self.calculateBeta(I)
+            self.calculateBeta(I, N)
         self.state = np.array([1, I, I, N, I*I, I*N, I*N, I*I*N])
 
     def calculateProb(self):
@@ -135,47 +144,13 @@ def three_site_objective(pars, *args):
     """Minimization objective function for the three site model.
     Args:
     pars: array of parameters
-    args: tuple of (N, I, beta, par_type)
-    par_type: string of length 1-4, where each character is one of "k", "c", "h", "t"
-    "k" = k_pars, length 3
-    "c" = c_par, length 1
-    "h" = h_pars, length 2
-    "t" = t_pars only
+    args: tuple of (N, I, IFNb_data)
+    kwargs: additional parameters (c, h)
     """
 
-    N, I, beta, par_type = args
-    t_pars = pars[0:6]
-    c_par = None
-    h_pars = None
-    k_pars = None
-
-    if par_type not in ["k", "c", "kc", "ck", "t", "h", "kh", "hk"]:
-        print("Accepted par_types: k, c, kc, ck, t, h, kh, hk")
-        raise ValueError("par_type %s not recognized" % par_type)
-    
-    if par_type != "t":
-        num_options = len(par_type)
-        startindex = 6
-        if len(pars) < startindex:
-            print("Not enough parameters after startindex %d" % startindex)
-            raise ValueError("Not enough parameters")
-
-        for i in range(num_options):
-            if par_type[i] == "k":
-                if len(pars[startindex:]) < 3:
-                    print("Not enough parameters for k_pars")
-                    raise ValueError("Not enough parameters for k_pars")
-                k_pars = pars[startindex:startindex+4]
-                startindex += 4
-            elif par_type[i] == "c":
-                c_par = pars[startindex]
-                startindex += 1
-            elif par_type[i] == "h":
-                if len(pars[startindex:]) < 2:
-                    print("Not enough parameters for h_pars")
-                    raise ValueError("Not enough parameters for h_pars")
-                h_pars = pars[startindex:startindex+2]
-                startindex += 2
+    N, I, beta, c_par, h_pars = args
+    t_pars = pars[0:5]
+    k_pars = pars[5:8]
 
     num_pts = len(N)
     

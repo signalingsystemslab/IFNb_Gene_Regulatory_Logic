@@ -38,7 +38,8 @@ def make_contribution_plots():
     best_fit_dir ="three_site_param_scan_hill/results/"
     model = "three_site_only_hill"
     num_threads = 40
-    best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars.csv" % (best_fit_dir, model))
+    h="3_3_1"
+    best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (best_fit_dir, model, h))
     state_names = np.loadtxt("%s/%s_state_names.txt" % (results_dir, model), dtype=str, delimiter="\0")
 
     t = time.time()
@@ -81,6 +82,22 @@ def make_contribution_plots():
     plt.close()
 
     print("Finished making contribution plots, took %s" % (time.time() - t))
+
+def make_param_scan_plots():
+    figures_dir = "three_site_final_figures"
+    os.makedirs(figures_dir, exist_ok=True)
+    num_t_pars = 5
+    num_k_pars = 3
+    num_h_pars = 2
+    results_dir ="three_site_param_scan_hill/results/"
+    model = "three_site_only_hill"
+    num_threads = 40
+    h_values = np.readtxt("%s/%s_h_values.csv" % (results_dir, model), dtype=str)
+    h="3_3_1"
+    best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (results_dir, model, h))
+
+    #Which plots to make?
+
 
 def main():
     parser = argparse.ArgumentParser()
