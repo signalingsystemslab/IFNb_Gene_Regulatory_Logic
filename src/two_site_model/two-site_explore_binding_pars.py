@@ -66,14 +66,14 @@ def make_state_heatmap(*args, **kwargs):
     ax = sns.heatmap(d, **kwargs)
 
     # Set x and y tick locators
-    x_ticks = np.linspace(np.min(data[args[0]]), np.max(data[args[0]]), 10)
-    y_ticks = np.linspace(np.min(data[args[1]]), np.max(data[args[1]]), 10)
-    ax.xaxis.set_major_locator(ticker.FixedLocator(x_ticks))
-    ax.yaxis.set_major_locator(ticker.FixedLocator(y_ticks))
+    ax.xaxis.set_major_locator(ticker.LinearLocator(10))
+    ax.yaxis.set_major_locator(ticker.LinearLocator(10))
 
     # Format x and y tick labels
-    ax.set_xticklabels(["%.2f" % i for i in x_ticks])
-    ax.set_yticklabels(["%.2f" % i for i in y_ticks])
+    min_x, max_x = np.min(data[args[0]]), np.max(data[args[0]])
+    min_y, max_y = np.min(data[args[1]]), np.max(data[args[1]])
+    ax.set_xticklabels(["%.2f" % i for i in np.linspace(min_x, max_x, 10)])
+    ax.set_yticklabels(["%.2f" % i for i in np.linspace(min_y, max_y, 10)])
 
     # # Only label start, end, and 0.5 of each axis
     # min_x, max_x = np.min(data[args[0]]), np.max(data[args[0]])

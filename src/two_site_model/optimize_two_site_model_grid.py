@@ -224,8 +224,10 @@ def main():
     fig, ax = plt.subplots()
     ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
     C_pars = results["C"]
+    # models from names of C_pars
     model_names = results.index
     ax.bar(model_names, C_pars)
+    # ax.plot(C_pars, 'o')
     # ax.set_xticks(np.arange(0,4), model_names)
     ax.set_xlabel("Model")
     ax.set_ylabel("C")
@@ -238,6 +240,7 @@ def main():
         fig, ax = plt.subplots()
         ax.set_prop_cycle("color", plt.cm.viridis(np.linspace(0,1,4)))
         ax.bar(model_names, results[measure])
+        # plt.plot(results[measure], 'o')
         plt.xlabel("Model")
         plt.ylabel("%s" % measure)
         plt.title("%s for each model" % measure.upper())

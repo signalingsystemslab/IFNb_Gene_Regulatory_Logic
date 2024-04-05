@@ -17,7 +17,7 @@ os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
 num_t_pars = 2
 num_k_pars = 2
-num_h_pars = 1
+num_h_pars = 2
 
 def calculate_ifnb(pars, data):
     if len(pars) != num_t_pars + num_k_pars + num_h_pars:
@@ -61,7 +61,7 @@ def calculate_grid(training_data, t_bounds=(0,1), k_bounds=None, h_bounds=None, 
     t_vals = np.linspace(t_bounds[0], t_bounds[1], num_pts)
     k_vals = np.logspace(min_k_order, max_k_order, num_pts)
     h_vals = np.arange(h_bounds[0], h_bounds[1]+1, 1)
-    grid = np.array(np.meshgrid(t_vals, t_vals, k_vals, k_vals, h_vals)).T.reshape(-1,num_t_pars+num_k_pars+num_h_pars)
+    grid = np.array(np.meshgrid(t_vals, t_vals, k_vals, k_vals, h_vals, h_vals)).T.reshape(-1,num_t_pars+num_k_pars+num_h_pars)
     kgrid = grid[:,num_t_pars:]
     print("Total number of samples: %d" % len(grid), flush=True)
     
@@ -141,7 +141,7 @@ def plot_parameters(pars, subset="All", name="parameters", figures_dir=figures_d
             subset = np.arange(len(pars))
 
     if param_names is None:
-        par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)] + ["h"]
+        par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)] + ["h%d" % (i+1) for i in range(num_h_pars)]
     else:
         par_names = param_names
 
@@ -166,7 +166,7 @@ def plot_parameters(pars, subset="All", name="parameters", figures_dir=figures_d
         ax[2].set_yscale("log")
         sns.despine()
         plt.tight_layout()
-    elif "h" in df_pars["Parameter"].values:
+    elif "h" in df_pars["Parameter"].values or "h1" in df_pars["Parameter"].values:
         df_h_pars = df_pars[df_pars["Parameter"].str.startswith("h")]
         fig, ax = plt.subplots(1,3, figsize=(12,5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars, num_h_pars]})
         sns.lineplot(data=df_t_pars, x="Parameter", y="Value", units="par_set", color="black", alpha=0.5, estimator=None, ax=ax[0])
@@ -233,7 +233,7 @@ def plot_parameter_pairwise(pars_df, subset="All", name="parameter_distributions
             subset = np.arange(len(pars_df))
 
     df_pars = pars_df.iloc[subset,:]
-    df_pars = df_pars.drop(columns="h")
+    df_pars = df_pars.drop(columns=["h%d" % (i+1) for i in range(num_h_pars)])
     # jitter points
     for par in df_pars.columns:
         if "t" in par:
@@ -275,13 +275,13 @@ def main():
     figures_directory = figures_dir
     t_bounds = (0,1)
     k_bounds = (10**-3, 10**3)
-    h_bounds = (0, 5)
+    h_bounds = (1, 5)
     state_names = ["none", "IRF", r"$NF\kappa B$", r"IRF and $NF\kappa B$"]
 
     beta = training_data["IFNb"]
     conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
 
-    par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)] + ["h"]
+    par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)] + ["h%d" % (i+1) for i in range(num_h_pars)]
 
     num_threads = 50
     num_par_sets = 10**6
@@ -348,17 +348,18 @@ def main():
         print("Finished calculating best 20 parameters overall", flush=True)
 
         # Get best 20 from each h value
-        h_vals = np.unique(pars[:,-1])
+        h_vals = np.unique(pars[:,-2:], axis=0)
         h_best_20_inds = {}
-        for h in h_vals:
-            h_indices = np.where(pars[:,-1] == h)[0]
+        for row in h_vals:
+            h1, h2 = row
+            h_indices = np.where((pars[:,-2] == h1) & (pars[:,-1] == h2))[0]
             h_rmsd = rmsd[h_indices]
             h_sorted_indices = h_indices[np.argsort(h_rmsd)]
+            h_best_20_inds[(h1,h2)] = h_sorted_indices[:20]
             h_best_20 = h_sorted_indices[:20]
-            h_best_20_inds[h] = h_best_20
             h_best_20_df = pd.DataFrame(pars[h_best_20], columns=par_names)
             h_best_20_df["rmsd"] = rmsd[h_best_20]
-            h_best_20_df.to_csv("%s/%s_best_20_pars_h_%d.csv" % (results_directory, model, h), index=False)
+            h_best_20_df.to_csv("%s/%s_best_20_pars_hi_%d_hn_%d.csv" % (results_directory, model, h1, h2), index=False)
 
         if args.calc_states:
             print("Calculating state probabilities ON", flush=True)
@@ -393,6 +394,12 @@ def main():
             plot_time_start = time.time()
             print("Plotting ON", flush=True)
 
+            for h1, h2 in h_best_20_inds.keys():
+                h_best_20 = h_best_20_inds[(h1,h2)]
+                plot_parameters(pars, subset=h_best_20, name="parameters_best_20_hi_%d_hn_%d" % (h1, h2), figures_dir=figures_directory)
+                plot_predictions(ifnb_predicted, beta, conditions, subset=h_best_20, name="ifnb_predictions_best_20_hi_%d_hn_%d" % (h1, h2), figures_dir=figures_directory)
+                for cond in probabilities.keys():
+                    plot_state_probabilities(probabilities[cond][h_best_20], state_names, "%s_%s_best_20_state_probabilities_hi_%d_hn_%d" % (model, cond, h1, h2), figures_dir=figures_directory)
 
             print("Plotting state probabilities", flush=True)
             for cond in probabilities.keys():
@@ -440,18 +447,18 @@ def main():
 
     # Combine best 20 parameters for each h value for each seed
     print("Combining best 20 parameters for each h value for each seed", flush=True)
-    for h in h_vals:
+    for h1, h2 in h_best_20_inds.keys():
         t = time.time()
         all_best_h_pars = pd.DataFrame()
         for seed in range(num_seeds):
             results_directory = "%s/seed_%d" % (results_dir, seed)
-            best_20_pars_df = pd.read_csv("%s/%s_best_20_pars_h_%d.csv" % (results_directory, model, h))
+            best_20_pars_df = pd.read_csv("%s/%s_best_20_pars_hi_%d_hn_%d.csv" % (results_directory, model, h1, h2))
             all_best_h_pars = pd.concat([all_best_h_pars, best_20_pars_df], ignore_index=True)
 
-        all_best_h_pars.to_csv("%s/%s_all_best_20_pars_h_%d.csv" % (results_dir, model, h), index=False)
+        all_best_h_pars.to_csv("%s/%s_all_best_20_pars_hi_%d_hn_%d.csv" % (results_dir, model, h1, h2), index=False)
         
-        plot_parameter_pairwise(all_best_h_pars, subset="All", name="parameter_pairplots_h_%d" % h, figures_dir=figures_dir)
-        print("Time elapsed for h=%d: %.2f minutes" % (h, (time.time()-t)/60), flush=True)
+        plot_parameter_pairwise(all_best_h_pars, subset="All", name="parameter_pairplots_hi_%d_hn_%d" % (h1, h2), figures_dir=figures_dir)
+        print("Time elapsed for h_i=%d, h_n=%d: %.2f minutes" % (h1, h2, (time.time()-t)/60), flush=True)
 
     end_end = time.time()
     t = end_end - start_start
