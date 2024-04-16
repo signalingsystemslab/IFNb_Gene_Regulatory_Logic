@@ -5,10 +5,10 @@ class Modelp50:
     def __init__(self, t_pars, k_pars=None, c_par=None, h_pars=None):
         self.parsT = t_pars
         
-        if len(t_pars) != 6:
-            print("Got %d pars when expected %d") % (len(t_pars), 6)
-            print("pars = " + str(t_pars))
-            raise ValueError("Incorrect number of t parameters in input")
+        if len(t_pars) != 5:
+            # print("Got %d pars when expected %d" % (len(t_pars), 5))
+            # print("pars = " + str(t_pars))
+            raise ValueError("Got %d pars when expected %d. Pars = %s" % (len(t_pars), 5, str(t_pars)))
 
         if k_pars is not None:
             if len(k_pars) != 4:
@@ -48,6 +48,7 @@ class Modelp50:
 
         # States
         # 1, I, Ig, I*P, N, N*P, P, I*Ig, I*N, Ig*N, I*N*P, I*Ig*N
+        # I*N is sum of I and N
 
         self.t = np.array([0.0 for i in range(12)])
         self.t[1] = self.parsT[0]
@@ -56,9 +57,9 @@ class Modelp50:
         self.t[4] = self.parsT[2]
         self.t[5] = self.parsT[2]
         self.t[7] = self.parsT[3]
-        self.t[8] = self.parsT[4] * self.c
-        self.t[9] = self.parsT[5] * self.c
-        self.t[10] = self.parsT[4]
+        self.t[8] = self.parsT[1] + self.parsT[2]
+        self.t[9] = self.parsT[4]
+        self.t[10] = self.parsT[1] + self.parsT[2]
         self.t[11] = 1
 
 
@@ -172,74 +173,20 @@ def plot_contour(f_values, model_name, I, N, dir, name, condition ="", normalize
     plt.close()
 
 def p50_objective(pars, *args):
-    """Minimization objective function for the p50 model.
+    """Minimization objective function for the three site model.
     Args:
     pars: array of parameters
-    args: tuple of (N, I, P, beta, par_type)
-    par_type: string of length 1-4, where each character is one of "k", "c", "h", "t"
-    "k" = k_pars, length 4
-    "c" = c_par, length 1
-    "h" = h_pars, length 2
-    "t" = t_pars only
+    args: tuple of (N, I, IFNb_data)
+    kwargs: additional parameters (c, h)
     """
 
-    N, I, P, beta, par_type = args
+    N, I, P, beta, h_pars = args
     t_pars = pars[0:6]
-    c_par = None
-    h_pars = None
-    k_pars = None
-    # if par_type == "k":
-    #     k_pars = pars[6:10]
-    # elif par_type == "c":
-    #     c_par = pars[6]
-    # elif par_type == "kc":
-    #     k_pars = pars[6:10]
-    #     c_par = pars[10]
-    # elif par_type == "ck":
-    #     k_pars = pars[7:11]
-    #     c_par = pars[6]
-    # elif par_type == "t":
-    #     pass
-    # elif par_type == "h":
-    #     h_pars = pars[6:8]
-    # elif par_type == "kh":
-    #     k_pars = pars[6:10]
-    #     h_pars = pars[10:12]
-    # elif par_type == "hk":
-    #     k_pars = pars[8:12]
-    #     h_pars = pars[6:8]
-
-    if par_type not in ["k", "c", "kc", "ck", "t", "h", "kh", "hk"]:
-        print("Accepted par_types: k, c, kc, ck, t, h, kh, hk")
-        raise ValueError("par_type %s not recognized" % par_type)
-    
-    if par_type != "t":
-        num_options = len(par_type)
-        startindex = 6
-        if len(pars) < startindex:
-            print("Not enough parameters after startindex %d" % startindex)
-            raise ValueError("Not enough parameters")
-
-        for i in range(num_options):
-            if par_type[i] == "k":
-                if len(pars[startindex:]) < 4:
-                    print("Not enough parameters for k_pars")
-                    raise ValueError("Not enough parameters for k_pars")
-                k_pars = pars[startindex:startindex+4]
-                startindex += 4
-            elif par_type[i] == "c":
-                c_par = pars[startindex]
-                startindex += 1
-            elif par_type[i] == "h":
-                if len(pars[startindex:]) < 2:
-                    print("Not enough parameters for h_pars")
-                    raise ValueError("Not enough parameters for h_pars")
-                h_pars = pars[startindex:startindex+2]
-                startindex += 2
+    k_pars = pars[6:10]
 
     num_pts = len(N)
     
-    f_list = [get_f(t_pars, k_pars, N[i], I[i], P[i], c_par=c_par, h_pars=h_pars) for i in range(num_pts)] 
+    f_list = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars) for i in range(num_pts)] 
     residuals = np.array(f_list) - beta
     
     rmsd = np.sqrt(np.mean(residuals**2))
