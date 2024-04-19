@@ -153,6 +153,8 @@ def plot_predictions(ifnb_predicted, beta, conditions, subset="All",name="ifnb_p
         else:
             print(subset)
             raise ValueError("Subset must be a list of indices or 'All'")
+        
+    ifnb_predicted = ifnb_predicted[subset]
 
     df_ifnb_predicted = pd.DataFrame(ifnb_predicted, columns=conditions)
     df_ifnb_predicted["par_set"] = np.arange(len(df_ifnb_predicted))
@@ -169,7 +171,7 @@ def plot_predictions(ifnb_predicted, beta, conditions, subset="All",name="ifnb_p
     df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
 
     fig, ax = plt.subplots()
-    sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"].isin(subset)], x="Data point", y=r"IFN$\beta$", 
+    sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", 
                     units="par_set", color="black", alpha=0.5, estimator=None, ax=ax)
     sns.scatterplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", 
                     color="red", marker="o", ax=ax, legend=False, zorder = 10)
@@ -192,6 +194,11 @@ def plot_predictions(ifnb_predicted, beta, conditions, subset="All",name="ifnb_p
     # plt.tight_layout()
     # plt.savefig("%s/%s_log.png" % (figures_dir, name))
     # plt.close()
+
+def plot_predictions_wrapper(results_directory, beta, conditions, model, h_vals_str, figures_directory, name="ifnb_predictions"):
+    # Load data and plot parameters
+    ifnb_predicted = np.loadtxt("%s/%s_best_20_ifnb_h_%s.csv" % (results_directory, model, h_vals_str), delimiter=",")
+    plot_predictions(ifnb_predicted, beta, conditions, subset="All", name=name, figures_dir=figures_directory)
 
 def plot_parameters(pars, subset="All", name="parameters", figures_dir=figures_dir, param_names=None):
     if type(subset) == str:
@@ -245,12 +252,12 @@ def plot_parameters(pars, subset="All", name="parameters", figures_dir=figures_d
     plt.savefig("%s/%s.png" % (figures_dir, name))
     plt.close()
 
-def plot_parameters_wrapper(results_directory, model, h_vals_str, figures_directory, subset="All", name="parameters", figures_dir=figures_dir, param_names=None):
+def plot_parameters_wrapper(results_directory, model, h_vals_str, figures_directory, name="parameters", param_names=None):
     # Load data and plot parameters
-    # h_best_20_df.to_csv("%s/%s_best_20_pars_h_%s.csv" % (results_directory, model, h_vals_str), index=False)
-    pars = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (results_directory, model, h_vals_str))
+    pars = pd.read_csv("%s/%s_best_20_pars_h_%s.csv" % (results_directory, model, h_vals_str))
+    pars = pars.drop(columns=["rmsd"])
     pars = pars.values
-    plot_parameters(pars, subset=subset, name=name, figures_dir=figures_dir, param_names=param_names)
+    plot_parameters(pars, subset="All", name=name, figures_dir=figures_directory, param_names=param_names)
 
 
 def plot_parameter_distributions(pars, subset ="All", name="parameter_distributions", figures_dir=figures_dir, param_names=None):
@@ -399,14 +406,14 @@ def main():
 
     # num_pars = num_t_pars + num_k_pars
     num_threads = 60
-    num_plot_threads = 20
+    num_plot_threads = 10
     num_par_sets = 10**6
     hmin = 1
     hmax = 5
 
     num_seeds = 3
     if args.seed >= 0:
-        num_seeds = args.seed
+        num_seeds = args.seed + 1
     for seed in range(num_seeds):
         if args.seed >= 0:
             if seed != args.seed:
@@ -466,6 +473,10 @@ def main():
             best_20_pars_df = pd.DataFrame(best_20_params, columns=par_names)
             best_20_pars_df["rmsd"] = rmsd[best_20]
             best_20_pars_df.to_csv("%s/%s_best_20_pars.csv" % (results_directory, model), index=False)
+            best_20_predictions = ifnb_predicted[best_20]
+            np.savetxt("%s/%s_best_20_ifnb.csv" % (results_directory, model), best_20_predictions, delimiter=",")
+            best_20_rmsd = rmsd[best_20]
+            np.savetxt("%s/%s_best_20_rmsd.csv" % (results_directory, model), best_20_rmsd, delimiter=",")
             print("Finished calculating best 20 parameters", flush=True)
             del best_20_params
 
@@ -473,18 +484,24 @@ def main():
             h_vals = np.unique(pars[:,-num_h_pars:], axis=0)
             h_best_20_inds = {}
             for row in h_vals:
+                h_vals_str = "_".join([str(int(x)) for x in row])
                 h_indices = np.where((pars[:,-num_h_pars:] == row).all(axis=1))[0]
                 h_rmsd = rmsd[h_indices]
+                np.savetxt("%s/%s_rmsd_h_%s.csv" % (results_directory, model, h_vals_str), h_rmsd, delimiter=",")
                 h_sorted_indices = h_indices[np.argsort(h_rmsd)]
                 h_best_20_inds[tuple(row)] = h_sorted_indices[:20]
                 h_best_20 = h_sorted_indices[:20]
                 h_best_20_df = pd.DataFrame(pars[h_best_20], columns=par_names)
                 h_best_20_df["rmsd"] = rmsd[h_best_20]
-                h_vals_str = "_".join([str(int(x)) for x in row])
+                
                 h_best_20_df.to_csv("%s/%s_best_20_pars_h_%s.csv" % (results_directory, model, h_vals_str), index=False)
+                h_best_20_predictions = ifnb_predicted[h_best_20]
+                np.savetxt("%s/%s_best_20_ifnb_h_%s.csv" % (results_directory, model, h_vals_str), h_best_20_predictions, delimiter=",")
+                h_best_20_rmsd = rmsd[h_best_20]
+                np.savetxt("%s/%s_best_20_rmsd_h_%s.csv" % (results_directory, model, h_vals_str), h_best_20_rmsd, delimiter=",")
             
             if args.calc_states == False:
-                del pars, rmsd
+                del pars, rmsd, ifnb_predicted
 
 
         if args.calc_states:
@@ -510,7 +527,7 @@ def main():
                 np.savetxt("%s/%s_state_names.csv" % (results_directory, model), state_names, delimiter=",", fmt="%s")
             print("Time elapsed: %.2f minutes" % ((time.time() - t)/60), flush=True)
 
-            del pars, rmsd
+            del pars, rmsd, ifnb_predicted
 
 
         if args.no_plot == False:
@@ -538,7 +555,7 @@ def main():
             del probabilities
             print("Done plotting state probabilities", flush=True)
             
-            np.savetxt("%s/%s_h_values.csv" % (results_dir, model), h_vals, delimiter=",", fmt="%d")
+            np.savetxt("%s/%s_h_values.csv" % (results_directory, model), h_vals, delimiter=",", fmt="%d")
             #### Best 20 parameters for each h value ####
             # for row in h_vals:
             #     print("Plotting best 20 parameters, predictions, state probabilities, and parameter distributions for h values:", flush=True)
@@ -556,9 +573,14 @@ def main():
             print("Plotting best 20 parameters, predictions, and parameter distributions for h values:", flush=True)
             with Pool(num_plot_threads) as p:
                 # p.starmap(plot_parameters, [(pars, h_best_20_inds[tuple(row)], "parameters_best_20_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
-                p.starmap(plot_parameters_wrapper, [(results_directory, model, "_".join([str(int(x)) for x in row]), figures_directory, h_best_20_inds[tuple(row)], "parameters_best_20_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
+                # p.starmap(plot_parameters_wrapper, [(results_directory, model, "_".join([str(int(x)) for x in row]), figures_directory,  "parameters_best_20_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
+                p.starmap(plot_parameters_wrapper, [(results_directory, model, h_strs[i], figures_directory,  "parameters_best_20_h_%s" % h_strs[i]) for i in range(len(h_strs))])
+            print("Plotting predictions", flush=True)
             with Pool(num_plot_threads) as p:
-                p.starmap(plot_predictions, [(ifnb_predicted, beta, conditions, h_best_20_inds[tuple(row)], "ifnb_predictions_best_20_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
+                # p.starmap(plot_predictions, [(ifnb_predicted, beta, conditions, h_best_20_inds[tuple(row)], "ifnb_predictions_best_20_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
+                # p.starmap(plot_predictions_wrapper, [(results_directory, beta, conditions, model, "_".join([str(int(x)) for x in row]), figures_directory, "ifnb_predictions_best_20_h_%s" % "_".join([str(int(x)) for x in row]) ) for row in h_vals])
+                p.starmap(plot_predictions_wrapper, [(results_directory, beta, conditions, model, h_strs[i], figures_directory, "ifnb_predictions_best_20_h_%s" % h_strs[i]) for i in range(len(h_strs))])
+            print("Plotting parameter distributions", flush=True)
             with Pool(num_plot_threads) as p:
                 p.starmap(plot_parameter_pairwise, [(h_best_20_df, "All", "parameter_pairplots_h_%s" % "_".join([str(int(x)) for x in row]), figures_directory) for row in h_vals])
             print("Time elapsed to make all plots: %.2f minutes" % ((time.time() - t)/60), flush=True)
@@ -578,25 +600,29 @@ def main():
 
             # Plot best 20 ifnb predictions
             print("Plotting best 20 IFNb predictions", flush=True)
-            plot_predictions(ifnb_predicted, beta, conditions, subset=best_20, name="ifnb_predictions_best_20", figures_dir=tog_fig_dir)
+            ifnb_predicted = np.loadtxt("%s/%s_best_20_ifnb.csv" % (results_directory, model), delimiter=",")
+            plot_predictions(ifnb_predicted, beta, conditions, subset="All", name="ifnb_predictions_best_20", figures_dir=tog_fig_dir)
+            del ifnb_predicted
             print("Done plotting best 20 IFNb predictions", flush=True)
 
             # Plot best 20 parameters
             print("Plotting best 20 parameters", flush=True)
-            plot_parameters(pars, subset=best_20, name="parameters_best_20", figures_dir=tog_fig_dir)
+            pars = pd.read_csv("%s/%s_best_20_pars.csv" % (results_directory, model))
+            pars = pars.drop(columns=["rmsd"])
+            pars = pars.values
+            plot_parameters(pars, subset="All", name="parameters_best_20", figures_dir=tog_fig_dir)
 
-            # Plot distributions of all parameters
-            print("Plotting all parameter distributions", flush=True)
+            # Plot distributions of parameters
+            print("Plotting best 20 parameter distributions", flush=True)
             t = time.time()
-            plot_parameter_distributions(pars, subset="All", name="all_parameter_distributions", figures_dir=tog_fig_dir)
+            plot_parameter_distributions(pars, subset="All", name="best_20_parameter_distributions", figures_dir=tog_fig_dir)
+            del pars
             t = time.time() - t
             print("Time elapsed: %.2f minutes" % (t/60), flush=True)
 
             plot_time = time.time() - plot_time_start
             print("Total time elapsed for plotting: %.2f minutes" % (plot_time/60), flush=True)
 
-            # Done with all values
-            del pars, ifnb_predicted
 
     # Combine best 20 parameters for each h value for each seed
     print("Combining best 20 parameters for each h value for each seed", flush=True)
@@ -620,24 +646,51 @@ def main():
     
     # Plot rmsd, facet by h1, h2, color by h3
     if num_h_pars == 3:
+        # By seed
+        for seed in range(num_seeds):
+            print("Plotting rmsd by h values for seed %d" % seed, flush=True)
+            res_dir = "%s/seed_%d" % (results_dir, seed)
+            fig_dir = "%s/seed_%d" % (figures_dir, seed)
+            all_rmsd_combined = pd.DataFrame()
+            for row in h_vals:
+                h_vals_str = "_".join([str(int(x)) for x in row])
+                all_rmsd = np.loadtxt("%s/%s_rmsd_h_%s.csv" % (res_dir, model, h_vals_str), delimiter=",")
+                subset_keep = np.random.choice(np.arange(len(all_rmsd)), 1000, replace=False)
+                all_rmsd = all_rmsd[subset_keep]
+                all_rmsd_df = pd.DataFrame(all_rmsd, columns=["rmsd"])
+                all_rmsd_df["h1"] = row[0]
+                all_rmsd_df["h2"] = row[1]
+                all_rmsd_df["h3"] = row[2]
+                all_rmsd_combined = pd.concat([all_rmsd_combined, all_rmsd_df], ignore_index=True)
+                del all_rmsd, all_rmsd_df
+            all_rmsd_combined.to_csv("%s/%s_all_rmsd_subset1000.csv" % (res_dir, model), index=False)
+            sns.displot(data=all_rmsd_combined, x="rmsd", col="h2", row="h1", hue="h3", kind="kde", fill=True, alpha=0.5, palette="viridis")
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s_all_rmsd_by_h_values_subset1000.png" % (fig_dir, model))
+            plt.close()
+            del all_rmsd_combined
+
         print("Plotting rmsd by h values", flush=True)
-        all_rmsd = pd.DataFrame()
+
+        all_best_rmsd = pd.DataFrame()
         for row in h_vals:
             h_vals_str = "_".join([str(int(x)) for x in row])
             all_best_h_pars = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (results_dir, model, h_vals_str))
-            all_rmsd = pd.concat([all_rmsd, all_best_h_pars], ignore_index=True)
-        sns.displot(data=all_rmsd, x="rmsd", col="h2", row="h1", hue="h3", kind="kde", fill=True, alpha=0.5, palette="viridis")
+            all_best_rmsd = pd.concat([all_best_rmsd, all_best_h_pars], ignore_index=True)
+            del all_best_h_pars
+        sns.displot(data=all_best_rmsd, x="rmsd", col="h2", row="h1", hue="h3", kind="kde", fill=True, alpha=0.5, palette="viridis")
         sns.despine()
         plt.tight_layout()
-        plt.savefig("%s/%s_rmsd_by_h_values.png" % (figures_dir, model))
+        plt.savefig("%s/%s_allbest20_rmsd_by_h_values.png" % (figures_dir, model))
         plt.close()
 
-        sns.displot(data=all_rmsd, x="rmsd", col="h3", row="h1", hue="h2", kind="kde", fill=True, alpha=0.5, palette="viridis")
+        sns.displot(data=all_best_rmsd, x="rmsd", col="h3", row="h1", hue="h2", kind="kde", fill=True, alpha=0.5, palette="viridis")
         sns.despine()
         plt.tight_layout()
-        plt.savefig("%s/%s_rmsd_by_h_values_2.png" % (figures_dir, model))
+        plt.savefig("%s/%s_allbest20_rmsd_by_h_values2.png" % (figures_dir, model))
         plt.close()
-        del all_rmsd
+        del all_best_rmsd
 
 
     # Combine best 20 parameters for each seed

@@ -158,4 +158,5 @@ def three_site_objective(pars, *args):
     residuals = np.array(f_list) - beta
     
     rmsd = np.sqrt(np.mean(residuals**2))
-    return rmsd
+    rmsd_scaled = rmsd * 1000
+    return rmsd_scaled
