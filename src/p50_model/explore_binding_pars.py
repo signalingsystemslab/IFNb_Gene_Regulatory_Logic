@@ -75,7 +75,7 @@ def main():
 
     k_i_vals = np.logspace(-3, 3, 20).round(3)
     kn=1
-    k_p_vals = np.logspace(-3, 3, 3)
+    k_p_vals = [1,10, 50]
 
     I_vals = np.linspace(0, 1, 100)
     N = 1
