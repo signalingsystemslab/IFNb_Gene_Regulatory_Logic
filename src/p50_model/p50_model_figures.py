@@ -75,6 +75,8 @@ def plot_parameters(pars, name, figures_dir):
 
         df_pars["par_set"] = np.arange(len(df_pars))
         df_pars = df_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
+        all_param_names = df_pars["Parameter"].unique()
+
         df_t_pars = df_pars[df_pars["Parameter"].str.startswith("t")]
         num_t_pars = len(df_t_pars["Parameter"].unique())
         
@@ -88,15 +90,98 @@ def plot_parameters(pars, name, figures_dir):
         df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_2$"
         df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$k_N$"
         df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$k_N$"
-        df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$k_P$"
+        df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$k_P$"
 
-        fig, ax = plt.subplots(1,2, figsize=(10,5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-        sns.lineplot(data=df_t_pars, x="Parameter", y="Value", units="par_set", estimator=None, legend=False, alpha=0.2, ax=ax[0], color="black")
-        sns.scatterplot(data=df_t_pars, x="Parameter", y="Value", color="black", ax=ax[0], legend=False, alpha=0.2, zorder = 10)
-        sns.lineplot(data=df_k_pars, x="Parameter", y="Value", units="par_set", estimator=None, ax=ax[1], legend=False,alpha=0.2, color="black")
-        sns.scatterplot(data=df_k_pars, x="Parameter", y="Value", color="black", ax=ax[1], legend=False, alpha=0.2, zorder = 10)
-        ax[1].set_yscale("log")
+        if "c" in all_param_names:
+            df_c_pars = df_pars[df_pars["Parameter"] == "c"]
+            num_c_pars = len(df_c_pars["Parameter"].unique())
+
+            fig, ax = plt.subplots(1,3, figsize=(15,5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars, num_c_pars]})
+            sns.lineplot(data=df_t_pars, x="Parameter", y="Value", units="par_set", estimator=None, legend=False, alpha=0.2, ax=ax[0], color="black")
+            sns.scatterplot(data=df_t_pars, x="Parameter", y="Value", color="black", ax=ax[0], legend=False, alpha=0.2, zorder = 10)
+            sns.lineplot(data=df_k_pars, x="Parameter", y="Value", units="par_set", estimator=None, ax=ax[1], legend=False, alpha=0.2, color="black")
+            sns.scatterplot(data=df_k_pars, x="Parameter", y="Value", color="black", ax=ax[1], legend=False, alpha=0.2, zorder = 10)
+            sns.lineplot(data=df_c_pars, x="Parameter", y="Value", units="par_set", estimator=None, ax=ax[2], legend=False, alpha=0.2, color="black")
+            sns.scatterplot(data=df_c_pars, x="Parameter", y="Value", color="black", ax=ax[2], legend=False, alpha=0.2, zorder = 10)
+            ax[1].set_yscale("log")
+            ax[2].set_yscale("log")
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s.png" % (figures_dir, name))
+            plt.close()
+
+        else:
+            fig, ax = plt.subplots(1,2, figsize=(10,5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+            sns.lineplot(data=df_t_pars, x="Parameter", y="Value", units="par_set", estimator=None, legend=False, alpha=0.2, ax=ax[0], color="black")
+            sns.scatterplot(data=df_t_pars, x="Parameter", y="Value", color="black", ax=ax[0], legend=False, alpha=0.2, zorder = 10)
+            sns.lineplot(data=df_k_pars, x="Parameter", y="Value", units="par_set", estimator=None, ax=ax[1], legend=False,alpha=0.2, color="black")
+            sns.scatterplot(data=df_k_pars, x="Parameter", y="Value", color="black", ax=ax[1], legend=False, alpha=0.2, zorder = 10)
+            ax[1].set_yscale("log")
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s.png" % (figures_dir, name))
+            plt.close()
+
+def plot_parameter_distributions(pars, figures_dir, subset ="All", name="parameter_distributions", param_names=None, num_t_pars=5, num_k_pars=3):
+    if param_names is None:
+        par_names = ["t%d" % (i+1) for i in range(num_t_pars)] + ["k%d" % (i+1) for i in range(num_k_pars)]
+    else:
+        par_names = param_names
+    df_pars = pd.DataFrame(pars, columns=par_names)
+    df_pars["par_set"] = np.arange(len(df_pars))
+    
+    t_pars = [par for par in par_names if par.startswith("t")]
+    k_pars = [par for par in par_names if par.startswith("k")]
+    c_pars = [par for par in par_names if par.startswith("c")]
+
+    df_t_pars = df_pars.loc[:,t_pars + ["par_set"]]
+    df_k_pars = df_pars.loc[:,k_pars + ["par_set"]]
+
+    colors = ["#bdbdbd", "#fbb4ae"]
+
+    if type(subset) == str:
+        if subset == "All":
+            df_t_pars = df_t_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
+
+            sns.displot(data=df_t_pars, x="Value", col="Parameter", fill=True, alpha=0.5, color=colors[0], kind="kde", col_wrap=3)
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s_t_pars.png" % (figures_dir, name))
+            plt.close()
+
+            df_k_pars = df_k_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
+            sns.displot(data=df_k_pars, x="Value", col="Parameter", fill=True, alpha=0.5, color=colors[0], kind="kde", log_scale=(True, False))
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/%s_k_pars.png" % (figures_dir, name))
+            plt.close()
+
+            if len(c_pars) > 0:
+                df_c_pars = df_pars.loc[:,c_pars + ["par_set"]]
+                df_c_pars = df_c_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
+                sns.displot(data=df_c_pars, x="Value", col="Parameter", fill=True, alpha=0.5, color=colors[0], kind="kde", log_scale=(True, False))
+                sns.despine()
+                plt.tight_layout()
+                plt.savefig("%s/%s_c_pars.png" % (figures_dir, name))
+                plt.close()
+        else:
+            raise ValueError("Subset must be a list of indices or 'All'")
+    else:
+        
+        df_t_pars["subset"] = [True if i in subset else False for i in range(len(df_pars))]
+        print("There are %d points in the subset" % len(df_t_pars.loc[:, "subset"] == True))
+        df_t_pars = df_t_pars.melt(var_name="Parameter", value_name="Value", id_vars=["par_set", "subset"])
+
+        sns.displot(data=df_t_pars, x="Value", hue="subset", col="Parameter", fill=True, alpha=0.5, palette=colors, kind="kde", col_wrap=3, common_norm=False)
         sns.despine()
         plt.tight_layout()
-        plt.savefig("%s/%s.png" % (figures_dir, name))
+        plt.savefig("%s/%s_t_pars.png" % (figures_dir, name))
+        plt.close()
+
+        df_k_pars["subset"] = [True if i in subset else False for i in range(len(df_pars))]
+        df_k_pars = df_k_pars.melt(var_name="Parameter", value_name="Value", id_vars=["par_set", "subset"])
+        sns.displot(data=df_k_pars, x="Value", hue="subset", col="Parameter", fill=True, alpha=0.5, palette=colors, kind="kde", log_scale=(True, False), common_norm=False)
+        sns.despine()
+        plt.tight_layout()
+        plt.savefig("%s/%s_k_pars.png" % (figures_dir, name))
         plt.close()

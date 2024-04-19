@@ -35,15 +35,15 @@ class Modelp50:
         if h_pars is not None:
             # Hill coefficient for each IRF binding event
             if type(h_pars) in [int, float]:
-                self.h1 = h_pars
-                self.h2 = h_pars
+                self.h1 = h_pars - 1
+                self.h2 = h_pars - 1
             else:
                 if len(h_pars) != 2:
                     print("Got %d pars when expected %d" % (len(h_pars), 2))
                     print("pars = " + str(h_pars))
                     raise ValueError("Incorrect number of h parameters in input")
-                self.h1 = h_pars[0]
-                self.h2 = h_pars[1]
+                self.h1 = h_pars[0] - 1
+                self.h2 = h_pars[1] - 1
 
 
         # States
@@ -51,15 +51,16 @@ class Modelp50:
         # I*N is sum of I and N
 
         self.t = np.array([0.0 for i in range(12)])
-        self.t[1] = self.parsT[0]
-        self.t[2] = self.parsT[1]
-        self.t[3] = self.parsT[0]
-        self.t[4] = self.parsT[2]
-        self.t[5] = self.parsT[2]
-        self.t[7] = self.parsT[3]
-        self.t[8] = self.parsT[1] + self.parsT[2]
-        self.t[9] = self.parsT[4]
-        self.t[10] = self.parsT[1] + self.parsT[2]
+        self.t[1] = self.parsT[0] # IRF - t1
+        self.t[2] = self.parsT[1] # IRF_G - t2
+        self.t[3] = self.parsT[0] # IRF + p50 - t1
+        self.t[4] = self.parsT[2] # NFkB - t3
+        self.t[5] = self.parsT[2] # NFkB + p50 - t3
+        # 6 is zero
+        self.t[7] = self.parsT[3] # IRF + IRF_G - t4
+        self.t[8] = self.parsT[0] + self.parsT[2] # IRF + NFkB - t1 + t3
+        self.t[9] = self.parsT[4] # IRF_G + NFkB - t5
+        self.t[10] = self.parsT[0] + self.parsT[2] # IRF + NFkB + p50 - t1 + t3
         self.t[11] = 1
 
 
@@ -72,11 +73,11 @@ class Modelp50:
         self.beta[4] = self.kn
         self.beta[5] = self.kn * self.kp
         self.beta[6] = self.kp
-        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2)
+        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.c
         self.beta[8] = self.k1 * (I ** self.h1) * self.kn
         self.beta[9] = self.k2 * (I ** self.h2) * self.kn
         self.beta[10] = self.k1 * (I ** self.h1) * self.kn * self.kp
-        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn
+        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * self.c
 
     def calculateState(self, N, I, P=1):
         if not hasattr(self, 'beta'):
@@ -93,17 +94,17 @@ class Modelp50:
         self.f = np.dot(np.transpose(self.prob), self.t)
 
 def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, scaling=False):
-    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
-    model.calculateState(N, I, P)
-    model.calculateProb()
-    model.calculateF()
-    if scaling:
-        m2 = Modelp50(t_pars, k_pars)
-        m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
-        m2.calculateF()
-        return model.f / m2.f
-    else:
-        return model.f
+   model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+   model.calculateState(N, I, P)
+   model.calculateProb()
+   model.calculateF()
+   if scaling:
+       m2 = Modelp50(t_pars, k_pars)
+       m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
+       m2.calculateF()
+       return model.f / m2.f
+   else:
+       return model.f
 
 def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
     model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
@@ -191,3 +192,4 @@ def p50_objective(pars, *args):
     
     rmsd = np.sqrt(np.mean(residuals**2))
     return rmsd
+
