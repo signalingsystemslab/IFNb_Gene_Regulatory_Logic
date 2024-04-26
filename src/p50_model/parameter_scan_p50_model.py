@@ -22,8 +22,8 @@ def calculate_rmsd(ifnb_predicted, beta):
 def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False):
     min_k_order = np.log10(k_bounds[0])
     max_k_order = np.log10(k_bounds[1])
-    min_c_order = np.log10(10**-2)
-    max_c_order = np.log10(10**2)
+    min_c_order = np.log10(10**-3)
+    max_c_order = np.log10(10**3)
     min_t = t_bounds[0]
     max_t = t_bounds[1]
 
@@ -119,8 +119,8 @@ def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_
     start = time.time()    
     min_k_order = -3
     max_k_order = 4
-    min_c_order = -2
-    max_c_order = 2
+    min_c_order = -3
+    max_c_order = 4
 
     # Define bounds
     bnds = [(0, 1) for i in range(num_t_pars)] + [(10**min_k_order, 10**max_k_order) for i in range(num_k_pars)]
@@ -201,7 +201,7 @@ def main():
     os.makedirs(figures_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
     pars_dir = "../three_site_model/optimization/results/seed_0/"
-    print("Saving results to %s" % results_dir.split("/")[0], flush=True)
+    print("Saving results to %s" % results_dir, flush=True)
     
     # Load training data
     training_data = pd.read_csv("../data/p50_training_data.csv")
@@ -233,33 +233,6 @@ def main():
         plot_parameters(final_pars_df, name="scanned_parameters", figures_dir=figures_dir)
         final_pars_df.to_csv("%s/%s_scanned_parameters.csv" % (results_dir, model), index=False)
 
-
-        # Plot state probabilities
-        if args.state_probabilities:
-            print("Calculating and plotting state probabilities...", flush=True)
-            all_k_pars = final_pars[:, num_t_pars:num_t_pars+num_k_pars]
-
-            extra_training_data = pd.DataFrame({"Stimulus":"basal", "Genotype":"WT", "IRF":0.01, "NFkB":0.01, "p50":1}, index=[0])
-            training_data_extended = pd.concat([training_data, extra_training_data], ignore_index=True)
-            stimuli = training_data_extended["Stimulus"]
-            genotypes = training_data_extended["Genotype"]
-
-            probabilities = dict()
-            for stimulus, genotype in zip(stimuli, genotypes):
-                        nfkb, irf, p50 = get_N_I_P(training_data_extended, stimulus, genotype)
-                        print("Calculating state probabilities for %s %s" % (stimulus, genotype), flush=True)
-                        print("N=%.2f, I=%.2f, P=%.2f" % (nfkb, irf, p50), flush=True)
-                    
-                        with Pool(num_threads) as p:
-                            results = p.starmap(calc_state_prob, [(tuple(all_k_pars[i]), nfkb, irf, p50) for i in range(len(all_k_pars))])
-                    
-                        state_names = results[0][1]
-                        state_probabilities = np.array([x[0] for x in results])
-                        probabilities[(stimulus, genotype)] = state_probabilities
-                        plot_state_probabilities(state_probabilities, state_names, "scanned_state_probabilities_%s_%s" % (stimulus, genotype), figures_dir)
-                        np.savetxt("%s/%s_state_probabilities_scanned_%s_%s.csv" % (results_dir, model, stimulus, genotype), state_probabilities, delimiter=",")
-        else:
-            print("Skipping state probabilities.", flush=True)
 
         # Plot predictions
         print("Plotting predictions...", flush=True)
@@ -344,6 +317,35 @@ def main():
         # Plot best fits
         plot_predictions(best_fits_results, beta, conditions, name="best_fits_predictions", figures_dir=figures_dir)
         plot_parameters(best_fits_df, name="best_fits_parameters", figures_dir=figures_dir)
+
+    # Plot state probabilities
+    if args.state_probabilities:
+        final_pars = pd.read_csv("%s/%s_best_fits_pars.csv" % (results_dir, model)).values
+        print("Calculating and plotting state probabilities...", flush=True)
+        all_k_pars = final_pars[:, num_t_pars:num_t_pars+num_k_pars]
+        h_pars = [h1, h2]
+
+        extra_training_data = pd.DataFrame({"Stimulus":"basal", "Genotype":"WT", "IRF":0.01, "NFkB":0.01, "p50":1}, index=[0])
+        training_data_extended = pd.concat([training_data, extra_training_data], ignore_index=True)
+        stimuli = training_data_extended["Stimulus"]
+        genotypes = training_data_extended["Genotype"]
+
+        probabilities = dict()
+        for stimulus, genotype in zip(stimuli, genotypes):
+                    nfkb, irf, p50 = get_N_I_P(training_data_extended, stimulus, genotype)
+                    print("Calculating state probabilities for %s %s" % (stimulus, genotype), flush=True)
+                    print("N=%.2f, I=%.2f, P=%.2f" % (nfkb, irf, p50), flush=True)
+                
+                    with Pool(num_threads) as p:
+                        results = p.starmap(calc_state_prob, [(tuple(all_k_pars[i]), nfkb, irf, p50, num_t_pars, h_pars) for i in range(len(all_k_pars))])
+                
+                    state_names = results[0][1]
+                    state_probabilities = np.array([x[0] for x in results])
+                    probabilities[(stimulus, genotype)] = state_probabilities
+                    plot_state_probabilities(state_probabilities, state_names, "optimized_state_probabilities_%s_%s" % (stimulus, genotype), figures_dir)
+                    np.savetxt("%s/%s_state_probabilities_optimized_%s_%s.csv" % (results_dir, model, stimulus, genotype), state_probabilities, delimiter=",")
+    else:
+        print("Skipping state probabilities.", flush=True)
 
     end_end = time.time()
     t = end_end - start_start

@@ -8,6 +8,7 @@ import time
 from multiprocessing import Pool
 import seaborn as sns
 import scipy.stats.qmc as qmc
+import argparse
 
 def cpg_p50_f_effect(t1, t2, t3, t4, t5, h1, h2, kn, k1, k2, kp):
     # -\frac{100^{\text{h2}} \text{k2} \text{kp} \left(\text{k1} (4
@@ -91,12 +92,17 @@ def calculate_grid(h1=3, h2=3, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, 
     print("Number of positive values where cpg effect > lps effect: %d" % len(grid), flush=True)
     positive_cpg_bigger = len(grid)
 
-    minimum_cpg_effect = cpg_effect > 0.0001
+    minimum_cpg_effect = cpg_effect > 0.01
     postitive_cpg_bigger_minimum = sum(minimum_cpg_effect)
 
     return positive_values, positive_cpg_bigger, postitive_cpg_bigger_minimum
 
 def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-g", "--grid", action="store_true")
+    args = parser.parse_args()
+
     # Set up directories
     figures_dir = "cpg_lps_effect"
     if not os.path.exists(figures_dir):
@@ -104,31 +110,42 @@ def main():
 
     # Calculate grid
     h_params = [(1,1),(3,1),(3,3)]
-    df = pd.DataFrame()
-    for h1, h2 in h_params:
-        positive_values, positive_cpg_bigger, postitive_cpg_bigger_minimum = calculate_grid(h1=h1, h2=h2)
-        print("h1: %d, h2: %d" % (h1, h2))
-        print("Positive values: %d, Positive cpg bigger: %d, Positive cpg bigger minimum: %d" % (positive_values, positive_cpg_bigger, postitive_cpg_bigger_minimum))
-        # df = df.append({"h1": h1, "h2": h2, "p50 increases\n IFNb for CpG": positive_values, "p50 affects CpG\n more than LPS": positive_cpg_bigger, "p50 effect > 0.0001": postitive_cpg_bigger_minimum}, ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({"h1": h1, "h2": h2, "p50 increases\n IFNb for CpG": positive_values, "p50 affects CpG\n more than LPS": positive_cpg_bigger, "p50 effect > 0.0001": postitive_cpg_bigger_minimum}, index=[0])], ignore_index=True)
+
+    if args.grid:
+        df = pd.DataFrame()
+        for h1, h2 in h_params:
+            positive_values, positive_cpg_bigger, postitive_cpg_bigger_minimum = calculate_grid(h1=h1, h2=h2)
+            print("h1: %d, h2: %d" % (h1, h2))
+            print("Positive values: %d, Positive cpg bigger: %d, Positive cpg bigger minimum: %d" % (positive_values, positive_cpg_bigger, postitive_cpg_bigger_minimum))
+            # df = df.append({"h1": h1, "h2": h2, "p50 increases\n IFNb for CpG": positive_values, "p50 affects CpG\n more than LPS": positive_cpg_bigger, "p50 effect > 0.0001": postitive_cpg_bigger_minimum}, ignore_index=True)
+            df = pd.concat([df, pd.DataFrame({"h1": h1, "h2": h2, r"p50 increases IFN$\beta$ for CpG": positive_values, "p50 affects CpG\n more than LPS": positive_cpg_bigger, "p50 effect > 0.01": postitive_cpg_bigger_minimum}, index=[0])], ignore_index=True)
+
+        df.to_csv("%s/cpg_lps_effect.csv" % figures_dir, index=False)
+
+    df = pd.read_csv("%s/cpg_lps_effect.csv" % figures_dir)
+
+    print("Plotting results")
+
+    df = df.melt(id_vars=["h1", "h2"], var_name="Effect", value_name="Count")
+    df["h_values"] = df["h1"].astype(str) + ", " + df["h2"].astype(str)
+    fig, ax = plt.subplots(figsize=(45,25))
+    p = sns.FacetGrid(data=df, col="Effect", sharey=False, hue="Effect", palette="magma")
+    p.map(sns.barplot, "h_values", "Count", order=["1, 1", "3, 1", "3, 3"], ax=ax)
+    p.set_titles("{col_name}")
+    sns.despine()
+    for ax in p.axes.flat:
+        for label in ax.get_xticklabels():
+            label.set_rotation(90)
+    # plt.subplots_adjust(wspace=5)
+    plt.savefig("%s/boxplot_comparing_h_values_facet.png" % figures_dir, bbox_inches="tight", dpi=300)
+    plt.close()
 
     with sns.plotting_context("talk", rc={"lines.markersize": 7}):
-        df = df.melt(id_vars=["h1", "h2"], var_name="Effect", value_name="Count")
-        df["h_values"] = df["h1"].astype(str) + ", " + df["h2"].astype(str)
-        fig, ax = plt.subplots()
-        p = sns.FacetGrid(data=df, col="Effect", sharey=False, hue="Effect", palette="magma")
-        p.map(sns.barplot, "h_values", "Count", order=["1, 1", "3, 1", "3, 3"], ax=ax)
-        # sns.barplot(data=df, x="h_values", y="Count", hue="Effect", ax=ax, palette="magma")
-        sns.despine()
-        plt.xticks(rotation=90)
-        # sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title=None, frameon=False, loc="center left")
-        plt.savefig("%s/boxplot_comparing_h_values_facet.png" % figures_dir, bbox_inches="tight")
-        plt.close()
-
         fig, ax = plt.subplots()
         p = sns.barplot(data=df, x="h_values", y="Count", hue="Effect", ax=ax, palette="magma")
         sns.despine()
         plt.xticks(rotation=90)
+        plt.yscale("log")
         sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title=None, frameon=False, loc="center left")
         plt.savefig("%s/boxplot_comparing_h_values.png" % figures_dir, bbox_inches="tight")
         plt.close()

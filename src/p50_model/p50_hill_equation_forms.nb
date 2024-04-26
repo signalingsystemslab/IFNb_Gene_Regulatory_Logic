@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     99818,       2822]
-NotebookOptionsPosition[     91891,       2680]
-NotebookOutlinePosition[     92297,       2696]
-CellTagsIndexPosition[     92254,       2693]
+NotebookDataLength[     96569,       2777]
+NotebookOptionsPosition[     88643,       2635]
+NotebookOutlinePosition[     89049,       2651]
+CellTagsIndexPosition[     89006,       2648]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -2578,104 +2578,59 @@ Cell[CellGroupData[{
 
 Cell[BoxData[
  RowBox[{
-  RowBox[{"prob", " ", "//", "MatrixForm"}], "//", "TeXForm"}]], "Input",
- CellChangeTimes->{{3.922473240148178*^9, 3.922473254938509*^9}},
- CellLabel->"In[94]:=",ExpressionUUID->"52a5a143-d44a-4adc-b35d-ccbea9610c4e"],
+  RowBox[{
+   RowBox[{"Simplify", "[", "prob", "]"}], " ", "//", "MatrixForm"}], "//", 
+  "TeXForm"}]], "Input",
+ CellChangeTimes->{{3.922473240148178*^9, 3.922473254938509*^9}, {
+  3.922474251351569*^9, 3.92247425431824*^9}},
+ CellLabel->"In[95]:=",ExpressionUUID->"52a5a143-d44a-4adc-b35d-ccbea9610c4e"],
 
 Cell["\<\
 \\left(
 \\begin{array}{c}
- \\frac{1}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k1} i^{\\text{h1}}}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k2} i^{\\text{h2}}}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k1} \\text{kp} p i^{\\text{h1}}}{\\text{k1} \\text{k2}
-   \\text{kn} n i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{kn} n}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{kn} \\text{kp} n p}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{kp} p}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k1} \\text{k2} i^{\\text{h1}+\\text{h2}}}{\\text{k1}
-   \\text{k2} \\text{kn} n i^{\\text{h1}+\\text{h2}}+\\text{k1}
-   \\text{k2} i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp}
-   n p i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k1} \\text{kn} n i^{\\text{h1}}}{\\text{k1} \\text{k2}
-   \\text{kn} n i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k2} \\text{kn} n i^{\\text{h2}}}{\\text{k1} \\text{k2}
-   \\text{kn} n i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
- \\frac{\\text{k1} \\text{kn} \\text{kp} n p i^{\\text{h1}}}{\\text{k1}
-   \\text{k2} \\text{kn} n i^{\\text{h1}+\\text{h2}}+\\text{k1}
-   \\text{k2} i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp}
-   n p i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
+ \\frac{1}{(\\text{kn} n+1) \\left(\\text{k1} i^{\\text{h1}}+1\\right)
+   \\left(\\text{k2} i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
+ \\frac{\\text{k1} i^{\\text{h1}}}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
+ \\frac{\\text{k2} i^{\\text{h2}}}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
+ \\frac{\\text{k1} \\text{kp} p i^{\\text{h1}}}{(\\text{kn} n+1)
+   \\left(\\text{k1} i^{\\text{h1}}+1\\right) \\left(\\text{k2}
+   i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
+ \\frac{\\text{kn} n}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
+ \\frac{\\text{kn} \\text{kp} n p}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
+ \\frac{\\text{kp} p}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
+ \\frac{\\text{k1} \\text{k2} i^{\\text{h1}+\\text{h2}}}{(\\text{kn}
+   n+1) \\left(\\text{k1} i^{\\text{h1}}+1\\right) \\left(\\text{k2}
+   i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
+ \\frac{\\text{k1} \\text{kn} n i^{\\text{h1}}}{(\\text{kn} n+1)
+   \\left(\\text{k1} i^{\\text{h1}}+1\\right) \\left(\\text{k2}
+   i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
+ \\frac{\\text{k2} \\text{kn} n i^{\\text{h2}}}{(\\text{kn} n+1)
+   \\left(\\text{k1} i^{\\text{h1}}+1\\right) \\left(\\text{k2}
+   i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
+ \\frac{\\text{k1} \\text{kn} \\text{kp} n p i^{\\text{h1}}}{(\\text{kn}
+   n+1) \\left(\\text{k1} i^{\\text{h1}}+1\\right) \\left(\\text{k2}
+   i^{\\text{h2}}+\\text{kp} p+1\\right)} \\\\
  \\frac{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}}{\\text{k1} \\text{k2} \\text{kn} n
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{k2}
-   i^{\\text{h1}+\\text{h2}}+\\text{k1} \\text{kn} \\text{kp} n p
-   i^{\\text{h1}}+\\text{k1} \\text{kn} n i^{\\text{h1}}+\\text{k1}
-   \\text{kp} p i^{\\text{h1}}+\\text{k1} i^{\\text{h1}}+\\text{k2}
-   \\text{kn} n i^{\\text{h2}}+\\text{k2} i^{\\text{h2}}+\\text{kn}
-   \\text{kp} n p+\\text{kn} n+\\text{kp} p+1} \\\\
+   i^{\\text{h1}+\\text{h2}}}{(\\text{kn} n+1) \\left(\\text{k1}
+   i^{\\text{h1}}+1\\right) \\left(\\text{k2} i^{\\text{h2}}+\\text{kp}
+   p+1\\right)} \\\\
 \\end{array}
 \\right)\
 \>", "Output",
- CellChangeTimes->{{3.922473250071903*^9, 3.9224732573534117`*^9}},
+ CellChangeTimes->{{3.922473250071903*^9, 3.9224732573534117`*^9}, 
+   3.9224742547661963`*^9},
  CellLabel->
-  "Out[94]//TeXForm=",ExpressionUUID->"5d39e819-8603-44a1-b45d-632f5e0eb77f"]
+  "Out[95]//TeXForm=",ExpressionUUID->"c9051d4f-992e-4e8a-84cc-4689b260d0f7"]
 }, Open  ]]
 },
 WindowSize->{624.75, 753.75},
@@ -2821,8 +2776,8 @@ Cell[85121, 2555, 263, 5, 29, "Input",ExpressionUUID->"11817422-e195-4197-b335-9
 Cell[85387, 2562, 583, 11, 155, "Output",ExpressionUUID->"31f9f0d7-02b3-42f8-b172-efb88706cec6"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[86007, 2578, 242, 4, 29, "Input",ExpressionUUID->"52a5a143-d44a-4adc-b35d-ccbea9610c4e"],
-Cell[86252, 2584, 5623, 93, 1631, "Output",ExpressionUUID->"5d39e819-8603-44a1-b45d-632f5e0eb77f"]
+Cell[86007, 2578, 329, 7, 29, "Input",ExpressionUUID->"52a5a143-d44a-4adc-b35d-ccbea9610c4e"],
+Cell[86339, 2587, 2288, 45, 749, "Output",ExpressionUUID->"c9051d4f-992e-4e8a-84cc-4689b260d0f7"]
 }, Open  ]]
 }
 ]

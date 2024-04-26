@@ -11,15 +11,22 @@ class Modelp50:
             raise ValueError("Got %d pars when expected %d. Pars = %s" % (len(t_pars), 5, str(t_pars)))
 
         if k_pars is not None:
-            if len(k_pars) != 4:
+            if len(k_pars) == 3:
+                self.k1 = k_pars[0]
+                self.k2 = k_pars[0]
+                self.kn = k_pars[1]
+                self.kp = k_pars[2]
+
+            elif len(k_pars) != 4:
                 print("Got %d pars when expected %d" % (len(k_pars), 4))
                 print("pars = " + str(k_pars))
                 raise ValueError("Incorrect number of k parameters in input")
 
-            self.k1 = k_pars[0]
-            self.k2 = k_pars[1]
-            self.kn = k_pars[2]
-            self.kp = k_pars[3]
+            else:
+                self.k1 = k_pars[0]
+                self.k2 = k_pars[1]
+                self.kn = k_pars[2]
+                self.kp = k_pars[3]
         else:
             self.k1 = 1
             self.k2 = 1
