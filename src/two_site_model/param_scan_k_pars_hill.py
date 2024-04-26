@@ -10,6 +10,7 @@ from multiprocessing import Pool
 import argparse
 import seaborn as sns
 import scipy.stats.qmc as qmc
+import matplotlib.colors as mcolors
 
 figures_dir = "param_scan_2site/figures/"
 results_dir = "param_scan_2site/results/"
@@ -88,52 +89,73 @@ def calculate_grid(training_data, t_bounds=(0,1), k_bounds=None, h_bounds=None, 
     print("Size of results: %s, grid: %s" % (ifnb_predicted.shape, grid.shape), flush=True)
     return ifnb_predicted, grid, kgrid
 
+def make_predictions_data_frame(ifnb_predicted, beta, conditions):
+    df_ifnb_predicted = pd.DataFrame(ifnb_predicted, columns=conditions)
+    df_ifnb_predicted["par_set"] = np.arange(len(df_ifnb_predicted))
+    df_ifnb_predicted = df_ifnb_predicted.melt(var_name="Data point", value_name=r"IFN$\beta$", id_vars="par_set")
+
+    df_ifnb_predicted_data = pd.DataFrame({"Data point":conditions, r"IFN$\beta$":beta, "par_set":"Data"})
+    df_ifnb_predicted = pd.concat([df_ifnb_predicted, df_ifnb_predicted_data], ignore_index=True)
+    df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[0]
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[1]
+
+    # stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
+    # genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO", "p50KO"]
+    # df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
+    # df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
+                                                   
+    df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Stimulus"].replace("polyIC", "PolyIC")
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("relacrelKO", r"$rela^{-/-}crel^{-/-}$")
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf7KO", r"$irf3^{-/-}irf7^{-/-}$")
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf5irf7KO", r"$irf3^{-/-}irf5^{-/-}irf7^{-/-}$")
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("p50KO", r"$nfkb1^{-/-}$")
+
+    df_ifnb_predicted["Data point"] = df_ifnb_predicted["Stimulus"] + " " + df_ifnb_predicted["Genotype"]   
+
+    stimuli_levels = ["Basal", "CpG", "LPS", "PolyIC"]
+    genotypes_levels = [r"WT", r"$irf3^{-/-}irf7^{-/-}$", r"$irf3^{-/-}irf5^{-/-}irf7^{-/-}$", r"$rela^{-/-}crel^{-/-}$", r"$nfkb1^{-/-}$"]
+    df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
+    df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
+    df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
+    return df_ifnb_predicted
+
 def plot_predictions(ifnb_predicted, beta, conditions, subset="All",name="ifnb_predictions", figures_dir=figures_dir):
-        if type(subset) == str:
-            if subset == "All":
-                subset = np.arange(len(ifnb_predicted))
-            else:
-                print(subset)
-                raise ValueError("Subset must be a list of indices or 'All'")
+    if type(subset) == str:
+        if subset == "All":
+            subset = np.arange(len(ifnb_predicted))
+        else:
+            print(subset)
+            raise ValueError("Subset must be a list of indices or 'All'")
 
-        df_ifnb_predicted = pd.DataFrame(ifnb_predicted, columns=conditions)
-        df_ifnb_predicted["par_set"] = np.arange(len(df_ifnb_predicted))
-        df_ifnb_predicted = df_ifnb_predicted.melt(var_name="Data point", value_name=r"IFN$\beta$", id_vars="par_set")
+    # print(subset, flush=True)
+    ifnb_predicted = ifnb_predicted[subset,:]
+    # print(ifnb_predicted.shape, flush=True)
 
-        df_ifnb_predicted_data = pd.DataFrame({"Data point":conditions, r"IFN$\beta$":beta, "par_set":"Data"})
-        df_ifnb_predicted = pd.concat([df_ifnb_predicted, df_ifnb_predicted_data], ignore_index=True)
-        df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[0]
-        df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[1]
-        stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
-        genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO"]
-        df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
-        df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
-        df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
+    with sns.plotting_context("talk", rc={"lines.markersize": 7}):
 
-        fig, ax = plt.subplots()
-        sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"].isin(subset)], x="Data point", y=r"IFN$\beta$", 
-                     units="par_set", color="black", alpha=0.5, estimator=None, ax=ax)
+        df_ifnb_predicted = make_predictions_data_frame(ifnb_predicted, beta, conditions)
+        col = sns.color_palette("rocket", n_colors=7)[4]
+        col = mcolors.rgb2hex(col) 
+        fig, ax = plt.subplots(figsize=(6.5, 6))
+        
+        sns.scatterplot(data=df_ifnb_predicted, x="Data point", y=r"IFN$\beta$", 
+                        color="black", alpha=0.5, ax=ax, zorder = 1, label="Predicted")
+        sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", 
+                        units="par_set", color="black", estimator=None, ax=ax, legend=False, zorder = 2, alpha=0.2)
+        sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$",
+                        color=col, estimator=None, ax=ax, legend=False, zorder = 3)
         sns.scatterplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", 
-                        color="red", marker="o", ax=ax, legend=False, zorder = 10)
+                        color=col, marker="o", ax=ax, zorder = 4, label="Observed")
+        xticks = ax.get_xticks()
+        labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(labels)
         sns.despine()
         plt.xticks(rotation=90)
         plt.tight_layout()
-        plt.savefig("%s/%s.png" % (figures_dir, name))
+        sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title=None, frameon=False, loc="center left")
+        plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
-
-        # # Plot predictions on log scale
-        # fig, ax = plt.subplots()
-        # sns.lineplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"].isin(subset)], x="Data point", y=r"IFN$\beta$",
-        #                 units="par_set", color="black", alpha=0.5, estimator=None, ax=ax)
-        # sns.scatterplot(data=df_ifnb_predicted.loc[df_ifnb_predicted["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$",
-        #                 color="red", marker="o", ax=ax, legend=False, zorder = 10)
-        # sns.despine()
-        # plt.xticks(rotation=90)
-        # plt.yscale("log")
-        # ax.set_ylim(bottom=0.01)
-        # plt.tight_layout()
-        # plt.savefig("%s/%s_log.png" % (figures_dir, name))
-        # plt.close()
 
 def plot_parameters(pars, subset="All", name="parameters", figures_dir=figures_dir, param_names=None):
     if type(subset) == str:
@@ -401,27 +423,27 @@ def main():
                 for cond in probabilities.keys():
                     plot_state_probabilities(probabilities[cond][h_best_20], state_names, "%s_%s_best_20_state_probabilities_hi_%d_hn_%d" % (model, cond, h1, h2), figures_dir=figures_directory)
 
-            print("Plotting state probabilities", flush=True)
-            for cond in probabilities.keys():
-                plot_state_probabilities(probabilities[cond][best_20], state_names,
-                                        "%s_%s_best_20_state_probabilities" % (model, cond), figures_dir=figures_directory)
-            print("Done plotting best 20 state probabilities", flush=True)
+            # print("Plotting state probabilities", flush=True)
+            # for cond in probabilities.keys():
+            #     plot_state_probabilities(probabilities[cond][best_20], state_names,
+            #                             "%s_%s_best_20_state_probabilities" % (model, cond), figures_dir=figures_directory)
+            # print("Done plotting best 20 state probabilities", flush=True)
 
-            # Plot best 20 ifnb predictions
-            print("Plotting best 20 IFNb predictions", flush=True)
-            plot_predictions(ifnb_predicted, beta, conditions, subset=best_20, name="ifnb_predictions_best_20", figures_dir=figures_directory)
-            print("Done plotting best 20 IFNb predictions", flush=True)
+            # # Plot best 20 ifnb predictions
+            # print("Plotting best 20 IFNb predictions", flush=True)
+            # plot_predictions(ifnb_predicted, beta, conditions, subset=best_20, name="ifnb_predictions_best_20", figures_dir=figures_directory)
+            # print("Done plotting best 20 IFNb predictions", flush=True)
 
-            # Plot best 20 parameters
-            print("Plotting best 20 parameters", flush=True)
-            plot_parameters(pars, subset=best_20, name="parameters_best_20", figures_dir=figures_directory)
+            # # Plot best 20 parameters
+            # print("Plotting best 20 parameters", flush=True)
+            # plot_parameters(pars, subset=best_20, name="parameters_best_20", figures_dir=figures_directory)
 
-            # Plot best 20 predictions and parameters for each h value
-            print("Plotting best 20 predictions and parameters for each h value", flush=True)
-            for h in h_vals:
-                h_best_20 = h_best_20_inds[h]
-                plot_predictions(ifnb_predicted, beta, conditions, subset=h_best_20, name="ifnb_predictions_best_20_h_%d" % h, figures_dir=figures_directory)
-                plot_parameters(pars, subset=h_best_20, name="parameters_best_20_h_%d" % h, figures_dir=figures_directory)
+            # # Plot best 20 predictions and parameters for each h value
+            # print("Plotting best 20 predictions and parameters for each h value", flush=True)
+            # for h in h_vals:
+            #     h_best_20 = h_best_20_inds[h]
+            #     plot_predictions(ifnb_predicted, beta, conditions, subset=h_best_20, name="ifnb_predictions_best_20_h_%d" % h, figures_dir=figures_directory)
+            #     plot_parameters(pars, subset=h_best_20, name="parameters_best_20_h_%d" % h, figures_dir=figures_directory)
 
 
             # # Plot distributions of all parameters
