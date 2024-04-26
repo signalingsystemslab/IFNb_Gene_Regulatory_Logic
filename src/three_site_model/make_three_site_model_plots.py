@@ -162,13 +162,15 @@ def plot_parameters(pars, name, figures_dir):
     plt.close()
 
 def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, only_opt=False):
+    all_opt_rmsd["Hill"] = pd.Categorical(all_opt_rmsd["Hill"], ordered=True)
+    all_opt_rmsd = all_opt_rmsd.sort_values("Hill")
     if only_opt:
         # remove rows where RMSD == "rmsd_initial"
         rmsd_df = all_opt_rmsd.copy()
         rmsd_df = rmsd_df[rmsd_df["RMSD"] == "rmsd_final"]
         fig, ax = plt.subplots(figsize=(10,6))
         col = sns.color_palette("rocket", n_colors=2)[1]
-        sns.boxplot(data=rmsd_df, x="Hill", y="Value", color=col)
+        sns.boxplot(data=rmsd_df, x="Hill", y="Value", color="white")
 
         ax.set_ylabel("RMSD")
 
@@ -183,6 +185,22 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, only_opt=False):
         table_data = rmsd_df[[r"$h_1$", r"$h_2$", r"$h_N$"]].drop_duplicates().values.tolist()
         table_data = np.array(table_data).T
         table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_1$", r"$h_2$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+
+        colors = sns.color_palette("rocket", n_colors=4)
+        alpha = 0.5
+        colors = [(color[0], color[1], color[2], alpha) for color in colors]
+        # Loop through the cells and change their color based on their text
+        for i in range(len(table_data)):
+            for j in range(len(table_data[i])):
+                cell = table[i, j] 
+                if table_data[i][j] in [5,"5"]:
+                    cell.set_facecolor(colors[0])
+                elif table_data[i][j] in [3,"3"]:
+                    cell.set_facecolor(colors[1])
+                elif table_data[i][j] in [1,"1"]:
+                    cell.set_facecolor(colors[2])
+                else:
+                    cell.set_facecolor(colors[3])
 
         # Adjust layout to make room for the table:
         plt.subplots_adjust(left=0.2, bottom=0.18)
