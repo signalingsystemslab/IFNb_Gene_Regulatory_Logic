@@ -18,10 +18,15 @@ num_k_pars = 3
 num_h_pars = 2
 
 def main():
-    best_fit_dir ="three_site_param_scan_hill/results/"
+    best_fit_dir ="optimization/results/seed_0/"
     model = "three_site_only_hill"
     num_threads = 40
-    best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars.csv" % (best_fit_dir, model))
+    h_pars = "3_3_1"
+    col_names = ["t%d" % i for i in range(1, num_t_pars+1)] + ["k%d" % i for i in range(1, num_k_pars+1)]
+    best_20_pars_df = pd.read_csv("%s/%s_optimized_parameters_h_%s.csv" % (best_fit_dir, model, h_pars), names=col_names)
+    best_20_pars_df["h1"] = int(h_pars.split("_")[0])
+    best_20_pars_df["h2"] = int(h_pars.split("_")[1])
+    best_20_pars_df["hn"] = int(h_pars.split("_")[2])
     best_tpars, best_kpars, best_hpars = best_20_pars_df.iloc[:, :num_t_pars].values, best_20_pars_df.iloc[:, num_t_pars:num_t_pars+num_k_pars].values, best_20_pars_df.iloc[:, num_t_pars+num_k_pars:num_t_pars+num_k_pars+num_h_pars].values
 
     # Calculate relative contributions of each state for values of N and I
