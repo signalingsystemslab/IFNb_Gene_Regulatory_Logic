@@ -42,6 +42,9 @@ def make_contribution_plots():
     h="3_3_1"
     # best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (best_fit_dir, model, h))
     state_names = np.loadtxt("%s/%s_state_names.txt" % (results_dir, model), dtype=str, delimiter="\0")
+    # Rename IRFs
+    state_names = [state.replace(r"$IRF$", r"$IRF_2$") for state in state_names]
+    state_names = [state.replace(r"$IRF_G$", r"$IRF_1$") for state in state_names]
 
     t = time.time()
     print("Making contribution plots, starting at %s" % time.ctime())
@@ -145,8 +148,8 @@ def plot_parameters(pars, name, figures_dir):
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k2", r"$k_2$")
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k1", r"$k_1$")
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("kn", r"$k_N$")
-    df_k_pars.loc[df_k_pars["Parameter"] == "k1", "Parameter"] = r"$k_1$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_2$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k1", "Parameter"] = r"$k_{I_2}$" # Rename
+    df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_{I_1}$" # Rename
     df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$k_N$"
     df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$k_N$"
 
@@ -182,9 +185,9 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, only_opt=False):
         # ax.set_xticks([])
 
         # Create a table of h values
-        table_data = rmsd_df[[r"$h_1$", r"$h_2$", r"$h_N$"]].drop_duplicates().values.tolist()
+        table_data = rmsd_df[[r"$h_{I_1}$", r"$h_{I_1}$", r"$h_N$"]].drop_duplicates().values.tolist()
         table_data = np.array(table_data).T
-        table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_1$", r"$h_2$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+        table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
 
         colors = sns.color_palette("rocket", n_colors=4)
         alpha = 0.5
@@ -227,9 +230,9 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, only_opt=False):
         # ax.set_xticks([])
 
         # Create a table of h values
-        table_data = rmsd_df[[r"$h_1$", r"$h_2$", r"$h_N$"]].drop_duplicates().values.tolist()
+        table_data = rmsd_df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"]].drop_duplicates().values.tolist()
         table_data = np.array(table_data).T
-        table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_1$", r"$h_2$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+        table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
 
         # Adjust layout to make room for the table:
         plt.subplots_adjust(left=0.2, bottom=0.18)
@@ -272,17 +275,17 @@ def make_param_scan_plots():
 
         # RMSD distribution for all hill combinations (select top 20 for each)
         print("Plotting RMSD distributions for all hill combinations")
-        all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_1$", r"$h_2$", r"$h_N$"])
+        all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"])
         for row in h_values:
             h_vals_str = "_".join([str(int(x)) for x in row])
             rmsd = np.loadtxt("%s/%s_rmsd_h_%s.csv" % (results_dir, model, h_vals_str), delimiter=",")
             rmsd_sorted = np.sort(rmsd)
             rmsd = rmsd_sorted[:1000]
             h1, h2, hN = row
-            all_best_rmsd = pd.concat([all_best_rmsd, pd.DataFrame({"RMSD":rmsd, r"$h_1$":h1, r"$h_2$":h2, r"$h_N$":hN})], ignore_index=True)
+            all_best_rmsd = pd.concat([all_best_rmsd, pd.DataFrame({"RMSD":rmsd, r"$h_{I_1}$":h2, r"$h_{I_1}$":h1, r"$h_N$":hN})], ignore_index=True)
             del rmsd, rmsd_sorted
 
-        sns.displot(data=all_best_rmsd, x="RMSD", row=r"$h_1$", col=r"$h_2$", hue=r"$h_N$", kind="kde", fill=True, alpha=0.5, palette="rocket")
+        sns.displot(data=all_best_rmsd, x="RMSD", row=r"$h_{I_1}$", col=r"$h_{I_2}$", hue=r"$h_N$", kind="kde", fill=True, alpha=0.5, palette="rocket")
         sns.despine()
         plt.tight_layout()
         plt.savefig("%s/%s_rmsd_distributions_top_1000.png" % (figures_dir, model))
@@ -317,10 +320,10 @@ def make_param_scan_plots():
         for row in h_values:
             h_vals_str = "_".join([str(int(x)) for x in row])
             rmsd = pd.read_csv("%s/%s_rmsd_h_%s.csv" % (optimization_dir, model, h_vals_str))
-            rmsd[r"$h_1$"] = row[0]
-            rmsd[r"$h_2$"] = row[1]
+            rmsd[r"$h_{I_1}$"] = row[1]
+            rmsd[r"$h_{I_2}$"] = row[0]
             rmsd[r"$h_N$"] = row[2]
-            rmsd["Hill"] = r"$h_1$ = " + str(row[0]) + ", $h_2$ = " + str(row[1]) + ", $h_N$ = " + str(row[2])
+            rmsd["Hill"] = r"$h_{I_1}$ = " + str(row[1]) + r", $h_{I_2}$ = " + str(row[0]) + r", $h_N$ = " + str(row[2])
             all_opt_rmsd = pd.concat([all_opt_rmsd, rmsd], ignore_index=True)
             del rmsd
 
