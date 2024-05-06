@@ -218,10 +218,10 @@ def main():
     
     if c_par:
         # result_par_names = [r"t_I",r"$t_Ig$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
-        result_par_names = ["t_1","t_2","t_3","t_4","t_5", "k1", "k2", "kn", "c"]
+        result_par_names = ["t1","t3","t4","t5", "k1", "k2", "kn", "c"]
     else:
         # result_par_names = [r"$t_I$",r"$t_Ig$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
-        result_par_names = ["t_1","t_2","t_3","t_4","t_5", "k1", "k2", "kn"]
+        result_par_names = ["t1","t3","t4","t5", "k1", "k2", "kn"]
 
     # Optimize
     if args.param_scan:
