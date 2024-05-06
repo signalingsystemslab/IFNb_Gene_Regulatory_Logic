@@ -1,4 +1,4 @@
-from three_site_model import *
+from three_site_model_force_t import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -13,21 +13,26 @@ figures_dir = "three_site_contrib/figures"
 results_dir = "three_site_contrib/results"
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
-num_t_pars = 5
+num_t_pars = 4
 num_k_pars = 3
 num_h_pars = 2
 
 def main():
-    best_fit_dir ="optimization/results/seed_0/"
-    model = "three_site_only_hill"
-    num_threads = 40
     h_pars = "3_3_1"
-    col_names = ["t%d" % i for i in range(1, num_t_pars+1)] + ["k%d" % i for i in range(1, num_k_pars+1)]
-    best_20_pars_df = pd.read_csv("%s/%s_optimized_parameters_h_%s.csv" % (best_fit_dir, model, h_pars), names=col_names)
+    best_fit_dir ="parameter_scan_force_t/results_h_%s" % h_pars
+    model = "three_site"
+    num_threads = 40
+    # col_names = ["t%d" % i for i in range(1, num_t_pars+1)] + ["k%d" % i for i in range(1, num_k_pars+1)]
+    best_20_pars_df = pd.read_csv("%s/%s_force_t_best_fits_pars.csv" % (best_fit_dir, model))
     best_20_pars_df["h1"] = int(h_pars.split("_")[0])
     best_20_pars_df["h2"] = int(h_pars.split("_")[1])
     best_20_pars_df["hn"] = int(h_pars.split("_")[2])
-    best_tpars, best_kpars, best_hpars = best_20_pars_df.iloc[:, :num_t_pars].values, best_20_pars_df.iloc[:, num_t_pars:num_t_pars+num_k_pars].values, best_20_pars_df.iloc[:, num_t_pars+num_k_pars:num_t_pars+num_k_pars+num_h_pars].values
+    best_tpars, best_kpars = best_20_pars_df.iloc[:, :num_t_pars].values, best_20_pars_df.iloc[:, num_t_pars:num_t_pars+num_k_pars].values
+    best_hpars = best_20_pars_df.loc[:, ["h1", "h2", "hn"]].values
+    # print("Best t-pars: ", best_tpars)
+    # print("Best k-pars: ", best_kpars)
+    # print("Best h-pars: ", best_hpars)
+    # return 1
 
     # Calculate relative contributions of each state for values of N and I
     N_vals = np.linspace(0, 1, 51)
@@ -58,6 +63,7 @@ def main():
     np.savetxt("%s/%s_N_vals.txt" % (results_dir, model), N_vals, fmt="%.2f")
     np.savetxt("%s/%s_I_vals.txt" % (results_dir, model), I_vals, fmt="%.2f")
 
+    # return 1
     # Plots
     start = time.time()
     contrib_df = pd.read_csv("%s/%s_best_params_contributions_sweep.csv" % (results_dir, model))
