@@ -42,6 +42,7 @@ def make_contribution_plots():
     h="3_3_1"
     # best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (best_fit_dir, model, h))
     state_names_old_names = np.loadtxt("%s/%s_state_names.txt" % (results_dir, model), dtype=str, delimiter="\0")
+    cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.5)
     
     state_names = ["Unbound state",
                     r"$IRF_2$ state", 
@@ -78,7 +79,7 @@ def make_contribution_plots():
 
     p = sns.FacetGrid(contrib_df, col="state", col_wrap=4, sharex=False, sharey=False)
     cbar_ax = p.figure.add_axes([.92, .3, .02, .4])
-    p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1)
+    p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, cmap=cmap)
     # p.set_axis_labels(r"$IRF$", r"$NF\kappa B$")
     p.set_titles("{col_name}")
     plt.subplots_adjust(top=0.93, right=0.9)
