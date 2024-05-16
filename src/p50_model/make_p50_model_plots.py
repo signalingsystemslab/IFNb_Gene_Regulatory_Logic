@@ -48,11 +48,14 @@ def helper_contrib_heatmap(*args, **kwargs):
     ax.set_yticklabels(["%.1f" % i for i in y_ticks_labels])
 
 def make_heatmap(contrib_df, cmap, model, name, figures_dir):
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        p = sns.FacetGrid(contrib_df, col="state", col_wrap=4, sharex=False, sharey=False, height=0.5, aspect=1)
+    heatmap_pars = {"axes.titlesize":7}
+    new_rc_pars = plot_rc_pars.copy()
+    new_rc_pars.update(heatmap_pars)
+
+    with sns.plotting_context("paper", rc=new_rc_pars):
+        p = sns.FacetGrid(contrib_df, col="state", col_wrap=4, sharex=True, sharey=True, height=1.1)
         cbar_ax = p.figure.add_axes([.92, .3, .02, .4])
-        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, cmap=cmap)
-        # p.set_axis_labels(r"$IRF$", r"$NF\kappa B$")
+        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, cmap=cmap, square=True)
         p.set_titles("{col_name}")
         plt.subplots_adjust(top=0.93, right=0.9)
         plt.savefig("%s/%s_%s_heatmap.png" % (figures_dir, model, name))
@@ -75,7 +78,7 @@ def get_renaming_dict(results_dir):
                         r"$IRF_2\cdot NF\kappa B$", r"$IRF_2\cdot NF\kappa B\cdot p50$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
     state_names["state_new"] = pd.Categorical(state_names["state_new"], categories=state_name_order, ordered=True)
     state_names = state_names.sort_values("state_new")
-    state_names["state"] = state_names["state_new"].astype(str) + " state"
+    state_names["state"] = state_names["state_new"].astype(str)
     # Renaming the states
     state_name_dict = state_names.set_index('state_old')["state"].to_dict()
     # Make all values raw strings
@@ -132,12 +135,13 @@ def make_contribution_plots():
         # Remove NaN values
         contrib_df = contrib_df.dropna()
         contrib_df["stimulus"] = contrib_df["stimulus"].replace("polyIC", "PolyIC")
-        contrib_df["genotype"] = contrib_df["genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
+        contrib_df["genotype"] = contrib_df["genotype"].replace("relacrelKO", r"NFκBko")
         contrib_df["genotype"] = contrib_df["genotype"].replace("p50KO", "p50ko")
         contrib_df["Condition"] = contrib_df["stimulus"] + " " + contrib_df["genotype"]
+        
 
         # Contributing states
-        contrib_states = [r"$IRF_1\cdot IRF_2$ state", r"$IRF_1\cdot NF\kappa B$ state", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$ state"]
+        contrib_states = [r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
         # Sum all non-contributing states into "Other"
         contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
         contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
@@ -149,7 +153,8 @@ def make_contribution_plots():
         ax.set_ylabel("Contribution")
         labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels)
-        # plt.xticks(rotation=90)
+        ax.set_xticks(ax.get_xticks())
+        ax.set_ylim(0,1)
         sns.despine()
         sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title=None, frameon=False, loc="center left")
         plt.tight_layout()
@@ -168,14 +173,14 @@ def make_predictions_data_frame(ifnb_predicted, beta, conditions):
     df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[0]
     df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Stimulus"].replace("polyIC", "PolyIC")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[1]
-    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
+    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("relacrelKO", r"NFκBko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("p50KO", "p50ko")
     df_ifnb_predicted["Data point"] = df_ifnb_predicted["Stimulus"] + " " + df_ifnb_predicted["Genotype"]    
     stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
     # genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO"]
-    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NF$\kappa$Bko","p50ko"]
+    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko","p50ko"]
     df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
     df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
     df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
@@ -438,7 +443,7 @@ def make_state_probabilities_plots():
     state_probs_df = probabilities_df.melt(var_name="Condition", value_name="Probability", id_vars="state")
     state_probs_df["Stimulus"] = state_probs_df["Condition"].str.split("_", expand=True)[0]
     state_probs_df["Genotype"] = state_probs_df["Condition"].str.split("_", expand=True)[1]
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
+    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NFκBko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("p50KO", "p50ko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
@@ -446,7 +451,7 @@ def make_state_probabilities_plots():
     state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("basal", "Basal")
     stimuli_levels = ["Basal", "CpG", "LPS", "PolyIC"]
     # stimuli_levels = ["PolyIC", "LPS", "CpG", "Basal"]
-    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NF$\kappa$Bko", "p50ko"]
+    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko", "p50ko"]
     state_probs_df["Condition_old_name"] = state_probs_df["Condition"]
     state_probs_df["Condition"] = state_probs_df["Stimulus"] + " " + state_probs_df["Genotype"]
 
@@ -462,63 +467,66 @@ def make_state_probabilities_plots():
     # print(state_probs_df)
 
     # Plot state probabilities
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        # Make dictionary of colors
-        # genotype_colors = sns.cubehelix_palette(n_colors=len(genotypes_levels), start=-0.2, rot=0.65, dark=0.2, light=0.8, reverse=True)
-        genotype_colors = sns.color_palette(states_cmap_pars, n_colors=len(genotypes_levels))
-        genotype_colors = {genotype: color for genotype, color in zip(genotypes_levels, genotype_colors)}
+    # Make dictionary of colors
+    # genotype_colors = sns.cubehelix_palette(n_colors=len(genotypes_levels), start=-0.2, rot=0.65, dark=0.2, light=0.8, reverse=True)
+    genotype_colors = sns.color_palette(states_cmap_pars, n_colors=len(genotypes_levels))
+    genotype_colors = {genotype: color for genotype, color in zip(genotypes_levels, genotype_colors)}
 
-        # Make heatmap of state probabilities
-        # t pars row: 0       t_1    t_1   t_1     t_3     t_3   0      t_4       t_5      t_1 + t_3    t_1 + t_3  1
-        best_fit_parameters = pd.read_csv("%s/%s_best_fits_pars.csv" % (results_dir, model)).mean()
-        t_pars_df = pd.DataFrame({"state":state_probs_df["state"].unique(), 
-                                    "t_value": [0, 
-                                            best_fit_parameters.loc["t_1"],
-                                            best_fit_parameters.loc["t_1"],
-                                            best_fit_parameters.loc["t_1"],
-                                            best_fit_parameters.loc["t_3"],
-                                            best_fit_parameters.loc["t_3"],
-                                            0,
-                                            best_fit_parameters.loc["t_4"],
-                                            best_fit_parameters.loc["t_5"],
-                                            best_fit_parameters.loc["t_1"] + best_fit_parameters.loc["t_3"],
-                                            best_fit_parameters.loc["t_1"] + best_fit_parameters.loc["t_3"],
-                                            1]})
-        t_pars_df = t_pars_df.set_index("state").T
-        t_pars_df["Condition"] = [r"Transcription capability ($t$)"]
-        t_pars_df = t_pars_df.set_index("Condition")
+    # Make heatmap of state probabilities
+    # t pars row: 0       t_1    t_1   t_1     t_3     t_3   0      t_4       t_5      t_1 + t_3    t_1 + t_3  1
+    best_fit_parameters = pd.read_csv("%s/%s_best_fits_pars.csv" % (results_dir, model)).mean()
+    t_pars_df = pd.DataFrame({"state":state_probs_df["state"].unique(), 
+                                "t_value": [0, 
+                                        best_fit_parameters.loc["t_1"],
+                                        best_fit_parameters.loc["t_1"],
+                                        best_fit_parameters.loc["t_1"],
+                                        best_fit_parameters.loc["t_3"],
+                                        best_fit_parameters.loc["t_3"],
+                                        0,
+                                        best_fit_parameters.loc["t_4"],
+                                        best_fit_parameters.loc["t_5"],
+                                        best_fit_parameters.loc["t_1"] + best_fit_parameters.loc["t_3"],
+                                        best_fit_parameters.loc["t_1"] + best_fit_parameters.loc["t_3"],
+                                        1]})
+    t_pars_df = t_pars_df.set_index("state").T
+    t_pars_df["Condition"] = ["Transcription \n" r"capability ($t$)"]
+    t_pars_df = t_pars_df.set_index("Condition")
 
-        # State probability
-        state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=state_probs_df["state"].unique(), ordered=True)
-        state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
-    
-        # IFNb column
-        ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
-        t_pars = best_fit_parameters.iloc[:4].values
-        k_pars = best_fit_parameters.iloc[4:8].values
-        h_pars = [3,1]
-        ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
-        ifnb_df.loc["basal_WT"] = ifnb_basal_wt
-        ifnb_df = ifnb_df.rename(condition_renaming_dict)
-        ifnb_df = ifnb_df.rename(r"IFN$\beta$ mRNA")
+    # State probability
+    state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=state_probs_df["state"].unique(), ordered=True)
+    state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
 
-        # Add a blank column
-        blank_col = pd.DataFrame(np.nan, index=state_probs_df.index, columns=[" "])
-        state_probs_df = pd.concat([state_probs_df, blank_col], axis=1)
+    # IFNb column
+    ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
+    t_pars = best_fit_parameters.iloc[:4].values
+    k_pars = best_fit_parameters.iloc[4:8].values
+    h_pars = [3,1]
+    ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
+    ifnb_df.loc["basal_WT"] = ifnb_basal_wt
+    ifnb_df = ifnb_df.rename(condition_renaming_dict)
+    ifnb_df = ifnb_df.rename(r"IFN$\beta$ mRNA")
 
-        # Add the IFNb column
-        state_probs_df = pd.concat([state_probs_df, ifnb_df], axis=1)
+    # Add a blank column
+    blank_col = pd.DataFrame(np.nan, index=state_probs_df.index, columns=[" "])
+    state_probs_df = pd.concat([state_probs_df, blank_col], axis=1)
 
-        # Add a blank row
-        blank_row = pd.DataFrame(np.nan, index=[" "], columns=state_probs_df.columns)
-        state_probs_df = pd.concat([state_probs_df, blank_row])
+    # Add the IFNb column
+    state_probs_df = pd.concat([state_probs_df, ifnb_df], axis=1)
 
-        # Add the t_pars row
-        t_pars_df = t_pars_df.reindex(columns=state_probs_df.columns)
-        state_probs_df = pd.concat([state_probs_df, t_pars_df])
+    # Add a blank row
+    blank_row = pd.DataFrame(np.nan, index=[" "], columns=state_probs_df.columns)
+    state_probs_df = pd.concat([state_probs_df, blank_row])
 
+    # Add the t_pars row
+    t_pars_df = t_pars_df.reindex(columns=state_probs_df.columns)
+    state_probs_df = pd.concat([state_probs_df, t_pars_df])
+
+    heatmap_rc_pars = {"xtick.labelsize":5,"ytick.labelsize":5, "legend.fontsize":5}
+    new_rc_pars = plot_rc_pars.copy()
+    new_rc_pars.update(heatmap_rc_pars)
+    with sns.plotting_context("paper", rc=new_rc_pars):
         # Create the heatmap
-        fig, ax = plt.subplots(figsize=(3, 1.5))
+        fig, ax = plt.subplots(figsize=(2.2, 2))
         cbar_ax = fig.add_axes([.92, .3, .02, .4])
         sns.heatmap(data=state_probs_df, cbar_ax=cbar_ax, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap)
         ax.set_ylabel("")
@@ -682,7 +690,7 @@ def make_supplemental_plots():
     state_probs_df = probabilities_df.melt(var_name="Condition", value_name="Probability", id_vars="state")
     state_probs_df["Stimulus"] = state_probs_df["Condition"].str.split("_", expand=True)[0]
     state_probs_df["Genotype"] = state_probs_df["Condition"].str.split("_", expand=True)[1]
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
+    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NFκBko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("p50KO", "p50ko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
     state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
@@ -690,7 +698,7 @@ def make_supplemental_plots():
     state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("basal", "Basal")
     stimuli_levels = ["Basal", "CpG", "LPS", "PolyIC"]
     # stimuli_levels = ["PolyIC", "LPS", "CpG", "Basal"]
-    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NF$\kappa$Bko", "p50ko"]
+    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko", "p50ko"]
     state_probs_df["Condition_old_name"] = state_probs_df["Condition"]
     state_probs_df["Condition"] = state_probs_df["Stimulus"] + " " + state_probs_df["Genotype"]
 
@@ -708,7 +716,7 @@ def make_supplemental_plots():
     # Plot state probabilities
     with sns.plotting_context("paper", rc=plot_rc_pars):
         # make separate plots for IRF/NFkB KOs and p50 KOs
-        irf_kb_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT","IRF3/7ko", r"NF$\kappa$Bko"]) & state_probs_df["Stimulus"].isin(["PolyIC", "LPS"])].copy()
+        irf_kb_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT","IRF3/7ko", r"NFκBko"]) & state_probs_df["Stimulus"].isin(["PolyIC", "LPS"])].copy()
         p50_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT", "p50ko"])].copy()
 
         # Make dictionary of colors
@@ -717,7 +725,7 @@ def make_supplemental_plots():
         genotype_colors = {genotype: color for genotype, color in zip(genotypes_levels, genotype_colors)}
 
         # First plot
-        irf_kb_data["Genotype"] = pd.Categorical(irf_kb_data["Genotype"], categories=["WT", "IRF3/7ko", r"NF$\kappa$Bko"], ordered=True)
+        irf_kb_data["Genotype"] = pd.Categorical(irf_kb_data["Genotype"], categories=["WT", "IRF3/7ko", r"NFκBko"], ordered=True)
         irf_kb_data["Stimulus"] = pd.Categorical(irf_kb_data["Stimulus"], categories=["PolyIC", "LPS"], ordered=True)
         p = sns.catplot(data=irf_kb_data, x="state", y="Probability", row="Stimulus", col="Genotype", hue="Genotype", dodge=False, 
                         kind="bar", alpha=0.8, palette=genotype_colors, height=5, aspect=0.9, legend=False)
