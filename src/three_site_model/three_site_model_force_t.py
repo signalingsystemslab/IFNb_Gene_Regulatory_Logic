@@ -61,13 +61,13 @@ class three_site:
 
         # Force t for both IRFs to be the same
         self.t = np.array([0.0 for i in range(8)])
-        self.t[1] = self.parsT[0] # t1
-        self.t[2] = self.parsT[0] # t1
-        self.t[3] = self.parsT[1] # t2
-        self.t[4] = self.parsT[2] # t3 
-        self.t[5] = self.parsT[0] + self.parsT[1] # t1 + t2
-        self.t[6] = self.parsT[3] # t4
-        self.t[7] = 1
+        self.t[1] = self.parsT[0] # t1 - IRF
+        self.t[2] = self.parsT[0] # t1 - IRF_G
+        self.t[3] = self.parsT[1] # t2 - NFkB
+        self.t[4] = self.parsT[2] # t3 - IRF + IRF_G
+        self.t[5] = self.parsT[0] + self.parsT[1] # t1 + t2 - IRF + NFkB
+        self.t[6] = self.parsT[3] # t4 - IRF_G + NFkB
+        self.t[7] = 1 #  IRF + IRF_G + NFkB
 
 
     def calculateBeta(self, I, N=None):
