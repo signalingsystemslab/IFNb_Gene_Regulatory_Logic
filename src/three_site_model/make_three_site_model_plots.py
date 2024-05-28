@@ -245,7 +245,7 @@ def make_predictions_data_frame(ifnb_predicted, beta, conditions):
     df_ifnb_predicted["Data point"] = df_ifnb_predicted["Stimulus"] + " " + df_ifnb_predicted["Genotype"]    
     stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
     # genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO"]
-    genotypes_levels = ["WT","p50ko", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko"]
+    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko","p50ko"]
     df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
     df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
     df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
@@ -280,7 +280,7 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
     with sns.plotting_context("paper",rc=plot_rc_pars):
         colors = sns.color_palette(models_cmap_pars, n_colors=4)
         col = data_color
-        fig, ax = plt.subplots(figsize=(2.2,2))
+        fig, ax = plt.subplots(figsize=(2.2,1.8))
         # sns.lineplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, 
         #              ax=ax, err_style="band", errorbar=("pi",50), zorder = 0)
         # sns.scatterplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, marker="o", ax=ax, 
@@ -317,10 +317,11 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
         stimuli_mean_locs = [np.mean(locations) for stimulus, locations in stimuli_locations.items()]
         stimuli_mean_locs = [loc + 10**-5 for loc in stimuli_mean_locs]
         xticks = xticks + stimuli_mean_locs
-        unique_stimuli = ["\n\n\n\n\n%s" % stimulus for stimulus in unique_stimuli]
+        unique_stimuli = ["\n\n\n\n\n\n%s" % stimulus for stimulus in unique_stimuli]
         labels = labels_genotype_only + unique_stimuli
         ax.set_xticks(xticks)
         ax.set_xticklabels(labels)
+        ax.set_xlabel("")
 
         for label in ax.get_xticklabels():
             if label.get_text() in labels_genotype_only:
