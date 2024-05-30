@@ -325,9 +325,7 @@ def make_parameters_data_frame(pars):
     new_t_par_order = [r"$t_{I_1}$", r"$t_{I_2}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$"]
     df_t_pars["Parameter"] = pd.Categorical(df_t_pars["Parameter"], categories=new_t_par_order, ordered=True)
 
-    
-    # df_k_pars = df_pars[df_pars["Parameter"].str.startswith("k")]
-    df_k_pars = df_pars.loc[df_pars["Parameter"].str.startswith("k")].copy()
+    df_k_pars = df_pars.loc[df_pars["Parameter"].str.startswith("k") | df_pars["Parameter"].str.startswith("c")].copy()
     num_k_pars = len(df_k_pars["Parameter"].unique())
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k3", r"$k_N$")
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k2", r"$k_2$")
@@ -339,12 +337,11 @@ def make_parameters_data_frame(pars):
     df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$k_N$"
     df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$k_P$"
     df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$k_P$"
-    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$"], ordered=True)
+    df_k_pars.loc[df_k_pars["Parameter"] == "c", "Parameter"] = r"$C$"
+    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$",r"$C$"], ordered=True)
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
-
-# Plot parameters one plot
-def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
+def combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
     df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
     df_t_pars_3_1, df_k_pars_3_1, _, _ = make_parameters_data_frame(pars_3_1)
@@ -370,6 +367,12 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
     # Filter for Hi1=1,Hi2=1 and Hi1=1,Hi2=3
     df_all_k_pars = df_all_k_pars.loc[(df_all_k_pars["H_{I_1}"] == "1") & (df_all_k_pars["H_{I_2}"] == "1") |
                                         (df_all_k_pars["H_{I_1}"] == "1") & (df_all_k_pars["H_{I_2}"] == "3")]
+    
+    return df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars
+
+# Plot parameters one plot
+def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
+    df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3)
 
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
     new_rc_pars = plot_rc_pars.copy()
@@ -404,6 +407,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         ax[0].get_legend().remove()
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+    
     
 def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir):
     all_opt_rmsd["Hill"] = pd.Categorical(all_opt_rmsd["Hill"], ordered=True)
@@ -479,6 +483,27 @@ def make_param_scan_plots():
     best_20_pars_df_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1/" % force_t_dir, model_t))
     plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3, "best_20_pars_force_t_all", figures_dir)
     del best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3
+
+    # Add RMSD density plot of two models: h1=1,h2=1 and h1=1,h2=3
+    print("Plotting RMSD density plot for two hill combinations", flush=True)
+    rmsd_1_1 = pd.read_csv("%s/%s_rmsd_optimized.csv" % ("%s/results_h_1_1_1/" % force_t_dir, model_t))
+    rmsd_3_1 = pd.read_csv("%s/%s_rmsd_optimized.csv" % ("%s/results/" % force_t_dir, model_t))
+    rmsd = pd.concat([rmsd_1_1, rmsd_3_1], ignore_index=True)
+    rmsd[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(rmsd_1_1) + len(rmsd_3_1))])
+    rmsd[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(rmsd_1_1)), np.repeat("3", len(rmsd_3_1))])
+    rmsd["Hill"] = r"$h_{I_1}$=" + rmsd[r"H_{I_1}"] + r", $h_{I_2}$=" + rmsd[r"H_{I_2}"]
+    rmsd = rmsd.loc[rmsd["rmsd_type"] == "rmsd_final"]
+
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,2))
+        p = sns.kdeplot(data=rmsd, x="RMSD", hue="Hill", fill=True, common_norm=False, palette=sns.color_palette(models_cmap_pars, n_colors=4), ax=ax)
+        ax.set_xlabel("RMSD")
+        ax.set_ylabel("Density")
+        sns.despine()
+        sns.move_legend(ax, bbox_to_anchor=(0,1), title=None, frameon=False, loc="upper left", ncol=1)
+        plt.tight_layout()
+        plt.savefig("%s/rmsd_good_models_density_plot.png" % figures_dir)
+
 
     print("Finished making param scan plots")
 
@@ -666,160 +691,227 @@ def make_supplemental_plots():
     force_t_dir = "parameter_scan_force_t/"
     model_t = "p50_force_t"
 
-
-    # RMSD distribution for all hill combinations (select top 20 for each)
-    print("Plotting RMSD distributions for all hill combinations", flush=True)
-    all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_{I_1}$", r"$h_{I_2}$"])
-    for row in h_values:
-        h_vals_str = row
-        if row == "3_1_1":
-            dir = "%s/results/" % force_t_dir
-        else:
-            dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
-        rmsd_df = pd.read_csv("%s/%s_rmsd.csv" % (dir, model))
-        h1, h2, _ = row.split("_")
-        rmsd_df[r"$h_{I_1}$"] = h2
-        rmsd_df[r"$h_{I_2}$"] = h1
-        all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
-        del rmsd_df
-
-    with sns.plotting_context("talk"):
-        col = sns.color_palette("rocket", n_colors=4)[1]
-        sns.displot(data=all_best_rmsd, x="rmsd", row=r"$h_{I_1}$", col=r"$h_{I_2}$", kind="kde", fill=True, alpha=0.5, color=col)
-        sns.despine()
-        plt.tight_layout()
-        plt.xlabel("RMSD")
-        plt.savefig("%s/%s_rmsd_distributions_top_par_scan.png" % (figures_dir, model))
-        plt.close()
+    # best fit cooperativity model with different Hill combinations
+    predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_scan" % force_t_dir, model_t), delimiter=",")
+    plot_predictions_one_plot(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
+                              "best_20_ifnb_c_scan", figures_dir)
     
-        # Plot box plot of rmsd
-        all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"] + "_" + all_best_rmsd[r"$h_{I_2}$"] 
-        plot_rmsd_boxplot(all_best_rmsd, model, figures_dir)
-        del all_best_rmsd
+    del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
 
-        # Best fit model for h=1_1_1, force t constraint
+    # best fit parameters from cooperativity model with different Hill combinations
+    best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_scan" % force_t_dir, model_t))
+    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_scan", figures_dir)
+
+    del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
     
-        dir = "%s/results_h_1_1_1/" % force_t_dir
-        print("Plotting predictions for best fit model with h=1_1_1, force t constraint", flush=True)
-        predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
-        plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_1_1", figures_dir, lines=True)
-        del predictions_force_t
+    # Pairwise plot of parameters
+    pars_df_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1/" % force_t_dir, model_t))
+    pars_df_1_1["Model"] = r"$h_{I_1}$=1, $h_{I_2}$=1"
+    pars_df_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1/" % force_t_dir, model_t))
+    pars_df_1_3["Model"] = r"$h_{I_1}$=3, $h_{I_2}$=1"
+    pars_df_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results/" % force_t_dir, model_t))
+    pars_df_3_1["Model"] = r"$h_{I_1}$=1, $h_{I_2}$=3"
+    pars_df_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1/" % force_t_dir, model_t))
+    pars_df_3_3["Model"] = r"$h_{I_1}$=3, $h_{I_2}$=3"
+    df_pars = pd.concat([pars_df_1_1, pars_df_1_3, pars_df_3_1, pars_df_3_3], ignore_index=True)
+    new_par_names = [r"$t_{I}$", r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$",r"$k_{I_2}$", r"$k_{I_1}$", r"$k_N$", r"$k_P$"]
+    old_par_names = ["t_1", "t_2", "t_3", "t_4", "t_5", "k_1", "k_2", "k_n", "k_p"]
+    old_par_names2 = ["t1", "t2", "t3", "t4", "t5", "k1", "k2", "kn", "kp"]
+    rename_dict = {old:new for old, new in zip(old_par_names, new_par_names)}
+    rename_dict2 = {old:new for old, new in zip(old_par_names2, new_par_names)}
+    df_pars = df_pars.rename(columns=rename_dict)
+    df_pars = df_pars.rename(columns=rename_dict2)
+    df_pars = df_pars.drop(columns=["rmsd"])
+    column_order = [r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$",r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$", "Model"]
+    df_pars = df_pars[column_order]
+    k_val_ranges = {}
+    for k_val in [r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$"]:
+        print("k val: %s, min: %f, max: %f" % (k_val, df_pars[k_val].min(), df_pars[k_val].max()))
+    # TODO: add k value ranges to the dict. round to nearest 10
 
-        # Plot best-fit parameters for h=1_1_1, force t constraint
-        print("Plotting best-fit parameters for h=1_1_1, force t constraint", flush=True)
-        best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir, model_t))
-        plot_parameters(best_20_pars_df, "best_20_pars_force_t_1_1", figures_dir)
-
-        # Plot best-fit model for h=3_3_1, force t constraint
-        dir = "%s/results_h_3_3_1/" % force_t_dir
-        print("Plotting predictions for best fit model with h=3_3_1, force t constraint", flush=True)
-        predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
-        plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_3_3", figures_dir, lines=True)
-        del predictions_force_t
-
-        # Best fit model for h=3_1_1, force t constraint
-        dir = "%s/results/" % force_t_dir
-        print("Plotting predictions for best fit model with h=3_1_1, force t constraint", flush=True)
-        predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
-        plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_3_1", figures_dir, lines=True)
-        del predictions_force_t
-
-        # Plot best-fit parameters for h=3_1_1, force t constraint
-        print("Plotting best-fit parameters for h=3_1_1, force t constraint", flush=True)
-        best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir, model_t))
-        plot_parameters(best_20_pars_df, "best_20_pars_force_t_3_1", figures_dir)
-
-    # State probabilities
-    figures_dir = "p50_final_figures/"
-    os.makedirs(figures_dir, exist_ok=True)
-    model = "p50_force_t"
-    training_data = pd.read_csv("../data/p50_training_data.csv")
-    conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
-    conditions = pd.concat([conditions, pd.Series("basal_WT")], ignore_index=True)
-    num_threads = 4
-    results_dir = "parameter_scan_force_t/results/"
-    names_dir = "p50_contrib/results/"
-
-    cmap = heatmap_cmap
-
-    state_name_dict = get_renaming_dict(names_dir)
-
-    print("Making state probabilities plots", flush=True)
-    # Load all state probabilities for the avg. best 20 force t models
-    old_state_names = np.loadtxt("%s/p50_state_names.txt" % (names_dir), dtype=str, delimiter="\0")
-    # initialize df with state names as index
-    probabilities_df = pd.DataFrame(index=state_name_dict.values())
-    for condition in conditions:
-        state_probs_df = pd.read_csv("%s/%s_state_probabilities_optimized_%s.csv" % (results_dir, model, condition), names=old_state_names)
-        state_probs_df.rename(columns=state_name_dict, inplace=True)
-        state_probs_df = state_probs_df.mean()
-        probabilities_df = pd.concat([probabilities_df, state_probs_df.rename(condition)], axis=1)
-
-    probabilities_df["state"] = probabilities_df.index
-    state_probs_df = probabilities_df.melt(var_name="Condition", value_name="Probability", id_vars="state")
-    state_probs_df["Stimulus"] = state_probs_df["Condition"].str.split("_", expand=True)[0]
-    state_probs_df["Genotype"] = state_probs_df["Condition"].str.split("_", expand=True)[1]
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NFκBko")
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("p50KO", "p50ko")
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
-    state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
-    state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("polyIC", "PolyIC")
-    state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("basal", "Basal")
-    stimuli_levels = ["Basal", "CpG", "LPS", "PolyIC"]
-    # stimuli_levels = ["PolyIC", "LPS", "CpG", "Basal"]
-    genotypes_levels = ["WT","p50ko", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko"]
-    state_probs_df["Condition_old_name"] = state_probs_df["Condition"]
-    state_probs_df["Condition"] = state_probs_df["Stimulus"] + " " + state_probs_df["Genotype"]
-
-    condition_renaming_dict = {old: new for old, new in zip(state_probs_df["Condition_old_name"].unique(), state_probs_df["Condition"].unique())}
-
-    state_probs_df["Stimulus"] = pd.Categorical(state_probs_df["Stimulus"], categories=stimuli_levels, ordered=True)
-    state_probs_df["Genotype"] = pd.Categorical(state_probs_df["Genotype"], categories=genotypes_levels, ordered=True)
-    state_probs_df = state_probs_df.sort_values(["Stimulus", "Genotype"])
-    conditions = state_probs_df["Condition"].unique()
-    state_probs_df["Condition"] = pd.Categorical(state_probs_df["Condition"], categories=conditions, ordered=True)
-    # replace " state" in all state names
-    state_probs_df["state"] = state_probs_df["state"].str.replace(" state", "")
-    # print(state_probs_df)
-
-    # Plot state probabilities
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        # make separate plots for IRF/NFkB KOs and p50 KOs
-        irf_kb_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT","IRF3/7ko", r"NFκBko"]) & state_probs_df["Stimulus"].isin(["PolyIC", "LPS"])].copy()
-        p50_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT", "p50ko"])].copy()
-
-        # Make dictionary of colors
-        # genotype_colors = sns.cubehelix_palette(n_colors=len(genotypes_levels), start=-0.2, rot=0.65, dark=0.2, light=0.8, reverse=True)
-        genotype_colors = sns.color_palette(states_cmap_pars, n_colors=len(genotypes_levels))
-        genotype_colors = {genotype: color for genotype, color in zip(genotypes_levels, genotype_colors)}
-
-        # First plot
-        irf_kb_data["Genotype"] = pd.Categorical(irf_kb_data["Genotype"], categories=["WT", "IRF3/7ko", r"NFκBko"], ordered=True)
-        irf_kb_data["Stimulus"] = pd.Categorical(irf_kb_data["Stimulus"], categories=["PolyIC", "LPS"], ordered=True)
-        p = sns.catplot(data=irf_kb_data, x="state", y="Probability", row="Stimulus", col="Genotype", hue="Genotype", dodge=False, 
-                        kind="bar", alpha=0.8, palette=genotype_colors, height=5, aspect=0.9, legend=False)
-        p.set_titles("{row_name} {col_name}")
-        labels = state_probs_df["state"].unique()
-        for ax in p.axes.flat:
-            ax.set_xticklabels(labels, rotation=90)
-        sns.despine()
+    rc = {"axes.labelsize":25,"xtick.labelsize":20,"ytick.labelsize":20, "legend.fontsize":20}
+    with sns.plotting_context("talk", rc=rc):
+        g = sns.pairplot(df_pars, hue="Model", palette=sns.color_palette(models_cmap_pars, n_colors=4), diag_kind="kde", height=2, aspect=1)
+        for i, ax in enumerate(g.axes.flatten()):
+            # Skip the diagonal axes
+            if i % (g.axes.shape[0] + 1) == 0:
+                continue
+            # if "k" in ax.get_xlabel() or "c" in ax.get_xlabel():
+            #     ax.set_xscale("log")
+            #     # ax.set_xlim(10**-1, 10**2)
+            # if "k" in ax.get_ylabel() or "c" in ax.get_ylabel():
+            #     ax.set_yscale("log")
+            #     # ax.set_ylim(10**-1, 10**2)
+            if "t" in ax.get_xlabel():
+                ax.set_xlim(0-0.1,1+0.1)
+            if "t" in ax.get_ylabel():
+                ax.set_ylim(0-0.1,1+0.1)
+        # g._legend.remove()
+        sns.move_legend(g, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="upper left")
         plt.tight_layout()
-        plt.savefig("%s/%s_state_probabilities_barplot_irf_kb.png" % (figures_dir, model), bbox_inches="tight")
+        plt.savefig("%s/pairwise_parameters.png" % figures_dir)
         plt.close()
 
-        # Second plot
-        p50_data["Genotype"] = pd.Categorical(p50_data["Genotype"], categories=["WT", "p50ko"], ordered=True)
-        p50_data["Stimulus"] = pd.Categorical(p50_data["Stimulus"], categories=["LPS", "CpG"], ordered=True)
-        p = sns.catplot(data=p50_data, x="state", y="Probability", row="Stimulus", col="Genotype", hue="Genotype", dodge=False,
-                        kind="bar", alpha=0.8, palette=genotype_colors, height=5, aspect=0.9, legend=False)
-        p.set_titles("{row_name} {col_name}")
-        labels = state_probs_df["state"].unique()
-        for ax in p.axes.flat:
-            ax.set_xticklabels(labels, rotation=90)
-        sns.despine()
-        plt.tight_layout()
-        plt.savefig("%s/%s_state_probabilities_barplot_p50.png" % (figures_dir, model), bbox_inches="tight")
-        plt.close()
+
+    # # RMSD distribution for all hill combinations (select top 20 for each)
+    # print("Plotting RMSD distributions for all hill combinations", flush=True)
+    # all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_{I_1}$", r"$h_{I_2}$"])
+    # for row in h_values:
+    #     h_vals_str = row
+    #     if row == "3_1_1":
+    #         dir = "%s/results/" % force_t_dir
+    #     else:
+    #         dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
+    #     rmsd_df = pd.read_csv("%s/%s_rmsd.csv" % (dir, model))
+    #     h1, h2, _ = row.split("_")
+    #     rmsd_df[r"$h_{I_1}$"] = h2
+    #     rmsd_df[r"$h_{I_2}$"] = h1
+    #     all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
+    #     del rmsd_df
+
+    # with sns.plotting_context("talk"):
+    #     col = sns.color_palette("rocket", n_colors=4)[1]
+    #     sns.displot(data=all_best_rmsd, x="rmsd", row=r"$h_{I_1}$", col=r"$h_{I_2}$", kind="kde", fill=True, alpha=0.5, color=col)
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     plt.xlabel("RMSD")
+    #     plt.savefig("%s/%s_rmsd_distributions_top_par_scan.png" % (figures_dir, model))
+    #     plt.close()
+    
+    #     # Plot box plot of rmsd
+    #     all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"] + "_" + all_best_rmsd[r"$h_{I_2}$"] 
+    #     plot_rmsd_boxplot(all_best_rmsd, model, figures_dir)
+    #     del all_best_rmsd
+
+    #     # Best fit model for h=1_1_1, force t constraint
+    
+    #     dir = "%s/results_h_1_1_1/" % force_t_dir
+    #     print("Plotting predictions for best fit model with h=1_1_1, force t constraint", flush=True)
+    #     predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
+    #     plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_1_1", figures_dir, lines=True)
+    #     del predictions_force_t
+
+    #     # Plot best-fit parameters for h=1_1_1, force t constraint
+    #     print("Plotting best-fit parameters for h=1_1_1, force t constraint", flush=True)
+    #     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir, model_t))
+    #     plot_parameters(best_20_pars_df, "best_20_pars_force_t_1_1", figures_dir)
+
+    #     # Plot best-fit model for h=3_3_1, force t constraint
+    #     dir = "%s/results_h_3_3_1/" % force_t_dir
+    #     print("Plotting predictions for best fit model with h=3_3_1, force t constraint", flush=True)
+    #     predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
+    #     plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_3_3", figures_dir, lines=True)
+    #     del predictions_force_t
+
+    #     # Best fit model for h=3_1_1, force t constraint
+    #     dir = "%s/results/" % force_t_dir
+    #     print("Plotting predictions for best fit model with h=3_1_1, force t constraint", flush=True)
+    #     predictions_force_t = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir, model_t), delimiter=",")
+    #     plot_predictions(predictions_force_t, beta, conditions, "best_20_ifnb_force_t_lines_3_1", figures_dir, lines=True)
+    #     del predictions_force_t
+
+    #     # Plot best-fit parameters for h=3_1_1, force t constraint
+    #     print("Plotting best-fit parameters for h=3_1_1, force t constraint", flush=True)
+    #     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir, model_t))
+    #     plot_parameters(best_20_pars_df, "best_20_pars_force_t_3_1", figures_dir)
+
+    # # State probabilities
+    # figures_dir = "p50_final_figures/"
+    # os.makedirs(figures_dir, exist_ok=True)
+    # model = "p50_force_t"
+    # training_data = pd.read_csv("../data/p50_training_data.csv")
+    # conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
+    # conditions = pd.concat([conditions, pd.Series("basal_WT")], ignore_index=True)
+    # num_threads = 4
+    # results_dir = "parameter_scan_force_t/results/"
+    # names_dir = "p50_contrib/results/"
+
+    # cmap = heatmap_cmap
+
+    # state_name_dict = get_renaming_dict(names_dir)
+
+    # print("Making state probabilities plots", flush=True)
+    # # Load all state probabilities for the avg. best 20 force t models
+    # old_state_names = np.loadtxt("%s/p50_state_names.txt" % (names_dir), dtype=str, delimiter="\0")
+    # # initialize df with state names as index
+    # probabilities_df = pd.DataFrame(index=state_name_dict.values())
+    # for condition in conditions:
+    #     state_probs_df = pd.read_csv("%s/%s_state_probabilities_optimized_%s.csv" % (results_dir, model, condition), names=old_state_names)
+    #     state_probs_df.rename(columns=state_name_dict, inplace=True)
+    #     state_probs_df = state_probs_df.mean()
+    #     probabilities_df = pd.concat([probabilities_df, state_probs_df.rename(condition)], axis=1)
+
+    # probabilities_df["state"] = probabilities_df.index
+    # state_probs_df = probabilities_df.melt(var_name="Condition", value_name="Probability", id_vars="state")
+    # state_probs_df["Stimulus"] = state_probs_df["Condition"].str.split("_", expand=True)[0]
+    # state_probs_df["Genotype"] = state_probs_df["Condition"].str.split("_", expand=True)[1]
+    # state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("relacrelKO", r"NFκBko")
+    # state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("p50KO", "p50ko")
+    # state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
+    # state_probs_df["Genotype"] = state_probs_df["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
+    # state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("polyIC", "PolyIC")
+    # state_probs_df["Stimulus"] = state_probs_df["Stimulus"].replace("basal", "Basal")
+    # stimuli_levels = ["Basal", "CpG", "LPS", "PolyIC"]
+    # # stimuli_levels = ["PolyIC", "LPS", "CpG", "Basal"]
+    # genotypes_levels = ["WT","p50ko", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko"]
+    # state_probs_df["Condition_old_name"] = state_probs_df["Condition"]
+    # state_probs_df["Condition"] = state_probs_df["Stimulus"] + " " + state_probs_df["Genotype"]
+
+    # condition_renaming_dict = {old: new for old, new in zip(state_probs_df["Condition_old_name"].unique(), state_probs_df["Condition"].unique())}
+
+    # state_probs_df["Stimulus"] = pd.Categorical(state_probs_df["Stimulus"], categories=stimuli_levels, ordered=True)
+    # state_probs_df["Genotype"] = pd.Categorical(state_probs_df["Genotype"], categories=genotypes_levels, ordered=True)
+    # state_probs_df = state_probs_df.sort_values(["Stimulus", "Genotype"])
+    # conditions = state_probs_df["Condition"].unique()
+    # state_probs_df["Condition"] = pd.Categorical(state_probs_df["Condition"], categories=conditions, ordered=True)
+    # # replace " state" in all state names
+    # state_probs_df["state"] = state_probs_df["state"].str.replace(" state", "")
+    # # print(state_probs_df)
+
+    # # Plot state probabilities
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     # make separate plots for IRF/NFkB KOs and p50 KOs
+    #     irf_kb_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT","IRF3/7ko", r"NFκBko"]) & state_probs_df["Stimulus"].isin(["PolyIC", "LPS"])].copy()
+    #     p50_data = state_probs_df.loc[state_probs_df["Genotype"].isin(["WT", "p50ko"])].copy()
+
+    #     # Make dictionary of colors
+    #     # genotype_colors = sns.cubehelix_palette(n_colors=len(genotypes_levels), start=-0.2, rot=0.65, dark=0.2, light=0.8, reverse=True)
+    #     genotype_colors = sns.color_palette(states_cmap_pars, n_colors=len(genotypes_levels))
+    #     genotype_colors = {genotype: color for genotype, color in zip(genotypes_levels, genotype_colors)}
+
+    #     # First plot
+    #     irf_kb_data["Genotype"] = pd.Categorical(irf_kb_data["Genotype"], categories=["WT", "IRF3/7ko", r"NFκBko"], ordered=True)
+    #     irf_kb_data["Stimulus"] = pd.Categorical(irf_kb_data["Stimulus"], categories=["PolyIC", "LPS"], ordered=True)
+    #     p = sns.catplot(data=irf_kb_data, x="state", y="Probability", row="Stimulus", col="Genotype", hue="Genotype", dodge=False, 
+    #                     kind="bar", alpha=0.8, palette=genotype_colors, height=5, aspect=0.9, legend=False)
+    #     p.set_titles("{row_name} {col_name}")
+    #     labels = state_probs_df["state"].unique()
+    #     for ax in p.axes.flat:
+    #         ax.set_xticklabels(labels, rotation=90)
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/%s_state_probabilities_barplot_irf_kb.png" % (figures_dir, model), bbox_inches="tight")
+    #     plt.close()
+
+    #     # Second plot
+    #     p50_data["Genotype"] = pd.Categorical(p50_data["Genotype"], categories=["WT", "p50ko"], ordered=True)
+    #     p50_data["Stimulus"] = pd.Categorical(p50_data["Stimulus"], categories=["LPS", "CpG"], ordered=True)
+    #     p = sns.catplot(data=p50_data, x="state", y="Probability", row="Stimulus", col="Genotype", hue="Genotype", dodge=False,
+    #                     kind="bar", alpha=0.8, palette=genotype_colors, height=5, aspect=0.9, legend=False)
+    #     p.set_titles("{row_name} {col_name}")
+    #     labels = state_probs_df["state"].unique()
+    #     for ax in p.axes.flat:
+    #         ax.set_xticklabels(labels, rotation=90)
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/%s_state_probabilities_barplot_p50.png" % (figures_dir, model), bbox_inches="tight")
+    #     plt.close()
 
 
 def main():
@@ -827,6 +919,7 @@ def main():
     parser.add_argument("-c","--contributions", action="store_true")
     parser.add_argument("-p","--param_scan", action="store_true")
     parser.add_argument("-s","--state_probs", action="store_true")
+    parser.add_argument("-x","--supplemental", action="store_true")
     args = parser.parse_args()
 
     t = time.time()
@@ -838,6 +931,9 @@ def main():
 
     if args.state_probs:
         make_state_probabilities_plots()
+
+    if args.supplemental:
+        make_supplemental_plots()
 
     print("Finished making all plots, took %.2f seconds" % (time.time() - t))
 
