@@ -732,8 +732,16 @@ def make_supplemental_plots():
     df_pars = df_pars[column_order]
     k_val_ranges = {}
     for k_val in [r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$"]:
-        print("k val: %s, min: %f, max: %f" % (k_val, df_pars[k_val].min(), df_pars[k_val].max()))
-    # TODO: add k value ranges to the dict. round to nearest 10
+        # print("k val: %s, min: %f, max: %f" % (k_val, df_pars[k_val].min(), df_pars[k_val].max()))
+        # add k value ranges to the dict. round to nearest 10^x
+        min = df_pars[k_val].min()
+        max = df_pars[k_val].max()
+        min = 10**np.floor(np.log10(min))
+        max = 10**np.ceil(np.log10(max))
+        if max > 10**4-1:
+            max = 10**5
+        k_val_ranges[k_val] = (min, max)
+        print("k val: %s, min: %f, max: %f" % (k_val, min, max))
 
     rc = {"axes.labelsize":25,"xtick.labelsize":20,"ytick.labelsize":20, "legend.fontsize":20}
     with sns.plotting_context("talk", rc=rc):
@@ -742,12 +750,13 @@ def make_supplemental_plots():
             # Skip the diagonal axes
             if i % (g.axes.shape[0] + 1) == 0:
                 continue
-            # if "k" in ax.get_xlabel() or "c" in ax.get_xlabel():
-            #     ax.set_xscale("log")
-            #     # ax.set_xlim(10**-1, 10**2)
-            # if "k" in ax.get_ylabel() or "c" in ax.get_ylabel():
-            #     ax.set_yscale("log")
-            #     # ax.set_ylim(10**-1, 10**2)
+            for k_val, rgs in k_val_ranges.items():
+                if k_val in ax.get_xlabel():
+                    ax.set_xlim(rgs)
+                    ax.set_xscale("log")
+                if k_val in ax.get_ylabel():
+                    ax.set_ylim(rgs)
+                    ax.set_yscale("log")
             if "t" in ax.get_xlabel():
                 ax.set_xlim(0-0.1,1+0.1)
             if "t" in ax.get_ylabel():
