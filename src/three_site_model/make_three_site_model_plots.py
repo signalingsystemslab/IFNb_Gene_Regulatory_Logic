@@ -253,7 +253,7 @@ def make_predictions_data_frame(ifnb_predicted, beta, conditions):
 
 
 
-def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predicted_3_1, ifnb_predicted_3_3, beta, conditions, name, figures_dir):
+def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predicted_3_1, ifnb_predicted_3_3, beta, conditions, name, figures_dir, hn = []):
     # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
     df_ifnb_predicted_1_1 = make_predictions_data_frame(ifnb_predicted_1_1, beta, conditions)
     df_ifnb_predicted_1_3 = make_predictions_data_frame(ifnb_predicted_1_3, beta, conditions)
@@ -267,7 +267,12 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
                                         np.repeat("3", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
     df_all[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
                                         np.repeat("1", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
-    df_all["Hill"] = "Model Fit\n" + r"($h_{I_1}$=" + df_all[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all[r"H_{I_2}"] + r")"
+    if len(hn) > 0:
+        df_all[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_1_1)), np.repeat(hn[1], len(df_ifnb_predicted_1_3)),
+                                        np.repeat(hn[2], len(df_ifnb_predicted_3_1)), np.repeat(hn[3], len(df_ifnb_predicted_3_3))])
+        df_all["Hill"] = "Model Fit\n" + r"($h_{I_1}$=" + df_all[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all[r"H_{I_2}"] + r", $h_N$=" + df_all[r"H_N"] + r")"
+    else:
+        df_all["Hill"] = "Model Fit\n" + r"($h_{I_1}$=" + df_all[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all[r"H_{I_2}"] + r")"
     
     data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
     data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
@@ -276,11 +281,13 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
     df_all = df_all.loc[df_all["par_set"] != "Data"] # contains duplicate data points
     df_all = pd.concat([df_all, data_df], ignore_index=True)
     
-
-    with sns.plotting_context("paper",rc=plot_rc_pars):
+    new_rc_pars = plot_rc_pars.copy()
+    # rc_dict = {"legend.fontsize":6,"legend.labelspacing":0.08}
+    # new_rc_pars.update(rc_dict)
+    with sns.plotting_context("paper",rc=new_rc_pars):
         colors = sns.color_palette(models_cmap_pars, n_colors=4)
         col = data_color
-        fig, ax = plt.subplots(figsize=(2.2,1.8))
+        fig, ax = plt.subplots(figsize=(2.3,2))
         # sns.lineplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, 
         #              ax=ax, err_style="band", errorbar=("pi",50), zorder = 0)
         # sns.scatterplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, marker="o", ax=ax, 
@@ -606,7 +613,7 @@ def make_state_probabilities_plots():
         plt.savefig("%s/%s_state_probabilities_heatmap.png" % (figures_dir, model), bbox_inches="tight")
         plt.close()
 
-def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir):
+def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, name="rmsd_boxplot"):
     all_opt_rmsd["Hill"] = pd.Categorical(all_opt_rmsd["Hill"], ordered=True)
     all_opt_rmsd = all_opt_rmsd.sort_values("Hill")
     
@@ -653,10 +660,10 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir):
     plt.xticks(rotation=90)
     plt.tight_layout()
 
-    plt.savefig("%s/%s_rmsd_boxplot.png" % (figures_dir, model))
+    plt.savefig("%s/%s_%s.png" % (figures_dir, name, model), bbox_inches="tight")
     plt.close()
 
-def make_param_scan_plots_supplemental():
+def make_supplemental_plots():
     figures_dir = "three_site_final_figures"
     os.makedirs(figures_dir, exist_ok=True)
     num_t_pars = 5
@@ -675,83 +682,122 @@ def make_param_scan_plots_supplemental():
 
     force_t_dir = "parameter_scan_force_t/"
 
+    # Load RMSD for all hill combinations
+    all_best_rmsd = pd.DataFrame()
+    for row in h_values:
+        h_vals_str = "_".join([str(i) for i in row])
+        dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
+        if h_vals_str == "3_1_1":
+            dir = "%s/results/" % force_t_dir
+
+        # Check that the file exists
+        if not os.path.exists("%s/%s_rmsd_optimized.csv" % (dir, model)):
+            print("File %s/%s_rmsd_optimized.csv does not exist" % (dir, model))
+            continue
+
+        rmsd_df = pd.read_csv("%s/%s_rmsd_optimized.csv" % (dir, model))
+        rmsd_df = rmsd_df[rmsd_df["rmsd_type"] == "rmsd_final"]
+        h1, h2, hn = row
+        rmsd_df[r"$h_{I_1}$"] = h2.astype(str)
+        rmsd_df[r"$h_{I_2}$"] = h1.astype(str)
+        rmsd_df[r"$h_N$"] = hn.astype(str)
+        all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
+        del rmsd_df
+
+    # Plot box plot of rmsd
+    all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"].astype(str) + "_" + all_best_rmsd[r"$h_{I_2}$"].astype(str) + "_" + all_best_rmsd[r"$h_N$"].astype(str)
+    all_best_rmsd = all_best_rmsd.rename(columns={"RMSD":"rmsd"})
+    plot_rmsd_boxplot(all_best_rmsd, model, figures_dir, name="rmsd_boxplot_all_hills")
+
+    del all_best_rmsd
+
+    # Plot best-fit predictions with hn=3
+    print("Plotting predictions for best fit models with h_N=3", flush=True)
+    predictions_1_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_3/" % force_t_dir, model), delimiter=",")
+    predictions_1_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_3/" % force_t_dir, model), delimiter=",")
+    predictions_3_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_1_3/" % force_t_dir, model), delimiter=",")
+    predictions_3_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_3/" % force_t_dir, model), delimiter=",")
+    plot_predictions_one_plot(predictions_1_1_3, predictions_1_3_3, predictions_3_1_3, predictions_3_3_3, beta, conditions, "best_20_ifnb_force_t_hn_3", 
+                              figures_dir, hn=["3","3","3","3"])
+
+
     # # change context, but make dot size smaller
     # sns.set_context("talk", rc={"lines.markersize": 7})
 
-    with sns.plotting_context("talk", rc={"lines.markersize": 7}):
-        # Best fit model wth h=1_1_1 (best 20, seed 0)
-        print("Plotting predictions for best fit model with h=1_1_1", flush=True)
-        dir_111 = "%s/results_h_1_1_1/" % force_t_dir
-        predictions_1_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_111, model), delimiter=",")
-        plot_predictions(predictions_1_1_1, beta, conditions, "optimized_ifnb_h_1_1_1_force_t", figures_dir, lines=True)
-        del predictions_1_1_1
+    # with sns.plotting_context("talk", rc={"lines.markersize": 7}):
+    #     # Best fit model wth h=1_1_1 (best 20, seed 0)
+    #     print("Plotting predictions for best fit model with h=1_1_1", flush=True)
+    #     dir_111 = "%s/results_h_1_1_1/" % force_t_dir
+    #     predictions_1_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_111, model), delimiter=",")
+    #     plot_predictions(predictions_1_1_1, beta, conditions, "optimized_ifnb_h_1_1_1_force_t", figures_dir, lines=True)
+    #     del predictions_1_1_1
 
-        # RMSD distribution for all hill combinations
-        print("Plotting RMSD distributions for all hill combinations", flush=True)
-        all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_{I_1}$", r"$h_{I_2}$"])
-        for row in h_values:
-            h_vals_str = "_".join([str(i) for i in row])
-            if h_vals_str == "3_1_1":
-                dir = "%s/results/" % force_t_dir
-            else:
-                dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
+    #     # RMSD distribution for all hill combinations
+    #     print("Plotting RMSD distributions for all hill combinations", flush=True)
+    #     all_best_rmsd = pd.DataFrame(columns=["rmsd", r"$h_{I_1}$", r"$h_{I_2}$"])
+    #     for row in h_values:
+    #         h_vals_str = "_".join([str(i) for i in row])
+    #         if h_vals_str == "3_1_1":
+    #             dir = "%s/results/" % force_t_dir
+    #         else:
+    #             dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
 
-             # Check that the file exists
-            if not os.path.exists("%s/%s_rmsd.csv" % (dir, model)):
-                print("File %s/%s_rmsd.csv does not exist" % (dir, model))
-                continue
+    #          # Check that the file exists
+    #         if not os.path.exists("%s/%s_rmsd.csv" % (dir, model)):
+    #             print("File %s/%s_rmsd.csv does not exist" % (dir, model))
+    #             continue
 
-            rmsd_df = pd.read_csv("%s/%s_rmsd.csv" % (dir, model))
-            h1, h2, hn = row
-            rmsd_df[r"$h_{I_1}$"] = h2.astype(str)
-            rmsd_df[r"$h_{I_2}$"] = h1.astype(str)
-            rmsd_df[r"$h_N$"] = hn.astype(str)
-            all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
-            del rmsd_df
+    #         rmsd_df = pd.read_csv("%s/%s_rmsd.csv" % (dir, model))
+    #         h1, h2, hn = row
+    #         rmsd_df[r"$h_{I_1}$"] = h2.astype(str)
+    #         rmsd_df[r"$h_{I_2}$"] = h1.astype(str)
+    #         rmsd_df[r"$h_N$"] = hn.astype(str)
+    #         all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
+    #         del rmsd_df
 
-        cmap = sns.color_palette("rocket", n_colors=3)
-        p= sns.displot(data=all_best_rmsd, x="rmsd", col=r"$h_{I_1}$", row=r"$h_{I_2}$", hue=r"$h_N$", kind="kde", fill=True, alpha=0.5, palette=cmap)
-        sns.despine()
-        plt.xlabel("RMSD")
-        sns.move_legend(p, bbox_to_anchor=(1, 0.5), frameon=False, loc="center left")
-        plt.tight_layout()
-        plt.savefig("%s/%s_rmsd_distributions_top_100.png" % (figures_dir, model), bbox_inches="tight")
-        plt.close()
+    #     cmap = sns.color_palette("rocket", n_colors=3)
+    #     p= sns.displot(data=all_best_rmsd, x="rmsd", col=r"$h_{I_1}$", row=r"$h_{I_2}$", hue=r"$h_N$", kind="kde", fill=True, alpha=0.5, palette=cmap)
+    #     sns.despine()
+    #     plt.xlabel("RMSD")
+    #     sns.move_legend(p, bbox_to_anchor=(1, 0.5), frameon=False, loc="center left")
+    #     plt.tight_layout()
+    #     plt.savefig("%s/%s_rmsd_distributions_top_100.png" % (figures_dir, model), bbox_inches="tight")
+    #     plt.close()
 
-        # Plot box plot of rmsd
-        all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"].astype(str) + "_" + all_best_rmsd[r"$h_{I_2}$"].astype(str) + "_" + all_best_rmsd[r"$h_N$"].astype(str)
+    #     # Plot box plot of rmsd
+    #     all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"].astype(str) + "_" + all_best_rmsd[r"$h_{I_2}$"].astype(str) + "_" + all_best_rmsd[r"$h_N$"].astype(str)
         
         
-        plot_rmsd_boxplot(all_best_rmsd, model, figures_dir)
+    #     plot_rmsd_boxplot(all_best_rmsd, model, figures_dir)
 
-        del all_best_rmsd
+    #     del all_best_rmsd
 
-        # Best fit model with h=3_3_1
-        print("Plotting predictions for best fit model with h=3_3_1", flush=True)
-        dir_331 = "%s/results_h_3_3_1/" % force_t_dir
-        predictions_3_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_331, model), delimiter=",")
-        plot_predictions(predictions_3_3_1, beta, conditions, "best_20_ifnb_h_3_3_1_force_t", figures_dir, lines=True)
-        del predictions_3_3_1
+    #     # Best fit model with h=3_3_1
+    #     print("Plotting predictions for best fit model with h=3_3_1", flush=True)
+    #     dir_331 = "%s/results_h_3_3_1/" % force_t_dir
+    #     predictions_3_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_331, model), delimiter=",")
+    #     plot_predictions(predictions_3_3_1, beta, conditions, "best_20_ifnb_h_3_3_1_force_t", figures_dir, lines=True)
+    #     del predictions_3_3_1
 
-        # Plot best-fit parameters for h=3_3_1
-        print("Plotting best-fit parameters for h=3_3_1", flush=True)
-        best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir_331, model))
-        plot_parameters(best_20_pars_df, "best_20_pars_h_3_3_1_force_t", figures_dir)
-        del best_20_pars_df
+    #     # Plot best-fit parameters for h=3_3_1
+    #     print("Plotting best-fit parameters for h=3_3_1", flush=True)
+    #     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir_331, model))
+    #     plot_parameters(best_20_pars_df, "best_20_pars_h_3_3_1_force_t", figures_dir)
+    #     del best_20_pars_df
 
-        # Best fit model with h = 3,1,1
-        print("Plotting predictions for best fit model with h=3_1_1", flush=True)
-        dir_311 = "%s/results/" % force_t_dir
-        predictions_3_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_311, model), delimiter=",")
-        plot_predictions(predictions_3_1_1, beta, conditions, "best_20_ifnb_h_3_1_1_force_t", figures_dir, lines=True)
-        del predictions_3_1_1
+    #     # Best fit model with h = 3,1,1
+    #     print("Plotting predictions for best fit model with h=3_1_1", flush=True)
+    #     dir_311 = "%s/results/" % force_t_dir
+    #     predictions_3_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % (dir_311, model), delimiter=",")
+    #     plot_predictions(predictions_3_1_1, beta, conditions, "best_20_ifnb_h_3_1_1_force_t", figures_dir, lines=True)
+    #     del predictions_3_1_1
 
-        # Plot best-fit parameters for h=3_1_1
-        print("Plotting best-fit parameters for h=3_1_1", flush=True)
-        best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir_311, model))
-        plot_parameters(best_20_pars_df, "best_20_pars_h_3_1_1_force_t", figures_dir)
+    #     # Plot best-fit parameters for h=3_1_1
+    #     print("Plotting best-fit parameters for h=3_1_1", flush=True)
+    #     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (dir_311, model))
+    #     plot_parameters(best_20_pars_df, "best_20_pars_h_3_1_1_force_t", figures_dir)
 
-        print("Finished making param scan plots")
+    #     print("Finished making param scan plots")
 
 
 def main():
@@ -759,6 +805,7 @@ def main():
     parser.add_argument("-c","--contributions", action="store_true")
     parser.add_argument("-p","--param_scan", action="store_true")
     parser.add_argument("-s","--state_probs", action="store_true")
+    parser.add_argument("-x","--supplemental", action="store_true")
     args = parser.parse_args()
 
     t = time.time()
@@ -770,6 +817,9 @@ def main():
 
     if args.state_probs:
         make_state_probabilities_plots()
+
+    if args.supplemental:
+        make_supplemental_plots()
 
     print("Finished making all plots, took %.2f seconds" % (time.time() - t))
 

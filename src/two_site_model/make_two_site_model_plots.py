@@ -232,7 +232,7 @@ def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_p
         plt.close()
 
 def plot_predictions_one_plot_with_data(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_predicted_3, h3, ifnb_predicted_4, h4, 
-                                        training_data, name, figures_dir):
+                                        training_data, name, figures_dir, data_only=False):
     # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
     beta = training_data["IFNb"]
     conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
@@ -263,12 +263,12 @@ def plot_predictions_one_plot_with_data(ifnb_predicted_1, h1, ifnb_predicted_2, 
     df_all = pd.concat([df_all, data_df], ignore_index=True)
     
     new_rc_pars = plot_rc_pars.copy()
-    rc_dict = {"legend.fontsize":6.5,"legend.labelspacing":0.1}
+    rc_dict = {"legend.fontsize":5,"legend.labelspacing":0.1}
     new_rc_pars.update(rc_dict)
     with sns.plotting_context("paper",rc=new_rc_pars):
         colors = sns.color_palette(models_cmap_pars, n_colors=4)
         col = data_color
-        fig, ax = plt.subplots(2, 1, figsize=(2.2,2.2), gridspec_kw={"height_ratios": [4, 2]})
+        fig, ax = plt.subplots(2, 1, figsize=(2.3,2.7), gridspec_kw={"height_ratios": [4, 2]})
         # sns.lineplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, 
         #              ax=ax, err_style="band", errorbar=("pi",50), zorder = 0)
         # sns.scatterplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, marker="o", ax=ax, 
@@ -277,16 +277,17 @@ def plot_predictions_one_plot_with_data(ifnb_predicted_1, h1, ifnb_predicted_2, 
         df_sub = df_all.loc[df_all["par_set"] != "Data"]
         unique_hills = np.unique(df_sub["Hill"])
 
-        # Plot predictions
-        for i, hill in enumerate(unique_hills):
-            # Filter data for the current Hill
-            df_hill = df_all[df_all["Hill"] == hill]
+        if not data_only:
+            # Plot predictions
+            for i, hill in enumerate(unique_hills):
+                # Filter data for the current Hill
+                df_hill = df_all[df_all["Hill"] == hill]
 
-            # Create lineplot and scatterplot for the current Hill
-            sns.lineplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i], 
-                        ax=ax[0], err_style="band", errorbar=("pi",50), zorder = i, label=hill)
-            sns.scatterplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i],
-                        marker="o", ax=ax[0], linewidth=0,  zorder = i+0.5)
+                # Create lineplot and scatterplot for the current Hill
+                sns.lineplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i], 
+                            ax=ax[0], err_style="band", errorbar=("pi",50), zorder = i, label=hill)
+                sns.scatterplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i],
+                            marker="o", ax=ax[0], linewidth=0,  zorder = i+0.5)
 
 
         sns.lineplot(data=df_all.loc[df_all["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", color=col, ax=ax[0], 
@@ -496,6 +497,9 @@ def make_param_scan_plots():
                               "best_20_predictions", figures_dir)
     plot_predictions_one_plot_with_data(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4",
                                         training_data, "best_20_predictions_with_data", figures_dir)
+    # Plot data only
+    plot_predictions_one_plot_with_data(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4",
+                                        training_data, "scatter_heatmap_data_only", figures_dir, data_only=True)
     del predictions_1_1, predictions_2_1, predictions_3_1, predictions_4_1   
 
    

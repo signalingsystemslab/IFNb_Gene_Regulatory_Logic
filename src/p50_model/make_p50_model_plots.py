@@ -249,11 +249,13 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
     df_all = df_all.loc[df_all["par_set"] != "Data"] # contains duplicate data points
     df_all = pd.concat([df_all, data_df], ignore_index=True)
     
-
-    with sns.plotting_context("paper",rc=plot_rc_pars):
+    new_rc_pars = plot_rc_pars.copy()
+    # rc_dict = {"legend.fontsize":6,"legend.labelspacing":0.08}
+    # new_rc_pars.update(rc_dict)
+    with sns.plotting_context("paper",rc=new_rc_pars):
         colors = sns.color_palette(models_cmap_pars, n_colors=4)
         col = data_color
-        fig, ax = plt.subplots(figsize=(2.3,2))
+        fig, ax = plt.subplots(figsize=(2.3,2.1))
         # sns.lineplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, 
         #              ax=ax, err_style="band", errorbar=("pi",50), zorder = 0)
         # sns.scatterplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, marker="o", ax=ax, 
@@ -306,7 +308,7 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
 
         sns.despine()
         plt.tight_layout()
-        sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
+        sns.move_legend(ax, bbox_to_anchor=(0.5,1), title=None, frameon=False, loc="lower center", ncol=3)
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
@@ -495,7 +497,7 @@ def make_param_scan_plots():
     rmsd = rmsd.loc[rmsd["rmsd_type"] == "rmsd_final"]
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2,2))
+        fig, ax = plt.subplots(figsize=(2.05,1.3))
         p = sns.kdeplot(data=rmsd, x="RMSD", hue="Hill", fill=True, common_norm=False, palette=sns.color_palette(models_cmap_pars, n_colors=4), ax=ax)
         ax.set_xlabel("RMSD")
         ax.set_ylabel("Density")
