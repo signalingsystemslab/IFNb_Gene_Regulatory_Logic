@@ -11,26 +11,35 @@ import matplotlib.colors as mcolors
 import matplotlib as mpl
 import numpy as np
 
-mpl.rcParams["figure.dpi"] = 400
+mpl.rcParams["figure.dpi"] = 600
+mpl.rcParams["font.sans-serif"] = "Arial"
+# irf_color = "#5D9FB5"
+# nfkb_color = "#BA4961"
+data_color = "#6F5987"
 
-data_color = "#FA4B5C"
-# states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
 states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
-# models_cmap = sns.cubehelix_palette(start=0.9, rot=-.75, dark=0.3, light=0.8, hue=0.6, cmap=True)
-models_cmap_pars = "ch:s=0.9,r=-0.75,h=0.6,l=0.8,d=0.3"
+models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
+
+# # states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
+# states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
+# # models_cmap = sns.cubehelix_palette(start=0.9, rot=-.75, dark=0.3, light=0.8, hue=0.6, cmap=True)
+# models_cmap_pars = "ch:s=0.9,r=-0.75,h=0.6,l=0.8,d=0.3"
 heatmap_cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.4,start=-.2, hue=0.6)
 
-plot_rc_pars = {"axes.labelsize":7, "font.size":5, "legend.fontsize":5, "xtick.labelsize":6, 
-                                          "ytick.labelsize":6, "axes.titlesize":6, "legend.title_fontsize":5,
+plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
+                                          "ytick.labelsize":6, "axes.titlesize":7, "legend.title_fontsize":7,
                                           "lines.markersize": 3, "axes.linewidth": 0.5,
                                             "xtick.major.width": 0.5, "ytick.major.width": 0.5, "xtick.minor.width": 0.5,
                                             "ytick.minor.width": 0.5, "xtick.major.size": 2, "ytick.major.size": 2,
-                                            "xtick.minor.size": 1, "ytick.minor.size": 1, "legend.labelspacing": 0.2}
+                                            "xtick.minor.size": 1, "ytick.minor.size": 1, "legend.labelspacing": 0.2,
+                                            "legend.columnspacing": 0.5, "legend.handletextpad": 0.5, "legend.handlelength": 1.5}
+rc_pars={"xtick.major.pad": 1, "ytick.major.pad": 1, "legend.labelspacing": 0.2}
+mpl.rcParams.update(rc_pars)
 
 def helper_contrib_heatmap(*args, **kwargs):
     data = kwargs.pop("data")
     d = data.pivot(index=args[1], columns=args[0], values=args[2])
-    ax = sns.heatmap(d, **kwargs)
+    ax = sns.heatmap(d, **kwargs)   
     ax.invert_yaxis()
 
     # Set x and y tick locators
@@ -54,11 +63,26 @@ def make_heatmap(contrib_df, cmap, model, name, figures_dir):
     df["state"] = df["state"].str.replace(" state", "")
 
     with sns.plotting_context("paper", rc=new_rc_pars):
-        p = sns.FacetGrid(df, col="state", col_wrap=4, sharex=True, sharey=True, height=1.1)
-        cbar_ax = p.figure.add_axes([.92, .3, .02, .4])
-        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, cmap=cmap, square=True)
+        ncols = 4
+        p = sns.FacetGrid(contrib_df, col="state", col_wrap=ncols, sharex=True, sharey=True, height=1.1)
+        cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
+        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, 
+                        cmap=cmap, square=True)
         p.set_titles("{col_name}")
-        plt.subplots_adjust(right=0.9)
+        plt.subplots_adjust(top=0.93, right=0.84, hspace=0.5, wspace = 0.2)
+
+        # Label color bar
+        cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
+
+        # Remove axes labels on all plots except for the plot on the lower left: last row, first column
+        num_axes = len(p.axes)
+        first_col = [ind % ncols == 0 for ind in range(num_axes)]
+        last_row = np.max(np.arange(num_axes)[first_col])
+        for i, ax in enumerate(p.axes):
+            if i != last_row:
+                ax.set_xlabel("")
+                ax.set_ylabel("")
+
         plt.savefig("%s/%s_%s_heatmap.png" % (figures_dir, model, name))
         plt.close()
 
@@ -106,35 +130,68 @@ def make_contribution_plots():
     make_heatmap(contrib_df, cmap, model, "contrib_sweep", figures_dir)
 
     ## Make stacked bar plots for LPS/pIC states ##
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        contrib_df = pd.read_csv("%s/%s_specific_conds_contributions.csv" % (results_dir, model))
-        column_names = contrib_df.columns
-        column_names = state_names + list(column_names[len(state_names):])
-        contrib_df.columns = column_names
-        contrib_df = pd.melt(contrib_df, id_vars=["stimulus", "genotype", "par_set"], value_vars=state_names, var_name="state", value_name="contribution")
-        contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=state_names_ordered, ordered=True)
-        contrib_df = contrib_df.groupby(["stimulus", "genotype", "state"])["contribution"].mean().reset_index()
-        contrib_df["stimulus"] = contrib_df["stimulus"].replace("polyIC", "PolyIC")
-        contrib_df["genotype"] = contrib_df["genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
-        contrib_df["Condition"] = contrib_df["stimulus"] + " " + contrib_df["genotype"]
+    contrib_df = pd.read_csv("%s/%s_specific_conds_contributions.csv" % (results_dir, model))
+    column_names = contrib_df.columns
+    column_names = state_names + list(column_names[len(state_names):])
+    contrib_df.columns = column_names
+    contrib_df = pd.melt(contrib_df, id_vars=["stimulus", "genotype", "par_set"], value_vars=state_names, var_name="state", value_name="contribution")
+    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=state_names_ordered, ordered=True)
+    contrib_df = contrib_df.groupby(["stimulus", "genotype", "state"])["contribution"].mean().reset_index()
+    contrib_df["stimulus"] = contrib_df["stimulus"].replace("polyIC", "PolyIC")
+    contrib_df["genotype"] = contrib_df["genotype"].replace("relacrelKO", r"NF$\kappa$Bko")
+    contrib_df["Condition"] = contrib_df["stimulus"] + " " + contrib_df["genotype"]
 
-        # Contributing states
-        contrib_states = [r"$IRF_1\cdot IRF_2$ state", r"$IRF_1\cdot NF\kappa B$ state", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$ state"]
-        # Sum all non-contributing states into "Other"
-        contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
-        contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
-        contrib_df = contrib_df.groupby(["Condition", "state"])["contribution"].sum().reset_index()
+    # Contributing states
+    contrib_states = [r"$IRF_1\cdot IRF_2$ state", r"$IRF_1\cdot NF\kappa B$ state", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$ state"]
+    # Sum all non-contributing states into "Other"
+    contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
+    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
+    contrib_df = contrib_df.groupby(["Condition", "state"])["contribution"].sum().reset_index()
 
+    new_rc_pars = plot_rc_pars.copy()
+    stack_rc_pars = {"xtick.labelsize":5}
+    new_rc_pars.update(stack_rc_pars)
+    with sns.plotting_context("paper", rc=new_rc_pars):
         states_colors = sns.color_palette(states_cmap_pars, n_colors=len(contrib_states) + 1)
-        fig, ax = plt.subplots(figsize=(3,1.5))
-        ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8, palette=states_colors, ax=ax)
-        ax.set_ylabel("Contribution")
-        labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
-        ax.set_xticklabels(labels)
-        # plt.xticks(rotation=90)
+        fig, ax = plt.subplots(figsize=(2.6,1.7))
+        ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
+                          palette=states_colors, ax=ax, linewidth=0.5)
+        ax.set_ylabel("Transcription")
+        # labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
+        # ax.set_xticklabels(labels)
+        # ax.set_xticks(ax.get_xticks())
+        ax.set_ylim(0,1)
         sns.despine()
+
+        labels_genotype_only = [item.get_text().split(" ")[1] for item in ax.get_xticklabels()]
+        # ax.set_xticklabels(labels_genotype_only)
+        labels_stimulus_only = [item.get_text().split(" ")[0] for item in ax.get_xticklabels()]
+        unique_stimuli = np.unique(labels_stimulus_only)
+        stimuli_locations = {stimulus: np.where(np.array(labels_stimulus_only) == stimulus)[0] for stimulus in unique_stimuli}
+        stimuli_mean_locs = [np.mean(locations) for stimulus, locations in stimuli_locations.items()]
+        stimuli_mean_locs = [loc + 10**-5 for loc in stimuli_mean_locs]
+        xticks = ax.get_xticks()
+        xticks = xticks + stimuli_mean_locs
+        unique_stimuli = ["\n\n%s" % stimulus for stimulus in unique_stimuli]
+        labels = labels_genotype_only + unique_stimuli
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(labels)
+        ax.set_xlabel("")
+
+        # for label in ax.get_xticklabels():
+        #     if label.get_text() in labels_genotype_only:
+        #         label.set_rotation(90)
+
+        # Get all xticks
+        xticks = ax.xaxis.get_major_ticks()
+
+        # Remove the tick lines for the last three xticks
+        for tick in xticks[len(labels_genotype_only):]:
+            tick.tick1line.set_visible(False)
+            tick.tick2line.set_visible(False)
+
         # sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title=None, frameon=False, loc="center left")
-        sns.move_legend(ax, bbox_to_anchor=(0.5,1), title=None, frameon=False, loc="lower center", ncol=2)
+        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title=None, frameon=False, loc="lower center", ncol=2)
         plt.tight_layout()
         plt.savefig("%s/%s_specific_conds_contributions.png" % (figures_dir, model))
         plt.close()
@@ -235,26 +292,122 @@ def make_predictions_data_frame(ifnb_predicted, beta, conditions):
 
     df_ifnb_predicted_data = pd.DataFrame({"Data point":conditions, r"IFN$\beta$":beta, "par_set":"Data"})
     df_ifnb_predicted = pd.concat([df_ifnb_predicted, df_ifnb_predicted_data], ignore_index=True)
+
     df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[0]
     df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Stimulus"].replace("polyIC", "PolyIC")
+
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[1]
+    df_ifnb_predicted["Category"] = "Stimulus specific"
+    df_ifnb_predicted.loc[df_ifnb_predicted["Genotype"].str.contains("rela"), "Category"] = "NFκB dependence"
+    df_ifnb_predicted.loc[df_ifnb_predicted["Genotype"].str.contains("irf"), "Category"] = "IRF dependence"
+    df_ifnb_predicted.loc[df_ifnb_predicted["Genotype"].str.contains("p50"), "Category"] = "p50 dependence"
+
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("relacrelKO", r"NFκBko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf7KO", "IRF3/7ko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf5irf7KO", "IRF3/5/7ko")
     df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("p50KO", "p50ko")
     df_ifnb_predicted["Data point"] = df_ifnb_predicted["Stimulus"] + " " + df_ifnb_predicted["Genotype"]    
-    stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
+    stimuli_levels = ["basal", "CpG", "LPS", "PolyIC"]
     # genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO"]
-    genotypes_levels = ["WT", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko","p50ko"]
+    genotypes_levels = ["WT","p50ko", "IRF3/7ko", "IRF3/5/7ko", r"NFκBko"]
     df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
     df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
     df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
+    # print(df_ifnb_predicted)
     return df_ifnb_predicted
 
+def fix_ax_labels(ax, is_heatmap=False):
+    # print([item.get_text().split(" ") for item in ax.get_xticklabels()])
+    labels_genotype_only = [item.get_text().split(" ")[1] for item in ax.get_xticklabels()]
+    # ax.set_xticklabels(labels_genotype_only)
+    labels_stimulus_only = [item.get_text().split(" ")[0] for item in ax.get_xticklabels()]
+    unique_gens= np.unique(labels_genotype_only)
 
+    gens_locations = {gen: np.where(np.array(labels_genotype_only) == gen)[0] for gen in unique_gens}
+    gens_mean_locs = [np.mean(locations) for gen, locations in gens_locations.items()]
+    gens_mean_locs = [loc + 10**-5 for loc in gens_mean_locs]
+    xticks = ax.get_xticks()
+    # xticks = xticks + gens_mean_locs
+    if is_heatmap:
+        gens_mean_locs = [loc + 0.5 for loc in gens_mean_locs]
+    xticks = np.concatenate((xticks, gens_mean_locs))
+    # print(xticks)
+    unique_gens = ["\n\n%s" % gen for gen in unique_gens]
+    labels = labels_stimulus_only + unique_gens
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(labels)
+    ax.set_xlabel("")
+
+    for label in ax.get_xticklabels():
+        label.set_rotation(0)
+
+    # Get all xticks
+    xticks = ax.xaxis.get_major_ticks()
+
+    # Remove the tick lines for the last three xticks
+    for tick in xticks[len(labels_genotype_only):]:
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+
+    return ax, labels_genotype_only
+
+# def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predicted_3_1, ifnb_predicted_3_3, beta, conditions, name, figures_dir, hn = []):
+#     # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
+#     df_ifnb_predicted_1_1 = make_predictions_data_frame(ifnb_predicted_1_1, beta, conditions)
+#     df_ifnb_predicted_1_3 = make_predictions_data_frame(ifnb_predicted_1_3, beta, conditions)
+#     df_ifnb_predicted_3_1 = make_predictions_data_frame(ifnb_predicted_3_1, beta, conditions)
+#     df_ifnb_predicted_3_3 = make_predictions_data_frame(ifnb_predicted_3_3, beta, conditions)
+
+#     data_df = df_ifnb_predicted_1_1.loc[df_ifnb_predicted_1_1["par_set"] == "Data"].copy()
+
+#     df_sym = pd.concat([df_ifnb_predicted_1_1, 
+#                         df_ifnb_predicted_3_1,
+#                         df_ifnb_predicted_1_3,
+#                         df_ifnb_predicted_3_3], ignore_index=True)
+#     df_sym[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
+#                                         np.repeat("1", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
+#     df_sym[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("1", len(df_ifnb_predicted_1_3)),
+#                                         np.repeat("3", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
+#     if len(hn) > 0:
+#         df_sym[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_1_1)), np.repeat(hn[1], len(df_ifnb_predicted_1_3)),
+#                                         np.repeat(hn[2], len(df_ifnb_predicted_3_1)), np.repeat(hn[3], len(df_ifnb_predicted_3_3))])
+#         df_sym["Hill"] = r"($h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r", $h_N$=" + df_sym[r"H_N"] + r")"
+#     else:
+#         df_sym["Hill"] = r"($h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r")"
+    
+#     data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
+#     data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
+#     data_df["Hill"] = "Experimental"
+
+#     df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
+#     df_all = pd.concat([df_sym, data_df], ignore_index=True)
+
+#     hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
+
+#     df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
+
+#     for category in df_all["Category"].unique():
+#         new_rc_pars = plot_rc_pars.copy()
+#         new_rc_pars.update({"axes.labelsize":12, "xtick.labelsize":12, "legend.fontsize":12, "legend.title_fontsize":12,
+#                                         "ytick.labelsize":12, "axes.titlesize":12})
+#         with sns.plotting_context("paper", rc=new_rc_pars):
+#             num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+#             fig, ax = plt.subplots(figsize=(num_bars*1.5 + 1, 3))
+#             cols =[data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+#             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+#                         palette=cols, ax=ax, width=0.8, errorbar=None)
+#             ax.set_xlabel("")
+#             ax.set_ylabel(r"IFN$\beta$")
+#             ax.set_title(category)
+#             sns.despine()
+#             ax, _ = fix_ax_labels(ax)
+#             plt.tight_layout()
+#             plt.ylim(0,1)
+#             sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
+#             plt.savefig("%s/%s_%s.png" % (figures_dir, name, category), bbox_inches="tight")
+#             plt.close()
 
 def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predicted_3_1, ifnb_predicted_3_3, beta, conditions, name, figures_dir, hn = []):
-    # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
     df_ifnb_predicted_1_1 = make_predictions_data_frame(ifnb_predicted_1_1, beta, conditions)
     df_ifnb_predicted_1_3 = make_predictions_data_frame(ifnb_predicted_1_3, beta, conditions)
     df_ifnb_predicted_3_1 = make_predictions_data_frame(ifnb_predicted_3_1, beta, conditions)
@@ -262,105 +415,94 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
 
     data_df = df_ifnb_predicted_1_1.loc[df_ifnb_predicted_1_1["par_set"] == "Data"].copy()
 
-    df_all = pd.concat([df_ifnb_predicted_1_1, df_ifnb_predicted_1_3, df_ifnb_predicted_3_1, df_ifnb_predicted_3_3], ignore_index=True)
-    df_all[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("1", len(df_ifnb_predicted_1_3)),
-                                        np.repeat("3", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
-    df_all[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
+    df_sym = pd.concat([df_ifnb_predicted_1_1, 
+                        df_ifnb_predicted_3_1,
+                        df_ifnb_predicted_1_3,
+                        df_ifnb_predicted_3_3], ignore_index=True)
+    df_sym[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
                                         np.repeat("1", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
+    df_sym[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("1", len(df_ifnb_predicted_1_3)),
+                                        np.repeat("3", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
     if len(hn) > 0:
-        df_all[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_1_1)), np.repeat(hn[1], len(df_ifnb_predicted_1_3)),
+        df_sym[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_1_1)), np.repeat(hn[1], len(df_ifnb_predicted_1_3)),
                                         np.repeat(hn[2], len(df_ifnb_predicted_3_1)), np.repeat(hn[3], len(df_ifnb_predicted_3_3))])
-        df_all["Hill"] = "Model Fit\n" + r"($h_{I_1}$=" + df_all[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all[r"H_{I_2}"] + r", $h_N$=" + df_all[r"H_N"] + r")"
+        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r", $h_N$=" + df_sym[r"H_N"] + r""
     else:
-        df_all["Hill"] = "Model Fit\n" + r"($h_{I_1}$=" + df_all[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all[r"H_{I_2}"] + r")"
+        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r""
     
     data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
     data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
-    data_df["Hill"] = "Experimental"
+    data_df["Hill"] = "Exp."
 
-    df_all = df_all.loc[df_all["par_set"] != "Data"] # contains duplicate data points
-    df_all = pd.concat([df_all, data_df], ignore_index=True)
-    
-    new_rc_pars = plot_rc_pars.copy()
-    # rc_dict = {"legend.fontsize":6,"legend.labelspacing":0.08}
-    # new_rc_pars.update(rc_dict)
-    with sns.plotting_context("paper",rc=new_rc_pars):
-        colors = sns.color_palette(models_cmap_pars, n_colors=4)
-        col = data_color
-        fig, ax = plt.subplots(figsize=(2.3,2))
-        # sns.lineplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, 
-        #              ax=ax, err_style="band", errorbar=("pi",50), zorder = 0)
-        # sns.scatterplot(data=df_all.loc[df_all["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", hue="Hill", palette=colors, marker="o", ax=ax, 
-        #                 legend=False, linewidth=0,  zorder = 1)
-        
-        df_sub = df_all.loc[df_all["par_set"] != "Data"]
-        unique_hills = np.unique(df_sub["Hill"])
+    df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
+    df_all = pd.concat([df_sym, data_df], ignore_index=True)
 
-        for i, hill in enumerate(unique_hills):
-            # Filter data for the current Hill
-            df_hill = df_all[df_all["Hill"] == hill]
+    hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
 
-            # Create lineplot and scatterplot for the current Hill
-            sns.lineplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i], 
-                        ax=ax, err_style="band", errorbar=("pi",50), zorder = i, label=hill)
-            sns.scatterplot(data=df_hill.loc[df_hill["par_set"] != "Data"], x="Data point", y=r"IFN$\beta$", color=colors[i],
-                        marker="o", ax=ax, linewidth=0,  zorder = i+0.5)
+    df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
+    # print(df_all)
+    # print(df_all["Data point"].unique())
 
+    # Plot separately
+    for category in df_all["Category"].unique():
+        print("Plotting %s" % category)
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+            width  = 3.1*num_bars/3/2.1
+            height = 1.3/1.7
+            fig, ax = plt.subplots(figsize=(width, height))
+            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=0.9)
+            ax.set_xlabel("")
+            ax.set_ylabel(r"IFNβ $f$")
+            # ax.set_title(category)
+            sns.despine()
+            ax, _ = fix_ax_labels(ax)
+            plt.tight_layout(pad=0)
+            plt.ylim(0,1)
+            category_nospace = category.replace(" ", "-")
+            plt.savefig("%s/%s_%s.png" % (figures_dir, name, category_nospace), bbox_inches="tight")
+            plt.close()
 
-        sns.lineplot(data=df_all.loc[df_all["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", color=col, ax=ax, label="Experimental", zorder = 10)
-        sns.scatterplot(data=df_all.loc[df_all["par_set"] == "Data"], x="Data point", y=r"IFN$\beta$", color=col, marker="o", ax=ax, legend=False, linewidth=0,
-                         zorder = 11)
-        xticks = ax.get_xticks()
-        # for testing
-        # labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
-        
-        # ax.set_xticklabels(labels)
-
-        labels_genotype_only = [item.get_text().split(" ")[1] for item in ax.get_xticklabels()]
-        # ax.set_xticklabels(labels_genotype_only) # for testing
-        labels_stimulus_only = [item.get_text().split(" ")[0] for item in ax.get_xticklabels()]
-        unique_stimuli = np.unique(labels_stimulus_only)
-        stimuli_locations = {stimulus: np.where(np.array(labels_stimulus_only) == stimulus)[0] for stimulus in unique_stimuli}
-        stimuli_mean_locs = [np.mean(locations) for stimulus, locations in stimuli_locations.items()]
-        stimuli_mean_locs = [loc + 10**-5 for loc in stimuli_mean_locs]
-        xticks = xticks + stimuli_mean_locs
-        unique_stimuli = ["\n\n\n\n\n\n%s" % stimulus for stimulus in unique_stimuli]
-        labels = labels_genotype_only + unique_stimuli
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(labels)
+    # Make one plot with legend
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        category = "NFκB dependence"
+        # print(df_all[df_all["Category"]==category])
+        num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+        width  = 3.1*num_bars/3/2.1 + 0.5
+        height = 1.3/1.7
+        fig, ax = plt.subplots(figsize=(width, height))
+        cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+        sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                    palette=cols, ax=ax, width=0.8, errorbar=None, saturation=0.9)
         ax.set_xlabel("")
-
-        for label in ax.get_xticklabels():
-            if label.get_text() in labels_genotype_only:
-                label.set_rotation(90)
-
-        # Get all xticks
-        xticks = ax.xaxis.get_major_ticks()
-
-        # Remove the tick lines for the last three xticks
-        for tick in xticks[len(labels_genotype_only):]:
-            tick.tick1line.set_visible(False)
-            tick.tick2line.set_visible(False)
-
+        ax.set_ylabel(r"IFN$\beta$")
+        # ax.set_title(category)
         sns.despine()
-        plt.tight_layout()
-        sns.move_legend(ax, bbox_to_anchor=(0.5,1), title=None, frameon=False, loc="lower center", ncol=3)
-        plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+        ax, _ = fix_ax_labels(ax)
+        plt.tight_layout(pad=0)
+        plt.ylim(0,1)
+        sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
+        plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
 def make_parameters_data_frame(pars):
     df_pars = pars.drop(columns=["h1", "h2", "h3", "rmsd"], errors="ignore")
 
     df_pars["par_set"] = np.arange(len(df_pars))
+    df_pars["t_0"] = 0
+    df_pars["t_I1I2N"] = 1
     df_pars = df_pars.melt(var_name="Parameter", value_name="Value", id_vars="par_set")
     # df_t_pars = df_pars[df_pars["Parameter"].str.startswith("t")]
     df_t_pars = df_pars.loc[df_pars["Parameter"].str.startswith("t")].copy()
     num_t_pars = len(df_t_pars["Parameter"].unique())
-    new_t_par_names = [r"$t_{I_2}$", r"$t_{I_1}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$"]
+    new_t_par_names = [r"$t_{I}$", r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$"]
     # Rename t parameters
     df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t1", "t2", "t3", "t4", "t5"], new_t_par_names)
     df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t_1", "t_2", "t_3", "t_4", "t_5"], new_t_par_names)
-    new_t_par_order = [r"$t_{I_1}$", r"$t_{I_2}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$"]
+    df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t_0", "t_I1I2N"], [r"$t_0$", r"$t_{I_1I_2N}$"])
+    new_t_par_order = [r"$t_0$",r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$",r"$t_{I_1I_2N}$"]
     df_t_pars["Parameter"] = pd.Categorical(df_t_pars["Parameter"], categories=new_t_par_order, ordered=True)
 
     
@@ -403,12 +545,12 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
-    new_rc_pars = plot_rc_pars.copy()
-    pars_rc = {"axes.labelsize":7, "font.size":7, "legend.fontsize":6, "xtick.labelsize":7, 
-                                          "ytick.labelsize":7, "legend.title_fontsize":5}
-    new_rc_pars.update(pars_rc)
-    with sns.plotting_context("paper",rc=new_rc_pars):
-        fig, ax = plt.subplots(1,2, figsize=(3,1.5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+
+    with sns.plotting_context("paper",rc=plot_rc_pars):
+        width = 2.8
+        height = 1
+        fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                               gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
         # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
         # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
         # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
@@ -416,25 +558,77 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
         
         unique_models = np.unique(df_all_t_pars["Model"])
+        legend_handles = []
         for i, model in enumerate(unique_models):
             # Filter data for the current model
             df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
-            sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, label=model, errorbar=None)
+            l = sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
             sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
 
+            legend_handles.append(l.lines[0])
+
             df_model = df_all_k_pars[df_all_k_pars["Model"] == model]
-            sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None)
-            sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0)
+            sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
+            sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0, alpha=0.2)
         
         ax[1].set_yscale("log")
         ax[1].set_ylabel("")
+
+        ax[0].set_ylabel("Parameter Value")
+        ax[0].set_xlabel("")
+        ax[1].set_xlabel("")
+
         sns.despine()
         plt.tight_layout()
-        handles, labels = ax[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
-        ax[0].get_legend().remove()
+        # handles, labels = ax[0].get_legend_handles_labels()
+
+        # leg = fig.legend(legend_handles, unique_models, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+        leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
+                         ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
+
+        for i in range(4):
+            leg.legend_handles[i].set_alpha(1)
+            leg.legend_handles[i].set_color(colors[i])
+
+
+        # fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
+        # ax[0].get_legend().remove()
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+
+    # 
+    # # new_rc_pars = plot_rc_pars.copy()
+    # # pars_rc = {"axes.labelsize":7, "font.size":7, "legend.fontsize":6, "xtick.labelsize":7, 
+    # #                                       "ytick.labelsize":7, "legend.title_fontsize":5}
+    # # new_rc_pars.update(pars_rc)
+    # with sns.plotting_context("paper",rc=plot_rc_pars):
+    #     fig, ax = plt.subplots(1,2, figsize=(3,1.5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+    #     # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
+    #     # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
+    #     # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
+    #     #                 zorder = 0)
+    #     # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
+        
+    #     unique_models = np.unique(df_all_t_pars["Model"])
+    #     for i, model in enumerate(unique_models):
+    #         # Filter data for the current model
+    #         df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
+    #         sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, label=model, errorbar=None)
+    #         sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
+
+    #         df_model = df_all_k_pars[df_all_k_pars["Model"] == model]
+    #         sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None)
+    #         sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0)
+        
+    #     ax[1].set_yscale("log")
+    #     ax[1].set_ylabel("")
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     handles, labels = ax[0].get_legend_handles_labels()
+    #     fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
+    #     ax[0].get_legend().remove()
+    #     plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+    #     plt.close()
 
 def make_param_scan_plots():
     figures_dir = "three_site_final_figures"
@@ -454,7 +648,7 @@ def make_param_scan_plots():
     predictions_force_t_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1/" % force_t_dir, model_t), delimiter=",")
     predictions_force_t_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results/" % force_t_dir, model_t), delimiter=",")
     predictions_force_t_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1/" % force_t_dir, model_t), delimiter=",")
-    plot_predictions_one_plot(predictions_force_t_1_1, predictions_force_t_1_3, predictions_force_t_3_1, predictions_force_t_3_3, beta, conditions, "best_20_ifnb_force_t_lines_all", figures_dir)
+    plot_predictions_one_plot(predictions_force_t_1_1, predictions_force_t_1_3, predictions_force_t_3_1, predictions_force_t_3_3, beta, conditions, "best_20_ifnb_force_t", figures_dir)
     del predictions_force_t_1_1, predictions_force_t_1_3, predictions_force_t_3_1, predictions_force_t_3_3        
 
     # Plot parameters on one plot
@@ -463,7 +657,7 @@ def make_param_scan_plots():
     best_20_pars_df_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1/" % force_t_dir, model_t))
     best_20_pars_df_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results/" % force_t_dir, model_t))
     best_20_pars_df_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1/" % force_t_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3, "best_20_pars_force_t_all", figures_dir)
+    plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3, "best_20_pars_force_t", figures_dir)
     del best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3
 
     print("Finished making param scan plots")
@@ -572,6 +766,8 @@ def make_state_probabilities_plots():
     # State probability
     state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=state_probs_df["state"].unique(), ordered=True)
     state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
+    n_columns = state_probs_df.shape[1]
+    n_rows = state_probs_df.shape[0]
 
     # IFNb column
     ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
@@ -581,7 +777,7 @@ def make_state_probabilities_plots():
     ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
     ifnb_df.loc["basal_WT"] = ifnb_basal_wt
     ifnb_df = ifnb_df.rename(condition_renaming_dict)
-    ifnb_df = ifnb_df.rename(r"IFN$\beta$ mRNA")
+    ifnb_df = ifnb_df.rename(r"")
 
     # Add a blank column
     blank_col = pd.DataFrame(np.nan, index=state_probs_df.index, columns=[" "])
@@ -598,20 +794,30 @@ def make_state_probabilities_plots():
     t_pars_df = t_pars_df.reindex(columns=state_probs_df.columns)
     state_probs_df = pd.concat([state_probs_df, t_pars_df])
 
-    heatmap_rc_pars = {"xtick.labelsize":5,"ytick.labelsize":5, "legend.fontsize":5}
+    heatmap_rc_pars = {"xtick.labelsize":6,"ytick.labelsize":6, "legend.fontsize":6}
     new_rc_pars = plot_rc_pars.copy()
     new_rc_pars.update(heatmap_rc_pars)
     with sns.plotting_context("paper", rc=new_rc_pars):
         # Create the heatmap
         fig, ax = plt.subplots(figsize=(2.2, 2))
-        cbar_ax = fig.add_axes([.92, .3, .02, .4])
+        cbar_ax = fig.add_axes([.95, .3, .02, .5])
         sns.heatmap(data=state_probs_df, cbar_ax=cbar_ax, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap)
         ax.set_ylabel("")
         ax.tick_params(axis="both", which="both", length=0)    
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.93, right=0.9, hspace=0.1, wspace=0.2)
+        plt.subplots_adjust(top=0.93, right=0.8, hspace=0.1, wspace=0.2)
+        # Write r"IFN$\beta$ mRNA" to the right of the heatmap
+        ifnb_y_position = 1-(n_rows / (state_probs_df.shape[0] + 1) / 2)
+        ax.text(1.03, ifnb_y_position, r"IFN$\beta$ mRNA ($f$)", ha="center", va="center", rotation=270, fontsize=6, transform=ax.transAxes)
+        # Title color bar
+        cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
+        # Title heatmap
+        title_x_position = n_columns / (state_probs_df.shape[1] + 1) / 2
+        ax.set_title("State Probabilities", fontsize=6, pad=4, x=title_x_position)
+
+        # plt.tight_layout()
         plt.savefig("%s/%s_state_probabilities_heatmap.png" % (figures_dir, model), bbox_inches="tight")
         plt.close()
+
 
 def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, name="rmsd_boxplot"):
     all_opt_rmsd["Hill"] = pd.Categorical(all_opt_rmsd["Hill"], ordered=True)
