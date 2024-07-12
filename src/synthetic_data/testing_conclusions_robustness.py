@@ -1,0 +1,579 @@
+# For each synthetic dataset, fit best parameters and plot parameters
+# Optimize the parameters of the model: t parameters and k parameters
+# Initial parameters from parameter scan
+
+from p50_model_force_t import *
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import pandas as pd
+import os
+import scipy.optimize as opt
+import time
+from multiprocessing import Pool
+import argparse
+import seaborn as sns
+import scipy.stats.qmc as qmc
+
+mpl.rcParams["figure.dpi"] = 600
+mpl.rcParams["font.sans-serif"] = "Arial"
+# irf_color = "#5D9FB5"
+# nfkb_color = "#BA4961"
+data_color = "#6F5987"
+
+states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
+models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
+
+heatmap_cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.4,start=-.2, hue=0.6)
+dataset_cmap = sns.cubehelix_palette(as_cmap=True, start=0.9, rot=-.75, dark=0.1, light=0.8, hue=0.6)
+
+plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
+                                          "ytick.labelsize":6, "axes.titlesize":7, "legend.title_fontsize":7,
+                                          "lines.markersize": 3, "axes.linewidth": 0.5,
+                                            "xtick.major.width": 0.5, "ytick.major.width": 0.5, "xtick.minor.width": 0.5,
+                                            "ytick.minor.width": 0.5, "xtick.major.size": 2, "ytick.major.size": 2,
+                                            "xtick.minor.size": 1, "ytick.minor.size": 1, "legend.labelspacing": 0.2,
+                                            "legend.columnspacing": 0.5, "legend.handletextpad": 0.5, "legend.handlelength": 1.5}
+rc_pars={"xtick.major.pad": 1, "ytick.major.pad": 1, "legend.labelspacing": 0.2}
+mpl.rcParams.update(rc_pars)
+
+def get_N_I_P(data, stimulus, genotype):
+    row = data.loc[(data["Stimulus"] == stimulus) & (data["Genotype"] == genotype)]
+    N = row["NFkB"].values[0]
+    I = row["IRF"].values[0]
+    P = row["p50"].values[0]
+    return N, I, P
+
+def calc_state_prob(k_pars, N, I, P, num_t=6, h_pars=None):
+    # print(N, I, P, flush=True)
+    t_pars = [1 for _ in range(num_t)]
+    probabilities, state_names = get_state_prob(t_pars, k_pars, N, I, P, h_pars=h_pars)
+    return probabilities, state_names
+
+# def plot_state_probabilities(state_probabilities, state_names, name, figures_dir):
+#         stimuli = ["basal", "CpG", "LPS", "polyIC"]
+#         stimulus = [s for s in stimuli if s in name]
+#         if len(stimulus) == 0:
+#             stimulus = "No Stim"
+#         elif len(stimulus) > 1:
+#             raise ValueError("More than one stimulus in name")
+#         else:
+#             stimulus = stimulus[0]
+
+#         condition = name.split("_")[-2:]
+#         condition = " ".join(condition)
+#         df_state_probabilities = pd.DataFrame(state_probabilities, columns=state_names)
+#         df_state_probabilities["par_set"] = np.arange(len(df_state_probabilities))
+#         df_state_probabilities = df_state_probabilities.melt(var_name="State", value_name="Probability", id_vars="par_set")
+
+#         with sns.plotting_context("talk", rc={"lines.markersize": 7}):
+#             fig, ax = plt.subplots(figsize=(6,5))
+#             p = sns.lineplot(data=df_state_probabilities, x = "State", y="Probability", color="black", alpha=0.2,
+#                                 estimator=None, units="par_set", legend=False).set_title(condition)
+#             sns.scatterplot(data=df_state_probabilities, x = "State", y="Probability", color="black", alpha=0.2, ax=ax, legend=False, zorder=10)
+#             sns.despine()
+#             plt.xticks(rotation=90)
+#             # Save plot
+#             plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+
+def calculate_rmsd(ifnb_predicted, beta):
+    residuals = ifnb_predicted - beta
+    rmsd = np.sqrt(np.mean(residuals**2))
+    return rmsd
+
+def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False):
+    min_k_order = np.log10(k_bounds[0])
+    max_k_order = np.log10(k_bounds[1])
+    min_c_order = np.log10(10**-3)
+    max_c_order = np.log10(10**3)
+    min_t = t_bounds[0]
+    max_t = t_bounds[1]
+
+    seed += 10
+
+    l_bounds = np.concatenate([np.zeros(num_t_pars)+min_t, np.ones(num_k_pars)*min_k_order])
+    u_bounds = np.concatenate([np.zeros(num_t_pars)+max_t, np.ones(num_k_pars)*max_k_order])
+
+    print("Calculating grid with %d samples using Latin Hypercube sampling" % num_samples, flush=True)
+    if not c_par:
+        sampler=qmc.LatinHypercube(d=num_t_pars+num_k_pars, seed=seed)
+        grid_tk = sampler.random(n=num_samples)
+        grid_tk = qmc.scale(grid_tk, l_bounds, u_bounds) # rows are parameter sets
+        # convert k parameters to log space
+        kgrid = grid_tk[:,num_t_pars:]
+        kgrid = 10**kgrid
+        grid_tk[:,num_t_pars:] = kgrid
+    else:
+        l_bounds = np.append(l_bounds, min_c_order)
+        u_bounds = np.append(u_bounds, max_c_order)
+        sampler=qmc.LatinHypercube(d=num_t_pars+num_k_pars+1, seed=seed)
+        grid_tk = sampler.random(n=num_samples)
+        grid_tk = qmc.scale(grid_tk, l_bounds, u_bounds)
+        # convert k parameters to log space
+        kgrid = grid_tk[:,num_t_pars:-1]
+        kgrid = 10**kgrid
+        grid_tk[:,num_t_pars:-1] = kgrid
+        # Convert c parameter to log space
+        cgrid = grid_tk[:,-1]
+        cgrid = 10**cgrid
+        grid_tk[:,-1] = cgrid
+
+    return grid_tk
+
+
+def parameter_scan2(training_data, grid, h1=3, h2=1, num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False, num_to_keep=100):
+    # Load data points
+    # N, I, P = training_data["NFkB"], training_data["IRF"], training_data["p50"]
+    # beta = training_data["IFNb"]
+    # N, I, P = training_data["NFkB"].values, training_data["IRF"].values, training_data["p50"].values
+    # beta = training_data["IFNb"].values
+    datasets = training_data["Dataset"].unique()
+    num_datasets = len(datasets)
+    # print("N: %s, \nI: %s, \nP: %s, \nbeta: %s" % (N, I, P, beta), flush=True)
+
+    all_best_fits_pars = np.zeros((num_datasets*num_to_keep, num_t_pars+num_k_pars))
+    all_best_fits_results = np.zeros((num_datasets*num_to_keep, len(N)))
+    all_best_fits_rmsd = np.zeros((num_datasets*num_to_keep))
+
+    # Only use up to 25 datasets at a time
+    num_chunks = -(-num_datasets // 25)  # Calculate the number of chunks
+    # sub_numbers = [number[i*25:(i+1)*25] for i in range(x)]  # List comprehension to split the array
+    chunks = np.array_split(datasets, num_chunks)
+    for c, chunk in enumerate(chunks):
+        data_chunk = training_data.loc[training_data["Dataset"].isin(chunk)]
+        N, I, P = data_chunk["NFkB"].values, data_chunk["IRF"].values, data_chunk["p50"].values
+        beta = data_chunk["IFNb"].values
+        dataset_vector = data_chunk["Dataset"].values
+
+        # Calculate IFNb value at each point in grid
+        print("Calculating effects at %d points in grid" % len(grid), flush=True)
+        start = time.time()
+        if c_par:
+            with Pool(num_threads) as p:
+                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+        else:
+            with Pool(num_threads) as p:
+                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+
+        # TODO: verify that all reshaping is correct
+        num_param_sets = len(grid)
+        ifnb_predicted = np.array(results).reshape(num_param_sets, len(N))
+
+        num_datasets_chunk = len(chunk)
+        num_data_points = len(N)/num_datasets_chunk
+        ifnb_predicted_bydset = np.array_split(ifnb_predicted, num_datasets_chunk, axis=1)
+        beta_bydset = np.array_split(beta, num_datasets_chunk)
+        dset_bydset = np.array_split(dataset_vector, num_datasets_chunk)
+
+        # Make sure that all elements in each dset chunk are the same
+        for i in range(num_datasets_chunk):
+            if len(np.unique(dset_bydset[i])) > 1:
+                print(np.unique(dset_bydset[i]))
+                raise ValueError("Dataset chunk %d has more than one dataset" % i)
+
+        # Make sure length of each element of beta_bydset is the same as num_data_points
+        for i in range(num_datasets_chunk):
+            if len(beta_bydset[i]) != num_data_points:
+                raise ValueError("Length of beta_bydset element %d (%d) is not equal to num_data_points (%d)" % (i, len(beta_bydset[i]), num_data_points))
+
+
+        # Calculate residuals
+        with Pool(num_threads) as p:
+            rmsd = p.starmap(calculate_rmsd, [(ifnb_predicted_bydset[i][j], beta_bydset[i]) for i in range(num_datasets_chunk) for j in range(num_param_sets)])
+
+        # TODO: add results to all_results arrays
+
+        # rmsd = np.array(rmsd)
+        # best_fits = np.argsort(rmsd)[:100]
+        # # print("Best fits: ", best_fits, flush=True)
+        # best_fits_rmsd = rmsd[best_fits]
+        # best_fits_pars = grid[best_fits]
+        # best_fits_results = ifnb_predicted[best_fits]
+
+        # get best 100 rmsd for each dataset
+        rmsd = np.array(rmsd).reshape(num_datasets, num_param_sets)
+        best_fits = np.argsort(rmsd, axis=1)[:, :num_to_keep]
+
+        all_best_fits_results[c*num_to_keep:(c+1)*num_to_keep] = np.array([ifnb_predicted[best_fits[i]] for i in range(num_datasets)])
+        del ifnb_predicted
+        all_best_fits_pars[c*num_to_keep:(c+1)*num_to_keep] = np.array([grid[best_fits[i]] for i in range(num_datasets)])
+        del grid
+        all_best_fits_rmsd[c*num_to_keep:(c+1)*num_to_keep] = np.array([rmsd[i][best_fits[i]] for i in range(num_datasets)])
+        del rmsd
+        
+
+    # Corresponding vector with dataset name
+    dataset_names = np.array([np.repeat(datasets[i], num_to_keep) for i in range(num_datasets)])
+
+    end = time.time()
+    t = end - start
+    if t < 60*60:
+        print("Time elapsed for param scan: %.2f minutes" % (t/60), flush=True)
+    else:
+        print("Time elapsed for param scan: %.2f hours" % (t/3600), flush=True)
+
+    return best_fits_pars, best_fits_results, best_fits_rmsd, dataset_names
+
+
+def parameter_scan(training_data, grid, h1=3, h2=1, num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False):
+    # Load data points
+    # N, I, P = training_data["NFkB"], training_data["IRF"], training_data["p50"]
+    # beta = training_data["IFNb"]
+    N, I, P = training_data["NFkB"].values, training_data["IRF"].values, training_data["p50"].values
+    beta = training_data["IFNb"].values
+    print("N: %s, \nI: %s, \nP: %s, \nbeta: %s" % (N, I, P, beta), flush=True)
+
+
+    # Calculate IFNb value at each point in grid
+    print("Calculating effects at %d points in grid" % len(grid), flush=True)
+    start = time.time()
+    if c_par:
+        with Pool(num_threads) as p:
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+    else:
+        with Pool(num_threads) as p:
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+    
+    # # debugging
+    # if c_par:
+    #     with Pool(num_threads) as p:
+    #         results = p.starmap(get_f_debug, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2]) for i in range(len(grid)) for j in range(len(N))])
+    # else:
+    #     with Pool(num_threads) as p:
+    #         results = p.starmap(get_f_debug, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2]) for i in range(len(grid)) for j in range(len(N))])
+
+    # x = np.arange(5)
+
+    # end = time.time()
+    # t = end - start
+    # if t < 60*60:
+    #     print("Time elapsed for param scan: %.2f minutes" % (t/60), flush=True)
+    # else:
+    #     print("Time elapsed for param scan: %.2f hours" % (t/3600), flush=True)
+
+    # return x, x, 1
+    # # end debugging
+
+    num_param_sets = len(grid)
+    num_data_points = len(N)
+    ifnb_predicted = np.array(results).reshape(num_param_sets, num_data_points)
+
+    # Calculate residuals
+    with Pool(num_threads) as p:
+        rmsd = p.starmap(calculate_rmsd, [(ifnb_predicted[i], beta) for i in range(num_param_sets)])
+
+    rmsd = np.array(rmsd)
+    best_fits = np.argsort(rmsd)[:100]
+    # print("Best fits: ", best_fits, flush=True)
+    best_fits_rmsd = rmsd[best_fits]
+    best_fits_pars = grid[best_fits]
+    best_fits_results = ifnb_predicted[best_fits]
+
+    end = time.time()
+    t = end - start
+    if t < 60*60:
+        print("Time elapsed for param scan: %.2f minutes" % (t/60), flush=True)
+    else:
+        print("Time elapsed for param scan: %.2f hours" % (t/3600), flush=True)
+
+    return best_fits_pars, best_fits_results, best_fits_rmsd
+
+def objective_function(pars, *args):
+    N, I, P, beta, h_pars, c_par = args
+    t_pars = pars[0:4]
+    k_pars = pars[4:8]
+    if c_par:
+        c = pars[8]
+    else:
+        c = None
+
+    num_pts = len(N)
+    
+    ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c) for i in range(num_pts)]   
+    rmsd = calculate_rmsd(ifnb_predicted, beta)
+
+    return rmsd
+
+def minimize_objective(pars, N, I, P, beta, h_pars, c_par, bounds):
+    return opt.minimize(objective_function, pars, args=(N, I, P, beta, h_pars, c_par), method="Nelder-Mead", bounds=bounds)
+
+def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3):
+    start = time.time()    
+    min_k_order = -3
+    max_k_order = 4
+    min_c_order = -3
+    max_c_order = 4
+
+    # Define bounds
+    bnds = [(0, 1) for i in range(num_t_pars)] + [(10**min_k_order, 10**max_k_order) for i in range(num_k_pars)]
+    if c:
+        bnds.append((10**min_c_order, 10**max_c_order))
+    bnds = tuple(bnds)
+
+    # Optimize
+    with Pool(num_threads) as p:
+        results = p.starmap(minimize_objective, [(pars, N, I, P, beta, h, c, bnds) for pars in initial_pars])
+
+    final_pars = np.array([result.x for result in results]) # each row is a set of optimized parameters
+    rmsd = np.array([result.fun for result in results])
+
+    if c:
+        with Pool(num_threads) as p:
+            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:-1], N[j], I[j], P[j], final_pars[i,-1], h, False) for i in range(len(final_pars)) for j in range(len(N))])
+    else:
+        with Pool(num_threads) as p:
+            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:], N[j], I[j], P[j], None, h, False) for i in range(len(final_pars)) for j in range(len(N))])
+
+    ifnb_predicted = np.array(ifnb_predicted).reshape(len(final_pars), len(N))
+
+    end = time.time()
+
+    print("Finished optimization at %s" % time.ctime(), flush=True)
+    t = end - start
+    if t < 60:
+        print("Time elapsed for optimization: %.2f seconds" % t)
+    elif t < 3600:
+        print("Time elapsed for optimization: %.2f minutes" % (t/60))
+    else:
+        print("Time elapsed for optimization: %.2f hours" % (t/3600))
+    return final_pars, ifnb_predicted, rmsd
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o","--optimize", action="store_true")
+    # parser.add_argument("-k","--optimize_kp", action="store_true")
+    parser.add_argument("-p","--param_scan", action="store_true")
+    # parser.add_argument("-s","--state_probabilities", action="store_true")
+    parser.add_argument("-m","--make_plots", action="store_true")
+    parser.add_argument("-c","--c_parameter", action="store_true")
+    parser.add_argument("-1","--h1", type=int, default=3)
+    parser.add_argument("-2","--h2", type=int, default=1)
+    parser.add_argument("-e","--error_val", type=float, default=0.1)
+    args = parser.parse_args()
+
+    start_start = time.time()
+
+    print("###############################################\n")
+    print("Starting at %s\n" % time.ctime(), flush=True)
+
+    # Settings    
+    num_threads = 40
+    model = "p50_force_t"
+    par_type = "k"
+    h1, h2 = args.h1, args.h2
+    h3 = 1
+    h_val = "%d_%d_%d" % (h1, h2, h3)
+    print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
+    c_par= args.c_parameter
+
+    # Model details
+    num_t_pars = 4
+    num_k_pars = 4
+    # num_c_pars = 1
+    # num_h_pars = 2
+
+    # Directories
+    figures_dir = "parameter_scan_force_t/figures/"
+    results_dir = "parameter_scan_force_t/results/"
+    if h_val != "3_1_1":
+        figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
+        results_dir = results_dir[:-1] + "_h_%s/" % h_val
+    if c_par:
+        figures_dir = figures_dir[:-1] + "_c_scan/"
+        results_dir = results_dir[:-1] + "_c_scan/"
+    os.makedirs(figures_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+    # pars_dir = "../three_site_model/optimization/results/seed_0/"
+    print("Saving results to %s" % results_dir, flush=True)
+    
+    # Load training data
+    # training_data = pd.read_csv("../data/p50_training_data.csv")
+    # print("Using the following training data:\n", training_data)
+    # N = training_data["NFkB"]
+    # I = training_data["IRF"]
+    # P = training_data["p50"]
+    # beta = training_data["IFNb"]
+    # conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
+    # num_pts = len(N)
+    # len_training = len(N)
+    # # stimuli = training_data["Stimulus"].unique()
+    # # genotypes = training_data["Genotype"].unique()
+    synthetic_data = pd.read_csv("../data/p50_training_data_plus_synthetic_e%.1fpct.csv" % (args.error_val))
+    datasets = synthetic_data["Dataset"].unique()
+    datasets = datasets[1:4] # for testing
+    one_dataset = synthetic_data.loc[synthetic_data["Dataset"] == datasets[0]]
+    datapoint_names = one_dataset["Stimulus"] + "_" + one_dataset["Genotype"]
+
+    if c_par:
+        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
+        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp", "c"]
+    else:
+        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
+        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp"]
+
+    # Optimize
+    if args.param_scan:
+        print("###############################################\n")
+        start = time.time()
+        grid = calculate_grid(seed=0, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par)
+
+        
+        # training_data = synthetic_data.copy()
+        # For testing, only 3 datasets
+        training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
+        
+        initial_pars, ifnb_predicted, rmsd, dataset_names = parameter_scan2(training_data, grid, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par)
+        np.savetxt("%s/%s_initial_pars.csv" % (results_dir, model), initial_pars, delimiter=",")
+        np.savetxt("%s/%s_ifnb_predicted.csv" % (results_dir, model), ifnb_predicted, delimiter=",")
+        np.savetxt("%s/%s_rmsd.csv" % (results_dir, model), rmsd, delimiter=",")
+        np.savetxt("%s/%s_dataset_names.csv" % (results_dir, model), dataset_names, delimiter=",")
+        del initial_pars, ifnb_predicted, rmsd, dataset_names
+
+        # for dataset in datasets:
+        #     print("Parameter scan using dataset %s" % dataset, flush=True)
+        #     training_data = synthetic_data.loc[synthetic_data["Dataset"] == dataset]
+        #     print("Using the following training data:\n", training_data)
+        #     N = training_data["NFkB"]
+        #     I = training_data["IRF"]
+        #     P = training_data["p50"]
+        #     beta = training_data["IFNb"]
+
+        #     # Perform parameter scan
+        #     print("Performing parameter scan...", flush=True)
+        #     initial_pars, ifnb_predicted, rmsd = parameter_scan(training_data, grid, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par)
+        #     np.savetxt("%s/%s_initial_pars_%s.csv" % (results_dir, model, dataset), initial_pars, delimiter=",")
+        #     del initial_pars, ifnb_predicted, rmsd
+        #     print("Finished parameter scan and saved values.\n", flush=True)
+
+        end = time.time()
+        t = end - start
+        if t < 60*60:
+            print("Time elapsed for param scan for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
+        else:
+            print("Time elapsed for param scan for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
+        
+        print("###############################################\n\n###############################################\n")
+
+    if args.optimize:
+        start = time.time()
+        # all_pars = np.zeros((len(datasets), 100, num_t_pars+num_k_pars))
+        # all_predictions = np.zeros((len(datasets), 100, len(N)))
+        # all_rmsd = np.zeros((len(datasets), 100))
+
+        training_data = synthetic_data.loc[synthetic_data["Dataset"] in datasets] # testing
+        # training_data = synthetic_data.copy()
+        N = training_data["NFkB"]
+        I = training_data["IRF"]
+        P = training_data["p50"]
+        beta = training_data["IFNb"]
+
+        print("Optimizing model")
+        initial_pars = np.loadtxt("%s/%s_initial_pars.csv" % (results_dir, model), delimiter=",")
+        final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+
+        np.savetxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), ifnb_predicted, delimiter=",")
+        del ifnb_predicted
+        np.savetxt("%s/%s_rmsd_optimized.csv" % (results_dir, model), rmsd, delimiter=",")
+
+        dataset_names = np.loadtxt("%s/%s_dataset_names.csv" % (results_dir, model), delimiter=",", dtype=str)
+        final_pars_df = pd.DataFrame(final_pars, columns=result_par_names)
+        final_pars_df["dataset"] = dataset_names
+        final_pars_df["rmsd"] = rmsd
+        del rmsd
+
+        # Filter for top 20 rmsd for each dataset
+        final_pars_df = final_pars_df.sort_values(by=["dataset", "rmsd"]).groupby("dataset").head(20)
+        final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
+
+        # for i, dataset in enumerate(datasets):
+        #     print("Optimizing model using dataset %s" % dataset, flush=True)
+        #     training_data = synthetic_data.loc[synthetic_data["Dataset"] == dataset]
+        #     N = training_data["NFkB"]
+        #     I = training_data["IRF"]
+        #     P = training_data["p50"]
+        #     beta = training_data["IFNb"]
+
+        #     # Optimize the model
+        #     print("Optimizing model...", flush=True)
+        #     initial_pars = pd.read_csv("%s/%s_initial_pars_%s.csv" % (results_dir, model, dataset)).values
+            
+        #     final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        #     print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
+
+        #     all_pars[i,:,:] = final_pars
+        #     all_predictions[i,:,:] = ifnb_predicted
+        #     all_rmsd[i,:] = rmsd
+        #     print("Finished optimization.", flush=True)
+        #     del final_pars, ifnb_predicted, rmsd
+
+        # print("Saving results...", flush=True)
+        # np.savetxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), all_predictions, delimiter=",")
+        # del all_predictions
+        # np.savetxt("%s/%s_rmsd_optimized.csv" % (results_dir, model), all_rmsd, delimiter=",")
+
+        # # make dataframe from all_pars
+        # all_pars = np.zeros((len(datasets), 100, num_t_pars+num_k_pars))
+        # all_pars = all_pars.reshape(-1, num_t_pars+num_k_pars)
+        # final_pars_df = pd.DataFrame(all_pars, columns=result_par_names)
+        # del all_pars
+        # final_pars_df["dataset"] = np.repeat(datasets, 100)
+        # final_pars_df["par_set"] = np.tile(np.arange(100), len(datasets))
+        # final_pars_df["rmsd"] = all_rmsd.flatten()
+        # del all_rmsd
+        # # Filter for top 20 rmsd for each dataset
+        # final_pars_df = final_pars_df.sort_values(by=["dataset", "rmsd"]).groupby("dataset").head(20)
+        # final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
+        # del final_pars_df
+
+        end = time.time()
+        t = end - start
+        if t < 60*60:
+            print("Time elapsed for optimization for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
+        else:
+            print("Time elapsed for optimization for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
+
+        print("###############################################\n\n###############################################\n")
+
+    if args.make_plots:
+        # Plot optimized parameters
+        final_pars_df = pd.read_csv("%s/%s_optimized_parameters.csv" % (results_dir, model))
+        final_pars_df = final_pars_df.melt(id_vars=["dataset", "par_set", "rmsd"], value_vars=result_par_names, var_name="parameter", value_name="value")
+        fig, ax = plt.subplots(figsize=(2.6,1.7))
+        p = sns.lineplot(data=final_pars_df, x="parameter", y="value", hue="dataset", units="par_set", estimator=None, alpha=0.5, ax=ax, palette=dataset_cmap)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.savefig("%s/optimized_parameters_separate.png" % figures_dir)
+
+        # Plot optimized predictions (top 20 for each dataset)
+        all_predictions = np.loadtxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), delimiter=",")
+        all_rmsd = np.loadtxt("%s/%s_rmsd_optimized.csv" % (results_dir, model), delimiter=",")
+        all_rmsd = all_rmsd.reshape(len(datasets), 100)
+        all_rmsd = all_rmsd.flatten()
+        all_predictions = all_predictions.reshape(len(datasets)*100, -1)
+        predictions_df = pd.DataFrame(all_predictions, columns=datapoint_names)
+        predictions_df["dataset"] = np.repeat(datasets, 100)
+        predictions_df["par_set"] = np.tile(np.arange(100), len(datasets))
+        predictions_df["rmsd"] = all_rmsd
+        predictions_df = predictions_df.sort_values(by=["dataset", "par_set"]).groupby("dataset").head(20)
+
+        predictions_df = predictions_df.melt(id_vars=["dataset", "par_set", "rmsd"], value_vars=datapoint_names, var_name="datapoint", value_name="IFNb")
+        fig, ax = plt.subplots(figsize=(2.6,1.7))
+        p = sns.lineplot(data=predictions_df, x="datapoint", y="IFNb", hue="dataset", units="par_set", estimator=None, alpha=0.5, ax=ax, palette=dataset_cmap)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.savefig("%s/optimized_predictions_separate.png" % figures_dir)
+
+        print("###############################################\n\n###############################################\n")
+        
+
+    end_end = time.time()
+    t = end_end - start_start
+    if t < 60:
+        print("Total time elapsed: %.2f seconds" % t)
+    elif t < 3600:
+        print("Total time elapsed: %.2f minutes" % (t/60))
+    else:
+        print("Total time elapsed: %.2f hours" % (t/3600))
+
+if __name__ == "__main__":
+    main()
