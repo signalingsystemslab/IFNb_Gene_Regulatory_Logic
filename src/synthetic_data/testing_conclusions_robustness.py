@@ -191,8 +191,11 @@ def parameter_scan2(training_data, grid, results_dir, h1=3, h2=1, num_threads=40
 
         best_rmsd_rows = np.argsort(rmsd, axis=0)[:num_to_keep, :]
 
+        if num_datasets_chunk != len(chunk):
+            raise ValueError("Number of datasets in chunk (%d) is not equal to number of unique datasets in chunk (%d)" % (num_datasets_chunk, len(dataset_vector.unique())))
+
         for dset in range(num_datasets_chunk):
-            dname = dataset_vector["Dataset"].unique()[dset]
+            dname = chunk[dset]
             grid_subset = grid[best_rmsd_rows[:, dset]]
             np.savetxt("%s/initial_pars_%s.csv" % (results_dir, dname), grid_subset, delimiter=",")
 
@@ -223,70 +226,6 @@ def parameter_scan2(training_data, grid, results_dir, h1=3, h2=1, num_threads=40
     # return best_fits_pars, best_fits_results, best_fits_rmsd, dataset_names
     return  datasets
 
-
-def parameter_scan(training_data, grid, h1=3, h2=1, num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False):
-    # Load data points
-    # N, I, P = training_data["NFkB"], training_data["IRF"], training_data["p50"]
-    # beta = training_data["IFNb"]
-    N, I, P = training_data["NFkB"].values, training_data["IRF"].values, training_data["p50"].values
-    beta = training_data["IFNb"].values
-    print("N: %s, \nI: %s, \nP: %s, \nbeta: %s" % (N, I, P, beta), flush=True)
-
-
-    # Calculate IFNb value at each point in grid
-    print("Calculating effects at %d points in grid" % len(grid), flush=True)
-    start = time.time()
-    if c_par:
-        with Pool(num_threads) as p:
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
-    else:
-        with Pool(num_threads) as p:
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
-    
-    # # debugging
-    # if c_par:
-    #     with Pool(num_threads) as p:
-    #         results = p.starmap(get_f_debug, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2]) for i in range(len(grid)) for j in range(len(N))])
-    # else:
-    #     with Pool(num_threads) as p:
-    #         results = p.starmap(get_f_debug, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2]) for i in range(len(grid)) for j in range(len(N))])
-
-    # x = np.arange(5)
-
-    # end = time.time()
-    # t = end - start
-    # if t < 60*60:
-    #     print("Time elapsed for param scan: %.2f minutes" % (t/60), flush=True)
-    # else:
-    #     print("Time elapsed for param scan: %.2f hours" % (t/3600), flush=True)
-
-    # return x, x, 1
-    # # end debugging
-
-    num_param_sets = len(grid)
-    num_data_points = len(N)
-    ifnb_predicted = np.array(results).reshape(num_param_sets, num_data_points)
-
-    # Calculate residuals
-    with Pool(num_threads) as p:
-        rmsd = p.starmap(calculate_rmsd, [(ifnb_predicted[i], beta) for i in range(num_param_sets)])
-
-    rmsd = np.array(rmsd)
-    best_fits = np.argsort(rmsd)[:100]
-    # print("Best fits: ", best_fits, flush=True)
-    best_fits_rmsd = rmsd[best_fits]
-    best_fits_pars = grid[best_fits]
-    best_fits_results = ifnb_predicted[best_fits]
-
-    end = time.time()
-    t = end - start
-    if t < 60*60:
-        print("Time elapsed for param scan: %.2f minutes" % (t/60), flush=True)
-    else:
-        print("Time elapsed for param scan: %.2f hours" % (t/3600), flush=True)
-
-    return best_fits_pars, best_fits_results, best_fits_rmsd
-
 def objective_function(pars, *args):
     N, I, P, beta, h_pars, c_par = args
     t_pars = pars[0:4]
@@ -298,7 +237,8 @@ def objective_function(pars, *args):
 
     num_pts = len(N)
     
-    ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c) for i in range(num_pts)]   
+    ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c) for i in range(num_pts)]
+
     rmsd = calculate_rmsd(ifnb_predicted, beta)
 
     return rmsd
@@ -359,6 +299,7 @@ def main():
     parser.add_argument("-1","--h1", type=int, default=3)
     parser.add_argument("-2","--h2", type=int, default=1)
     parser.add_argument("-e","--error_val", type=float, default=0.1)
+    parser.add_argument("-t","--test", action="store_true")
     args = parser.parse_args()
 
     start_start = time.time()
@@ -367,7 +308,7 @@ def main():
     print("Starting at %s\n" % time.ctime(), flush=True)
 
     # Settings    
-    num_threads = 40
+    num_threads = 60
     model = "p50_force_t"
     par_type = "k"
     h1, h2 = args.h1, args.h2
@@ -375,6 +316,7 @@ def main():
     h_val = "%d_%d_%d" % (h1, h2, h3)
     print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
     c_par= args.c_parameter
+    num_to_keep = 100
 
     # Model details
     num_t_pars = 4
@@ -410,7 +352,10 @@ def main():
     # # genotypes = training_data["Genotype"].unique()
     synthetic_data = pd.read_csv("../data/p50_training_data_plus_synthetic_e%.1fpct.csv" % (args.error_val))
     datasets = synthetic_data["Dataset"].unique()
-    datasets = datasets[1:4] # for testing
+
+    if args.test:
+        datasets = datasets[1:4]
+
     one_dataset = synthetic_data.loc[synthetic_data["Dataset"] == datasets[0]]
     datapoint_names = one_dataset["Stimulus"] + "_" + one_dataset["Genotype"]
 
@@ -432,8 +377,8 @@ def main():
         # For testing, only 3 datasets
         training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
         
-        datasets = parameter_scan2(training_data, grid, results_dir, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par)
-        np.savetxt("%s/%s_dataset_names.csv" % (results_dir, model), datasets, delimiter=",", fmt="%s")
+        datasets = parameter_scan2(training_data, grid, results_dir, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par,num_to_keep=num_to_keep)
+        np.savetxt("%s/dataset_names.csv" % (results_dir), datasets, delimiter=",", fmt="%s")
 
         end = time.time()
         t = end - start
@@ -445,86 +390,60 @@ def main():
         print("###############################################\n\n###############################################\n")
 
     if args.optimize:
-        start = time.time()
-        # all_pars = np.zeros((len(datasets), 100, num_t_pars+num_k_pars))
-        # all_predictions = np.zeros((len(datasets), 100, len(N)))
-        # all_rmsd = np.zeros((len(datasets), 100))
 
-        # training_data = synthetic_data.loc[synthetic_data["Dataset"] in datasets] # testing
-        # training_data = synthetic_data.copy()
-        N = training_data["NFkB"]
-        I = training_data["IRF"]
-        P = training_data["p50"]
-        beta = training_data["IFNb"]
+        start = time.time()
 
         print("###############################################\n")
         print("Optimizing model\n\n")
-        # initial_pars = np.loadtxt("%s/%s_initial_pars.csv" % (results_dir, model), delimiter=",")
-        # final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
 
-        # np.savetxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), ifnb_predicted, delimiter=",")
-        # del ifnb_predicted
-        # np.savetxt("%s/%s_rmsd_optimized.csv" % (results_dir, model), rmsd, delimiter=",")
-
-        # dataset_names = np.loadtxt("%s/%s_dataset_names.csv" % (results_dir, model), delimiter=",", dtype=str)
-        # final_pars_df = pd.DataFrame(final_pars, columns=result_par_names)
-        # final_pars_df["dataset"] = dataset_names
-        # final_pars_df["rmsd"] = rmsd
-        # del rmsd
-
-        # # Filter for top 20 rmsd for each dataset
-        # final_pars_df = final_pars_df.sort_values(by=["dataset", "rmsd"]).groupby("dataset").head(20)
-        # final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
-
-        if not os.path.exists("%s/%s_dataset_names.csv" % (results_dir, model)):
+        if not os.path.exists("%s/dataset_names.csv" % (results_dir)):
             raise FileNotFoundError("Dataset names file (%s/%s_dataset_names.csv) not found" % (results_dir, model))
 
-        dataset_names = np.loadtxt("%s/%s_dataset_names.csv" % (results_dir, model), delimiter=",", dtype=str)
+        dataset_names = np.loadtxt("%s/dataset_names.csv" % (results_dir), delimiter=",", dtype=str)
 
         # Verify that all dataset names are in the synthetic data
         if not all([d in synthetic_data["Dataset"].values for d in dataset_names]):
             missing_names = [d for d in dataset_names if d not in synthetic_data["Dataset"].values]
             raise ValueError("Dataset names not found in synthetic data: %s" % missing_names)
 
+        dir = "%s/optimization/" % results_dir
+        os.makedirs(dir, exist_ok=True)
+
         for i, dataset in enumerate(dataset_names):
             print("Optimizing model using dataset %s" % dataset, flush=True)
             training_data = synthetic_data.loc[synthetic_data["Dataset"] == dataset]
-            N = training_data["NFkB"]
-            I = training_data["IRF"]
-            P = training_data["p50"]
-            beta = training_data["IFNb"]
+            N = training_data["NFkB"].values
+            I = training_data["IRF"].values
+            P = training_data["p50"].values
+            beta = training_data["IFNb"].values
 
             # Optimize the model
             print("Optimizing model...", flush=True)
-            initial_pars = pd.read_csv("%s/%s_initial_pars_%s.csv" % (results_dir, model, dataset)).values
+            initial_pars = np.loadtxt("%s/initial_pars_%s.csv" % (results_dir, dataset), delimiter=",")
             
             final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
-            print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
+            # print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
 
-            all_pars[i,:,:] = final_pars
-            all_predictions[i,:,:] = ifnb_predicted
-            all_rmsd[i,:] = rmsd
+            # Save all results
+            np.savetxt("%s/ifnb_predicted_optimized_%s.csv" % (dir, dataset), ifnb_predicted, delimiter=",")
+            np.savetxt("%s/rmsd_optimized_%s.csv" % (dir, dataset), rmsd, delimiter=",")
+            np.savetxt("%s/optimized_parameters_%s.csv" % (dir, dataset), final_pars, delimiter=",")
+            
+            top20_pars = final_pars[np.argsort(rmsd)[:20]]
+            del final_pars
+            top20_pars = pd.DataFrame(top20_pars, columns=result_par_names)
+            top20_pars.to_csv("%s/best_optimized_parameters_%s.csv" % (dir, dataset), index=False)
+
+            top20_predictions = ifnb_predicted[np.argsort(rmsd)[:20]]
+            del ifnb_predicted
+            np.savetxt("%s/best_optimized_predictions_%s.csv" % (dir, dataset), top20_predictions, delimiter=",")
+
+            top20_rmsd = rmsd[np.argsort(rmsd)[:20]]
+            del rmsd
+            np.savetxt("%s/best_optimized_rmsd_%s.csv" % (dir, dataset), top20_rmsd, delimiter=",")
+            
             print("Finished optimization.", flush=True)
-            del final_pars, ifnb_predicted, rmsd
 
-        print("Saving results...", flush=True)
-        np.savetxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), all_predictions, delimiter=",")
-        del all_predictions
-        np.savetxt("%s/%s_rmsd_optimized.csv" % (results_dir, model), all_rmsd, delimiter=",")
-
-        # make dataframe from all_pars
-        all_pars = np.zeros((len(datasets), 100, num_t_pars+num_k_pars))
-        all_pars = all_pars.reshape(-1, num_t_pars+num_k_pars)
-        final_pars_df = pd.DataFrame(all_pars, columns=result_par_names)
-        del all_pars
-        final_pars_df["dataset"] = np.repeat(datasets, 100)
-        final_pars_df["par_set"] = np.tile(np.arange(100), len(datasets))
-        final_pars_df["rmsd"] = all_rmsd.flatten()
-        del all_rmsd
-        # Filter for top 20 rmsd for each dataset
-        final_pars_df = final_pars_df.sort_values(by=["dataset", "rmsd"]).groupby("dataset").head(20)
-        final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
-        del final_pars_df
 
         end = time.time()
         t = end - start
@@ -537,7 +456,7 @@ def main():
 
     if args.make_plots:
         # Plot optimized parameters
-        final_pars_df = pd.read_csv("%s/%s_optimized_parameters.csv" % (results_dir, model))
+        final_pars_df = pd.read_csv("%s/optimization/%s_optimized_parameters.csv" % (results_dir, model))
         final_pars_df = final_pars_df.melt(id_vars=["dataset", "par_set", "rmsd"], value_vars=result_par_names, var_name="parameter", value_name="value")
         fig, ax = plt.subplots(figsize=(2.6,1.7))
         p = sns.lineplot(data=final_pars_df, x="parameter", y="value", hue="dataset", units="par_set", estimator=None, alpha=0.5, ax=ax, palette=dataset_cmap)
