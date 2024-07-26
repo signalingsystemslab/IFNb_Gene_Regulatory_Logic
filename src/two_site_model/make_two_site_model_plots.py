@@ -200,6 +200,52 @@ def fix_ax_labels(ax, is_heatmap=False):
 
     return ax, labels_genotype_only
 
+def make_predictions_plot(df_all, name, figures_dir):
+    # Plot separately
+    for category in df_all["Category"].unique():
+        # new_rc_pars = plot_rc_pars.copy()
+        # new_rc_pars.update({"axes.labelsize":12, "xtick.labelsize":12, "legend.fontsize":12, "legend.title_fontsize":12,
+        #                                 "ytick.labelsize":12, "axes.titlesize":12})
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+            width  = 3.1*num_bars/3/2.1
+            height = 1.3/1.7
+            fig, ax = plt.subplots(figsize=(width, height))
+            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=.9, err_kws={'linewidth': 0.75})
+            ax.set_xlabel("")
+            ax.set_ylabel(r"IFNβ $f$")
+            # ax.set_title(category)
+            sns.despine()
+            ax, _ = fix_ax_labels(ax)
+            plt.tight_layout(pad=0)
+            plt.ylim(0,1)
+            category_nospace = category.replace(" ", "-")
+            plt.savefig("%s/%s_%s.png" % (figures_dir, name, category_nospace), bbox_inches="tight")
+            plt.close()
+
+    # Make one plot with legend
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+            category = "NFκB dependence"
+            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+            width  = 3.1*num_bars/3/2.1 + 0.5
+            height = 1.3/1.7
+            fig, ax = plt.subplots(figsize=(width, height))
+            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                        palette=cols, ax=ax, width=0.8, errorbar="sd", saturation=.9, err_kws={'linewidth': 0.75})
+            ax.set_xlabel("")
+            ax.set_ylabel(r"IFN$\beta$")
+            # ax.set_title(category)
+            sns.despine()
+            ax, _ = fix_ax_labels(ax)
+            plt.tight_layout(pad=0)
+            plt.ylim(0,1)
+            sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
+            plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
+            plt.close()
+
 def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_predicted_3, h3, ifnb_predicted_4, h4, beta, conditions, name, figures_dir):
     # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
     df_ifnb_predicted_1 = make_predictions_data_frame(ifnb_predicted_1, beta, conditions)
@@ -229,76 +275,9 @@ def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_p
     hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
 
     df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
+    make_predictions_plot(df_all, name, figures_dir)
 
-    # with sns.plotting_context("paper", rc=plot_rc_pars):
-    #     width_cm  = 4
-    #     height_cm = 2.5*len(df_all["Category"].unique())
-    #     fig, ax = plt.subplots(len(df_all["Category"].unique()),1, figsize=(width_cm/2.54, height_cm/2.54), layout="constrained")
-    #     for i, category in enumerate(df_all["Category"].unique()):
-    #         ax_i = ax[i]
-    #         df_cat = df_all[df_all["Category"]==category]
-    #         cols =[data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
-    #         if i == len(df_all["Category"].unique())-1:
-    #             p = sns.barplot(data=df_cat, x="Data point", y=r"IFN$\beta$", hue="Hill", 
-    #                         palette=cols, ax=ax_i, width=0.8, errorbar=None)
-    #         else:
-    #             p = sns.barplot(data=df_cat, x="Data point", y=r"IFN$\beta$", hue="Hill", 
-    #                         palette=cols, ax=ax_i, width=0.8, errorbar=None, legend=False)
-    #         ax_i.set_xlabel("")
-    #         ax_i.set_ylabel(r"IFN$\beta$")
-    #         ax_i.set_title(category)
-    #         sns.despine()
-    #         ax_i, _ = fix_ax_labels(ax_i)
-    #         ax_i.set_ylim(0,1)
-    #     sns.move_legend(ax[i], bbox_to_anchor=(0.8,0.5), title=None, frameon=False, loc="center left", ncol=1)
-    #     # plt.tight_layout()
-    #     plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
-    #     plt.close()
-
-    # Plot separately
-    for category in df_all["Category"].unique():
-        # new_rc_pars = plot_rc_pars.copy()
-        # new_rc_pars.update({"axes.labelsize":12, "xtick.labelsize":12, "legend.fontsize":12, "legend.title_fontsize":12,
-        #                                 "ytick.labelsize":12, "axes.titlesize":12})
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
-            width  = 3.1*num_bars/3/2.1
-            height = 1.3/1.7
-            fig, ax = plt.subplots(figsize=(width, height))
-            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
-            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=.9)
-            ax.set_xlabel("")
-            ax.set_ylabel(r"IFNβ $f$")
-            # ax.set_title(category)
-            sns.despine()
-            ax, _ = fix_ax_labels(ax)
-            plt.tight_layout(pad=0)
-            plt.ylim(0,1)
-            category_nospace = category.replace(" ", "-")
-            plt.savefig("%s/%s_%s.png" % (figures_dir, name, category_nospace), bbox_inches="tight")
-            plt.close()
-
-    # Make one plot with legend
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-            category = "NFκB dependence"
-            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
-            width  = 3.1*num_bars/3/2.1 + 0.5
-            height = 1.3/1.7
-            fig, ax = plt.subplots(figsize=(width, height))
-            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
-            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar=None, saturation=.9)
-            ax.set_xlabel("")
-            ax.set_ylabel(r"IFN$\beta$")
-            # ax.set_title(category)
-            sns.despine()
-            ax, _ = fix_ax_labels(ax)
-            plt.tight_layout(pad=0)
-            plt.ylim(0,1)
-            sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
-            plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
-            plt.close()
+    
 
 # def plot_predictions_barplots_onefig(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_predicted_3, h3, ifnb_predicted_4, h4, beta, conditions, name, figures_dir):
 #     df_ifnb_predicted_1 = make_predictions_data_frame(ifnb_predicted_1, beta, conditions)
@@ -627,41 +606,9 @@ def make_parameters_data_frame(pars):
     df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_I$", r"$k_N$", r"$C$"], ordered=True)
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
-# Plot parameters one plot
-def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, hi_4, name, figures_dir):
-    df_t_pars_1, df_k_pars_1, _, _ = make_parameters_data_frame(pars_1)
-    df_t_pars_2, df_k_pars_2, _, _ = make_parameters_data_frame(pars_2)
-    df_t_pars_3, df_k_pars_3, _, _ = make_parameters_data_frame(pars_3)
-    df_t_pars_4, df_k_pars_4, num_t_pars, num_k_pars = make_parameters_data_frame(pars_4)
-
-    df_all_t_pars = pd.concat([df_t_pars_1, df_t_pars_2, df_t_pars_3, df_t_pars_4], ignore_index=True)
-    df_all_k_pars = pd.concat([df_k_pars_1, df_k_pars_2, df_k_pars_3, df_k_pars_4], ignore_index=True)
-
-    # df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("1", len(df_t_pars_2)),
-    #                                     np.repeat("3", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
-    # df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("3", len(df_t_pars_2)),
-    #                                     np.repeat("1", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
-    # df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
-
-    # df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("1", len(df_k_pars_2)),
-    #                                     np.repeat("3", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
-    # df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("3", len(df_k_pars_2)),
-    #                                     np.repeat("1", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
-    # df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
-
-    df_all_t_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_t_pars_1)), np.repeat(hi_2, len(df_t_pars_2)),
-                                        np.repeat(hi_3, len(df_t_pars_3)), np.repeat(hi_4, len(df_t_pars_4))])
-    df_all_k_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_k_pars_1)), np.repeat(hi_2, len(df_k_pars_2)),
-                                        np.repeat(hi_3, len(df_k_pars_3)), np.repeat(hi_4, len(df_k_pars_4))])
-    df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"]
-    df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"]
-
-    colors = sns.color_palette(models_cmap_pars, n_colors=4)
-    new_rc_pars = plot_rc_pars.copy()
-    # pars_rc = {"axes.labelsize":7, "font.size":7, "legend.fontsize":7, "xtick.labelsize":7, 
-    #                                       "ytick.labelsize":7, "legend.title_fontsize":5}
-    # new_rc_pars.update(pars_rc)
-    with sns.plotting_context("paper",rc=new_rc_pars):
+def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, figures_dir):
+    with sns.plotting_context("paper",rc=plot_rc_pars):
+        colors = sns.color_palette(models_cmap_pars, n_colors=4)
         width = 2.1
         height = 1
         fig, ax = plt.subplots(1,2, figsize=(width, height), 
@@ -701,7 +648,7 @@ def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, h
         leg = fig.legend(legend_handles, unique_models, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
                         columnspacing=1, handletextpad=0.5, handlelength=1.5)
 
-        for i in range(4):
+        for i in range(len(unique_models)):
             leg.legend_handles[i].set_alpha(1)
             leg.legend_handles[i].set_color(colors[i])
 
@@ -710,6 +657,38 @@ def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, h
         # ax[0].get_legend().remove()
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+
+# Plot parameters one plot
+def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, hi_4, name, figures_dir):
+    df_t_pars_1, df_k_pars_1, _, _ = make_parameters_data_frame(pars_1)
+    df_t_pars_2, df_k_pars_2, _, _ = make_parameters_data_frame(pars_2)
+    df_t_pars_3, df_k_pars_3, _, _ = make_parameters_data_frame(pars_3)
+    df_t_pars_4, df_k_pars_4, num_t_pars, num_k_pars = make_parameters_data_frame(pars_4)
+
+    df_all_t_pars = pd.concat([df_t_pars_1, df_t_pars_2, df_t_pars_3, df_t_pars_4], ignore_index=True)
+    df_all_k_pars = pd.concat([df_k_pars_1, df_k_pars_2, df_k_pars_3, df_k_pars_4], ignore_index=True)
+
+    # df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("1", len(df_t_pars_2)),
+    #                                     np.repeat("3", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
+    # df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("3", len(df_t_pars_2)),
+    #                                     np.repeat("1", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
+    # df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
+
+    # df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("1", len(df_k_pars_2)),
+    #                                     np.repeat("3", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
+    # df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("3", len(df_k_pars_2)),
+    #                                     np.repeat("1", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
+    # df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
+
+    df_all_t_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_t_pars_1)), np.repeat(hi_2, len(df_t_pars_2)),
+                                        np.repeat(hi_3, len(df_t_pars_3)), np.repeat(hi_4, len(df_t_pars_4))])
+    df_all_k_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_k_pars_1)), np.repeat(hi_2, len(df_k_pars_2)),
+                                        np.repeat(hi_3, len(df_k_pars_3)), np.repeat(hi_4, len(df_k_pars_4))])
+    df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"]
+    df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"]
+
+    make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, figures_dir)
+    
 
 def calculate_ifnb(pars, data):
     num_t_pars = 2
@@ -796,7 +775,60 @@ def make_supplemental_plots():
     plot_predictions_one_plot(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4", beta, conditions, 
                               "best_20_predictions_c_scan", figures_dir)
     
-    # Load best parameters with NFkB scan - TODO
+    # Load best parameters with NFkB scan
+    best_20_pars_df_1_1 = pd.read_csv("%s/results_h_1_1/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_3_1 = pd.read_csv("%s/results_h_3_1/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_3_3 = pd.read_csv("%s/results_h_3_3/%s_best_fits_pars.csv" % (results_dir, model))
+    df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(best_20_pars_df_1_1)
+    df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(best_20_pars_df_1_3)
+    df_t_pars_3_1, df_k_pars_3_1, _, _ = make_parameters_data_frame(best_20_pars_df_3_1)
+    df_t_pars_3_3, df_k_pars_3_3, num_t_pars, num_k_pars = make_parameters_data_frame(best_20_pars_df_3_3)
+    df_all_t_pars = pd.concat([df_t_pars_1_1, df_t_pars_1_3, df_t_pars_3_1, df_t_pars_3_3], ignore_index=True)
+    df_all_k_pars = pd.concat([df_k_pars_1_1, df_k_pars_1_3, df_k_pars_3_1, df_k_pars_3_3], ignore_index=True)
+    df_all_t_pars[r"H_N"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)), np.repeat("3", len(df_t_pars_1_3)),
+                                        np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
+    df_all_t_pars[r"H_I"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)+len(df_t_pars_1_3)),
+                                        np.repeat("3", len(df_t_pars_3_1)+len(df_t_pars_3_3))])
+    df_all_k_pars[r"H_N"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
+                                        np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
+    df_all_k_pars[r"H_I"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)+len(df_k_pars_1_3)),
+                                        np.repeat("3", len(df_k_pars_3_1)+len(df_k_pars_3_3))])
+    df_all_t_pars["Model"] = r"$h_I=$" + df_all_t_pars[r"H_I"] + r", $h_N=$" + df_all_t_pars[r"H_N"]
+    df_all_k_pars["Model"] = r"$h_I=$" + df_all_k_pars[r"H_I"] + r", $h_N=$" + df_all_k_pars[r"H_N"]
+    make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, "best_20_pars_NFkB_scan", figures_dir)
+
+    # Calculate ifnb predictions with NFkB scan
+    predictions_1_1 = np.loadtxt("%s/results_h_1_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_1_3 = np.loadtxt("%s/results_h_1_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_1 = np.loadtxt("%s/results_h_3_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_3 = np.loadtxt("%s/results_h_3_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    df_ifnb_predicted_1_1 = make_predictions_data_frame(predictions_1_1, beta, conditions)
+    df_ifnb_predicted_1_3 = make_predictions_data_frame(predictions_1_3, beta, conditions)
+    df_ifnb_predicted_3_1 = make_predictions_data_frame(predictions_3_1, beta, conditions)
+    df_ifnb_predicted_3_3 = make_predictions_data_frame(predictions_3_3, beta, conditions)
+    
+    data_df = df_ifnb_predicted_1_3.loc[df_ifnb_predicted_1_3["par_set"] == "Data"].copy()
+
+    df_sym = pd.concat([df_ifnb_predicted_1_1, df_ifnb_predicted_1_3, df_ifnb_predicted_3_1, df_ifnb_predicted_3_3], ignore_index=True)
+    df_sym[r"H_I"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1) + len(df_ifnb_predicted_1_3)),
+                                        np.repeat("3", len(df_ifnb_predicted_3_1) + len(df_ifnb_predicted_3_3))])
+    df_sym[r"H_N"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
+                                        np.repeat("1", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
+    df_sym["Hill"] = r"$h_I=$" + df_sym[r"H_I"] + r", $h_N=$" + df_sym[r"H_N"]
+
+    data_df[r"H_I"] = np.repeat("Data", len(data_df))
+    data_df["Hill"] = "Exp."
+
+    df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
+    df_all = pd.concat([df_sym, data_df], ignore_index=True)
+
+    hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
+
+    df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
+    make_predictions_plot(df_all, "best_20_predictions_NFkB_scan", figures_dir)
+
+
 
 def main():
     parser = argparse.ArgumentParser()

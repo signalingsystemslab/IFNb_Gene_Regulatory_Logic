@@ -19,7 +19,7 @@ mpl.rcParams["font.sans-serif"] = "Arial"
 # nfkb_color = "#BA4961"
 data_color = "#6F5987"
 
-states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
+states_cmap_pars = "ch:s=0.9,r=-0.8,h=0.6,l=0.9,d=0.2"
 models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
 
 # # states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
@@ -57,30 +57,42 @@ def helper_contrib_heatmap(*args, **kwargs):
     ax.set_yticklabels(["%.1f" % i for i in y_ticks_labels])
 
 def make_heatmap(contrib_df, cmap, model, name, figures_dir):
-    heatmap_pars = {"axes.titlesize":7}
-    new_rc_pars = plot_rc_pars.copy()
-    new_rc_pars.update(heatmap_pars)
+    # heatmap_pars = {"axes.titlesize":7}
+    # new_rc_pars = plot_rc_pars.copy()
+    # new_rc_pars.update(heatmap_pars)
 
-    with sns.plotting_context("paper", rc=new_rc_pars):
-        ncols = 4
-        p = sns.FacetGrid(contrib_df, col="state", col_wrap=ncols, sharex=True, sharey=True, height=1.1)
-        cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
-        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar_ax=cbar_ax, vmin=0, vmax=1, 
-                        cmap=cmap, square=True)
-        p.set_titles("{col_name}")
-        plt.subplots_adjust(top=0.93, right=0.84, hspace=0.5, wspace = 0.2)
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        num_states = len(contrib_df["state"].unique())
+        if num_states > 4:
+            ncols=4
+            p = sns.FacetGrid(contrib_df, col="state", col_wrap=ncols, sharex=True, sharey=True, height=1.1)
+            # cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
+            p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar=None, vmin=0, vmax=1, 
+                            cmap=cmap, square=True)
+            p.set_titles("{col_name}")
+            plt.subplots_adjust(top=0.93, hspace=0.5, wspace = 0.2)
+
+            # Remove axes labels on all plots except for the plot on the lower left: last row, first column
+            num_axes = len(p.axes)
+            first_col = [ind % ncols == 0 for ind in range(num_axes)]
+            last_row = np.max(np.arange(num_axes)[first_col])
+            for i, ax in enumerate(p.axes):
+                if i != last_row:
+                    ax.set_xlabel("")
+                    ax.set_ylabel("")
+        else:
+            ncols = 4
+            p = sns.FacetGrid(contrib_df, col="state", col_wrap=ncols, sharex=True, sharey=True, height=1.3)
+            # cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
+            p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar=None, vmin=0, vmax=1, 
+                            cmap=cmap, square=True)
+            p.set_titles("{col_name}")
+            plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
 
         # Label color bar
-        cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
+        # cbar_ax.set_title("Max-Normalized\n Transcription")
 
-        # Remove axes labels on all plots except for the plot on the lower left: last row, first column
-        num_axes = len(p.axes)
-        first_col = [ind % ncols == 0 for ind in range(num_axes)]
-        last_row = np.max(np.arange(num_axes)[first_col])
-        for i, ax in enumerate(p.axes):
-            if i != last_row:
-                ax.set_xlabel("")
-                ax.set_ylabel("")
+        
 
         plt.savefig("%s/%s_%s_heatmap.png" % (figures_dir, model, name))
         plt.close()
@@ -137,6 +149,18 @@ def make_contribution_plots():
 
     make_heatmap(contrib_df, cmap, model, "contrib_sweep_WT", figures_dir)
 
+    # Filter for three states: IRF1IRF2, IRF1NFkB, IRF1IRF2NFkB
+    contrib_df_three = contrib_df.loc[contrib_df["state"].isin([r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"])].copy()
+    contrib_df_three["state"] = contrib_df_three["state"].cat.remove_unused_categories()
+
+    contrib_df_other = contrib_df.loc[~contrib_df["state"].isin([r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"])].copy()
+    contrib_df_other = contrib_df_other.groupby([r"NF$\kappa$B", "IRF"])["contribution"].sum().reset_index()
+    contrib_df_other["state"] = "Other"
+    contrib_df_other["state"] = pd.Categorical(contrib_df_other["state"], categories=["Other"], ordered=True)
+    contrib_df_three = pd.concat([contrib_df_three, contrib_df_other], ignore_index=True)
+    print(contrib_df_three)
+    make_heatmap(contrib_df_three, cmap, model, "contrib_sweep_WT_three_states", figures_dir)
+
     # Make heatmap for all states, KO p50
     contrib_df_KO = pd.read_csv("%s/%s_best_params_contributions_sweep_p0.csv" % (results_dir, model))
 
@@ -148,6 +172,20 @@ def make_contribution_plots():
     contrib_df_KO = contrib_df_KO.groupby([r"NF$\kappa$B", "IRF", "state"])["contribution"].mean().reset_index()
 
     make_heatmap(contrib_df_KO, cmap, model, "contrib_sweep_KO", figures_dir)
+
+    # make horizontal colorbar for heatmap cmap
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(1.3,0.4))
+        norm = mcolors.Normalize(vmin=0, vmax=1)
+        cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation="horizontal")
+        cb.set_label("Max-Normalized Transcription")
+        # move label to top
+        ax.xaxis.set_label_position("top")
+        plt.subplots_adjust(left=0.1, right=0.9, top=0.65, bottom=0.3)
+        plt.savefig("%s/heatmap_colorbar.png" % (figures_dir))
+        plt.close()
+
+
 
     ## Make stacked bar plots for LPS/pIC states ##
     contrib_df = pd.read_csv("%s/%s_specific_conds_contributions.csv" % (results_dir, model))
@@ -170,18 +208,18 @@ def make_contribution_plots():
     contrib_df["Condition"] = pd.Categorical(contrib_df["Condition"], categories=condition_levels, ordered=True)
 
     # Contributing states
-    contrib_states = [r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
+    contrib_states = [r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
     # Sum all non-contributing states into "Other"
     contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
     contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
     contrib_df = contrib_df.groupby(["Condition", "state"])["contribution"].sum().reset_index()
 
-    new_rc_pars = plot_rc_pars.copy()
-    stack_rc_pars = {"xtick.labelsize":5}
-    new_rc_pars.update(stack_rc_pars)
-    with sns.plotting_context("paper", rc=new_rc_pars):
-        states_colors = sns.color_palette(states_cmap_pars, n_colors=len(contrib_states) + 1)
-        fig, ax = plt.subplots(figsize=(2.6,1.7))
+    # new_rc_pars = plot_rc_pars.copy()
+    # stack_rc_pars = {"xtick.labelsize":5}
+    # new_rc_pars.update(stack_rc_pars)
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        states_colors = sns.color_palette(states_cmap_pars, n_colors=len(contrib_states)) + ["#444D59"]
+        fig, ax = plt.subplots(figsize=(2.9,1.7))
         ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
                           palette=states_colors, ax=ax, linewidth=0.5)
         ax.set_ylabel("Transcription")
@@ -539,11 +577,15 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
 
+    df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+
     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
                                         np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
+
+    df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
 
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
 
@@ -587,7 +629,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
                          ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
 
-        for i in range(4):
+        for i in range(len(unique_models)):
             leg.legend_handles[i].set_alpha(1)
             leg.legend_handles[i].set_color(colors[i])
 
@@ -747,7 +789,9 @@ def make_state_probabilities_plots():
     state_probs_df["Condition"] = pd.Categorical(state_probs_df["Condition"], categories=conditions, ordered=True)
     # replace " state" in all state names
     state_probs_df["state"] = state_probs_df["state"].str.replace(" state", "")
-    # print(state_probs_df)
+    # categories = [lambda x: "NFκB dependence" if "rela" in x else "IRF dependence" if "irf" in x else "p50 dependence" if "p50" in x else "Stimulus Specific" for x in state_probs_df["Genotype"]]
+    # state_probs_df["Category"] = state_probs_df["Genotype"].apply(lambda x: "NFκB dependence" if "NFκB" in x else "IRF dependence" if "IRF" in x else "p50 dependence" if "p50" in x else "Stimulus Specific")
+    # category_dict = {state: category for state, category in zip(state_probs_df["state"].unique(), state_probs_df["Category"].unique())}
 
     # Plot state probabilities
     # Make dictionary of colors
@@ -778,60 +822,100 @@ def make_state_probabilities_plots():
     # State probability
     state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=state_probs_df["state"].unique(), ordered=True)
     state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
-    n_columns = state_probs_df.shape[1]
-    n_rows = state_probs_df.shape[0]
+    print(state_probs_df)
 
-    # IFNb column
-    ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
-    t_pars = best_fit_parameters.iloc[:4].values
-    k_pars = best_fit_parameters.iloc[4:8].values
-    h_pars = [3,1]
-    ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
-    ifnb_df.loc["basal_WT"] = ifnb_basal_wt
-    ifnb_df = ifnb_df.rename(condition_renaming_dict)
-    ifnb_df = ifnb_df.rename("")
+    # categories dict: NFκB dependence (contains NFκB or WT, LPS or pIC only), IRF dependence (contains IRF, LPS or pIC only),
+    # p50 dependence (contains p50, LPS or CpG only), Stimulus Specific (contains WT )
+    category_dict = {"NFκB dependence": [x for x in state_probs_df.index if ("NFκB" in x or "WT" in x) and ("LPS" in x or "PolyIC" in x)],
+                    "IRF dependence": [x for x in state_probs_df.index if ("IRF" in x or "WT" in x) and ("LPS" in x or "PolyIC" in x)],
+                    "p50 dependence": [x for x in state_probs_df.index if ("p50" in x or "WT" in x) and ("LPS" in x or "CpG" in x)],
+                    "Stimulus Specific": [x for x in state_probs_df.index if "WT" in x]}
+    # print(category_dict)
 
-    # Add a blank column
-    blank_col = pd.DataFrame(np.nan, index=state_probs_df.index, columns=[" "])
-    state_probs_df = pd.concat([state_probs_df, blank_col], axis=1)
+    # raise ValueError("Stop here")
 
-    # Add the IFNb column
-    state_probs_df = pd.concat([state_probs_df, ifnb_df], axis=1)
+    for category in category_dict:
+        state_probs_df_category = state_probs_df.loc[category_dict[category]]
+        # print(state_probs_df_category)
 
-    # Add a blank row
-    blank_row = pd.DataFrame(np.nan, index=[" "], columns=state_probs_df.columns)
-    state_probs_df = pd.concat([state_probs_df, blank_row])
+        n_columns = state_probs_df_category.shape[1]
+        n_rows = state_probs_df_category.shape[0]
 
-    # Add the t_pars row
-    t_pars_df = t_pars_df.reindex(columns=state_probs_df.columns)
-    state_probs_df = pd.concat([state_probs_df, t_pars_df])
+        # IFNb column
+        ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
+        t_pars = best_fit_parameters.iloc[:4].values
+        k_pars = best_fit_parameters.iloc[4:8].values
+        h_pars = [3,1]
+        ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
+        ifnb_df.loc["basal_WT"] = ifnb_basal_wt
+        ifnb_df = ifnb_df.rename(condition_renaming_dict)
+        ifnb_df = ifnb_df.rename("")
+        ifnb_df = ifnb_df.loc[state_probs_df_category.index]
 
-    heatmap_rc_pars = {"xtick.labelsize":6,"ytick.labelsize":6, "legend.fontsize":6}
-    new_rc_pars = plot_rc_pars.copy()
-    new_rc_pars.update(heatmap_rc_pars)
+        # Add a blank column
+        blank_col = pd.DataFrame(np.nan, index=state_probs_df_category.index, columns=[" "])
+        state_probs_df_category = pd.concat([state_probs_df_category, blank_col], axis=1)
 
-    # TODO: Split into 4 different plots by category
+        # Add the IFNb column
+        state_probs_df_category = pd.concat([state_probs_df_category, ifnb_df], axis=1)
 
-    with sns.plotting_context("paper", rc=new_rc_pars):
-        # Create the heatmap
-        fig, ax = plt.subplots(figsize=(2.2, 2))
-        cbar_ax = fig.add_axes([.95, .3, .02, .5])
-        sns.heatmap(data=state_probs_df, cbar_ax=cbar_ax, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap)
-        ax.set_ylabel("")
-        ax.tick_params(axis="both", which="both", length=0)    
-        plt.subplots_adjust(top=0.93, right=0.8, hspace=0.1, wspace=0.2)
-        # Write r"IFN$\beta$ mRNA" to the right of the heatmap
-        ifnb_y_position = 1-(n_rows / (state_probs_df.shape[0] + 1) / 2)
-        ax.text(1.03, ifnb_y_position, r"IFN$\beta$ mRNA ($f$)", ha="center", va="center", rotation=270, fontsize=6, transform=ax.transAxes)
-        # Title color bar
-        cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
-        # Title heatmap
-        title_x_position = n_columns / (state_probs_df.shape[1] + 1) / 2
-        ax.set_title("State Probabilities", fontsize=6, pad=4, x=title_x_position)
+        # Add a blank row
+        blank_row = pd.DataFrame(np.nan, index=[" "], columns=state_probs_df_category.columns)
+        state_probs_df_category = pd.concat([state_probs_df_category, blank_row])
 
-        # plt.tight_layout()
-        plt.savefig("%s/%s_state_probabilities_heatmap.png" % (figures_dir, model), bbox_inches="tight")
-        plt.close()
+        # Add the t_pars row
+        t_pars_df = t_pars_df.reindex(columns=state_probs_df_category.columns)
+        state_probs_df_category = pd.concat([state_probs_df_category, t_pars_df])
+
+        # heatmap_rc_pars = {"xtick.labelsize":6,"ytick.labelsize":6, "legend.fontsize":6}
+        # new_rc_pars = plot_rc_pars.copy()
+        # new_rc_pars.update(heatmap_rc_pars)
+        
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            # Create the heatmap
+            fig, ax = plt.subplots(figsize=(2, 2))
+            # cbar_ax = fig.add_axes([.95, .3, .02, .5])
+            sns.heatmap(data=state_probs_df_category, cbar=False, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap)
+            ax.set_ylabel("")
+            ax.tick_params(axis="both", which="both", length=0)    
+            plt.subplots_adjust(top=0.93, right=0.8, hspace=0.1, wspace=0.2)
+            # Write r"IFN$\beta$ mRNA" to the right of the heatmap
+            # ifnb_y_position = 1-(n_rows / (state_probs_df_category.shape[0] + 1) / 2)
+            # ax.text(1.05, ifnb_y_position, r"IFN$\beta$ mRNA ($f$)", ha="center", va="center", rotation=270, fontsize=6, transform=ax.transAxes)
+            # Title color bar
+            # cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
+            # Title heatmap
+            title_x_position = n_columns / (state_probs_df_category.shape[1] + 1) / 2
+            # ax.set_title("State Probabilities", fontsize=6, pad=4, x=title_x_position)
+
+            # plt.tight_layout()
+            cat = category.replace(" ", "_")
+            plt.savefig("%s/state_probabilities_heatmap_%s.png" % (figures_dir, cat), bbox_inches="tight")
+            plt.close()
+
+            if category == "Stimulus Specific":
+                # Create the heatmap
+                fig, ax = plt.subplots(figsize=(2.2, 2))
+                cbar_ax = fig.add_axes([.9, .3, .02, .5])
+                sns.heatmap(data=state_probs_df_category, cbar_ax=cbar_ax, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap)
+                ax.set_ylabel("")
+                ax.tick_params(axis="both", which="both", length=0)    
+                plt.subplots_adjust(top=0.93, right=0.7, hspace=0.1, wspace=0.2)
+                # Write r"IFN$\beta$ mRNA" to the right of the heatmap
+                ifnb_y_position = 1-(n_rows / (state_probs_df_category.shape[0] + 1) / 2)
+                ax.text(1.03, ifnb_y_position, r"IFN$\beta$ mRNA ($f$)", ha="center", va="center", rotation=270, fontsize=6, transform=ax.transAxes)
+                # Title color bar
+                cbar_ax.set_title("Max-Normalized\n Transcription", fontsize=6)
+                # Title heatmap
+                title_x_position = n_columns / (state_probs_df_category.shape[1] + 1) / 2
+                ax.set_title("State Probabilities", fontsize=6, pad=4, x=title_x_position)
+
+                # plt.tight_layout()
+                cat = category.replace(" ", "_")
+                plt.savefig("%s/state_probabilities_heatmap_cbar.png" % (figures_dir), bbox_inches="tight")
+                plt.close()
+
+
 
 
 ### Supplemental plots ###
