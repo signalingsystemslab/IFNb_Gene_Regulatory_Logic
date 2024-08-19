@@ -551,189 +551,308 @@ def main():
 
         optimized_predictions_df = all_optimized_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
 
-        # # Plot optimized parameters
-        # print("Plotting optimized parameters", flush=True)
+        # Plot optimized parameters
+        print("Plotting optimized parameters", flush=True)
 
-        # df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(all_optimized_pars)
+        df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(all_optimized_pars)
 
-        # colors = sns.color_palette(dataset_cmap_pars, len(datasets))
+        colors = sns.color_palette(dataset_cmap_pars, len(datasets))
         
-        # with sns.plotting_context("paper",rc=plot_rc_pars):
-        #     width = 2.8
-        #     height = 1
-        #     fig, ax = plt.subplots(1,2, figsize=(width, height), 
-        #                         gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+        with sns.plotting_context("paper",rc=plot_rc_pars):
+            width = 2.8
+            height = 1
+            fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
             
-        #     legend_handles = []
-        #     for i, dset in enumerate(datasets):
-        #         # Filter data for the current model
-        #         df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
-        #         l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+            legend_handles = []
+            for i, dset in enumerate(datasets):
+                # Filter data for the current model
+                df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
+                l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
 
-        #         legend_handles.append(l)
+                legend_handles.append(l)
 
-        #         df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
-        #         sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+                df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
+                sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
             
-        #     ax[1].set_yscale("log")
-        #     ax[1].set_ylabel("")
+            ax[1].set_yscale("log")
+            ax[1].set_ylabel("")
 
-        #     ax[0].set_ylabel("Parameter Value")
-        #     ax[0].set_xlabel("")
-        #     ax[1].set_xlabel("")
+            ax[0].set_ylabel("Parameter Value")
+            ax[0].set_xlabel("")
+            ax[1].set_xlabel("")
 
-        #     sns.despine()
-        #     plt.tight_layout()
-        #     plt.savefig("%s/optimized_parameters_combined.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/optimized_parameters_combined.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
-        #     # Plot original dataset only
-        #     fig, ax = plt.subplots(1,2, figsize=(width, height),
-        #                         gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-        #     legend_handles = []
-        #     df_model = df_all_t_pars[df_all_t_pars["Dataset"] == datasets[0]]
-        #     l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[0], zorder = 0, alpha=0.2)
-        #     legend_handles.append(l)
-        #     df_model = df_all_k_pars[df_all_k_pars["Dataset"] == datasets[0]]
-        #     sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[1], zorder = 0, alpha=0.2)
-        #     ax[1].set_yscale("log")
-        #     ax[1].set_ylabel("")
-        #     ax[0].set_ylabel("Parameter Value")
-        #     ax[0].set_xlabel("")
-        #     ax[1].set_xlabel("")
-        #     sns.despine()
-        #     plt.tight_layout()
-        #     plt.savefig("%s/optimized_parameters_original.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+            # Plot original dataset only
+            fig, ax = plt.subplots(1,2, figsize=(width, height),
+                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+            legend_handles = []
+            df_model = df_all_t_pars[df_all_t_pars["Dataset"] == datasets[0]]
+            l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[0], zorder = 0, alpha=0.2)
+            legend_handles.append(l)
+            df_model = df_all_k_pars[df_all_k_pars["Dataset"] == datasets[0]]
+            sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[1], zorder = 0, alpha=0.2)
+            ax[1].set_yscale("log")
+            ax[1].set_ylabel("")
+            ax[0].set_ylabel("Parameter Value")
+            ax[0].set_xlabel("")
+            ax[1].set_xlabel("")
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/optimized_parameters_original.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
-        # # Plot optimized predictions
-        # print("Plotting optimized predictions", flush=True)
+        # Plot optimized predictions
+        print("Plotting optimized predictions", flush=True)
 
-        # optimized_predictions_df = make_predictions_data_frame(optimized_predictions_df)
+        optimized_predictions_df = make_predictions_data_frame(optimized_predictions_df)
 
-        # data_df = pd.read_csv("../data/p50_training_data.csv")
-        # data_df["Data point"] = data_df["Stimulus"] + "_" + data_df["Genotype"]
-        # data_df = data_df.rename(columns={"IFNb": r"IFN$\beta$"})
-        # data_df = make_predictions_data_frame(data_df)
-        # new_data_color = "#A7535E"
+        data_df = pd.read_csv("../data/p50_training_data.csv")
+        data_df["Data point"] = data_df["Stimulus"] + "_" + data_df["Genotype"]
+        data_df = data_df.rename(columns={"IFNb": r"IFN$\beta$"})
+        data_df = make_predictions_data_frame(data_df)
+        new_data_color = "#A7535E"
         
-        # with sns.plotting_context("paper", rc=plot_rc_pars):
-        #     # Scatterplot, x = datapoint name, y= IFNb value, color = dataset
-        #     fig, ax = plt.subplots(figsize=(3,2))
-        #     p = sns.stripplot(data=optimized_predictions_df, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
-        #                       alpha=0.7, jitter=0.2, ax=ax, legend=False)
-        #     sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-        #     plt.xticks(rotation=45)
-        #     # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
-        #     plt.tight_layout()
-        #     plt.savefig("%s/optimized_predictions_combined.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            # Scatterplot, x = datapoint name, y= IFNb value, color = dataset
+            fig, ax = plt.subplots(figsize=(3,2))
+            p = sns.stripplot(data=optimized_predictions_df, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
+                              alpha=0.7, jitter=0.2, ax=ax, legend=False)
+            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+            plt.xticks(rotation=45)
+            # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+            plt.tight_layout()
+            plt.savefig("%s/optimized_predictions_combined.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
-        #     # Plot original dataset only
-        #     data_subset = optimized_predictions_df.loc[optimized_predictions_df["Dataset"] == datasets[0]]
-        #     fig, ax = plt.subplots(figsize=(3,2))
-        #     p = sns.stripplot(data=data_subset, x="Data point", y=r"IFN$\beta$", color=colors[0],
-        #                         alpha=0.7, jitter=0.2, ax=ax, legend=False)
-        #     sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-        #     plt.xticks(rotation=45)
-        #     # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
-        #     plt.tight_layout()
-        #     plt.savefig("%s/optimized_predictions_original.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+            # Plot original dataset only
+            data_subset = optimized_predictions_df.loc[optimized_predictions_df["Dataset"] == datasets[0]]
+            fig, ax = plt.subplots(figsize=(3,2))
+            p = sns.stripplot(data=data_subset, x="Data point", y=r"IFN$\beta$", color=colors[0],
+                                alpha=0.7, jitter=0.2, ax=ax, legend=False)
+            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+            plt.xticks(rotation=45)
+            # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+            plt.tight_layout()
+            plt.savefig("%s/optimized_predictions_original.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
 
-        # # Plot measurements of conclusions
-        # # 1. tI1I2, tI1N > 0,1 & tI, tN < 0.1
-        # # 2. tI1I2 > 2*tI & tI1N > tI1 + tN
+        # Plot measurements of conclusions
+        # 1. tI1I2, tI1N > 0,1 & tI, tN < 0.1
+        # 2. tI1I2 > 2*tI & tI1N > tI1 + tN
 
-        # # Measure two modes of activation (#1)
-        # # df_all_t_pars = df_all_t_pars.loc[df_all_t_pars["Dataset"] == datasets[0]] # for now, only use first dataset
-        # df_all_t_pars["par_set"] = df_all_t_pars.groupby(["Dataset", "Parameter"]).cumcount()
-        # # Count number of parameter sets where tI1I2 > 0.1
-        # df_all_t_pars = df_all_t_pars.pivot_table(index=["Dataset", "par_set"], columns="Parameter", values="Value")
+        # Measure two modes of activation (#1)
+        # df_all_t_pars = df_all_t_pars.loc[df_all_t_pars["Dataset"] == datasets[0]] # for now, only use first dataset
+        df_all_t_pars["par_set"] = df_all_t_pars.groupby(["Dataset", "Parameter"]).cumcount()
+        # Count number of parameter sets where tI1I2 > 0.1
+        df_all_t_pars = df_all_t_pars.pivot_table(index=["Dataset", "par_set"], columns="Parameter", values="Value")
         
-        # df_all_t_pars = df_all_t_pars.reset_index()
+        df_all_t_pars = df_all_t_pars.reset_index()
 
+        df_all_t_pars["tI1I2_tI1N_high"] = (df_all_t_pars["$t_{I_1I_2}$"] > 0.5) & (df_all_t_pars["$t_{I_1N}$"] > 0.5)
+        df_all_t_pars["tI_tN_low"] = (df_all_t_pars["$t_{I}$"] < 0.2) & (df_all_t_pars["$t_N$"] < 0.2)
+        df_all_t_pars["two_modes"] = df_all_t_pars["tI1I2_tI1N_high"] & df_all_t_pars["tI_tN_low"]
 
-        # df_all_t_pars["tI1I2_tI1N_high"] = (df_all_t_pars["$t_{I_1I_2}$"] > 0.1) & (df_all_t_pars["$t_{I_1N}$"] > 0.1)
-        # df_all_t_pars["tI_tN_low"] = (df_all_t_pars["$t_{I}$"] < 0.1) & (df_all_t_pars["$t_N$"] < 0.1)
-        # df_all_t_pars["two_modes"] = df_all_t_pars["tI1I2_tI1N_high"] & df_all_t_pars["tI_tN_low"]
+        # Measure synergy (#2)
+        df_all_t_pars["tI1I2_gt_2tI"] = df_all_t_pars["$t_{I_1I_2}$"] > 2*df_all_t_pars["$t_{I}$"]
+        df_all_t_pars["tI1N_gt_tI1_tN"] = df_all_t_pars["$t_{I_1N}$"] > df_all_t_pars["$t_{I}$"] + df_all_t_pars["$t_N$"]
+        df_all_t_pars["synergy"] = df_all_t_pars["tI1I2_gt_2tI"] & df_all_t_pars["tI1N_gt_tI1_tN"]
+        # print(df_all_t_pars)
 
-        # # Measure synergy (#2)
-        # df_all_t_pars["tI1I2_gt_2tI"] = df_all_t_pars["$t_{I_1I_2}$"] > 2*df_all_t_pars["$t_{I}$"]
-        # df_all_t_pars["tI1N_gt_tI1_tN"] = df_all_t_pars["$t_{I_1N}$"] > df_all_t_pars["$t_{I}$"] + df_all_t_pars["$t_N$"]
-        # df_all_t_pars["synergy"] = df_all_t_pars["tI1I2_gt_2tI"] & df_all_t_pars["tI1N_gt_tI1_tN"]
-        # # print(df_all_t_pars)
+        # For each dataset, calculate % of parameter sets that satisfy each condition
+        conclusions_df = df_all_t_pars.copy()
+        conclusions_df = conclusions_df.groupby("Dataset").agg({"two_modes": "mean", "synergy": "mean"}).reset_index()
+        conclusions_df.to_csv("%s/conclusions.csv" % dir, index=False)
 
-        # # For each dataset, calculate % of parameter sets that satisfy each condition
-        # conclusions_df = df_all_t_pars.copy()
-        # conclusions_df = conclusions_df.groupby("Dataset").agg({"two_modes": "mean", "synergy": "mean"}).reset_index()
-        # conclusions_df.to_csv("%s/conclusions.csv" % dir, index=False)
-
-        # # Plot conclusions
-        # conclusions_df = pd.read_csv("%s/conclusions.csv" % dir)
-        # conclusions_df = pd.melt(conclusions_df, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
-        # conclusions_df["Conclusion"] = conclusions_df["Conclusion"].replace("two_modes", "Two modes of activation")
-        # conclusions_df["Conclusion"] = conclusions_df["Conclusion"].replace("synergy", "Synergy")
-        # color = sns.color_palette(dataset_cmap_pars, len(datasets))[0]
-        # with sns.plotting_context("paper", rc=plot_rc_pars):
-        #     fig, ax = plt.subplots(figsize=(2,2))
-        #     # sns.barplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, color=color,
-        #     #             estimator=np.mean, errorbar="sd")
-        #     sns.boxplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, color=color)
-        #     plt.tight_layout()
-        #     plt.savefig("%s/conclusions.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+        # Plot conclusions
+        conclusions_df = pd.read_csv("%s/conclusions.csv" % dir)
+        conclusions_df = pd.melt(conclusions_df, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
+        conclusions_df["Conclusion"] = conclusions_df["Conclusion"].replace("two_modes", "Two modes of activation")
+        conclusions_df["Conclusion"] = conclusions_df["Conclusion"].replace("synergy", "Synergy")
+        color = sns.color_palette(dataset_cmap_pars, len(datasets))[0]
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(2,2))
+            # sns.barplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, color=color,
+            #             estimator=np.mean, errorbar="sd")
+            sns.boxplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, color=color)
+            plt.tight_layout()
+            plt.ylim(-0.05, 1.05)
+            plt.savefig("%s/conclusions.png" % figures_dir, bbox_inches="tight")
+            plt.close()
     
-        # # Count # of rows where two_modes is true, synergy is true, no k value is > 1000
-        # print("Plotting acceptable and bad parameter sets", flush=True)
-        # all_optimized_pars = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
-        # # print(all_optimized_pars)
-        # all_optimized_pars["low_rows"] = (all_optimized_pars["t_1"] <= 0.15) & (all_optimized_pars["t_3"] <= 0.15)
-        # all_optimized_pars["high_rows"] = (all_optimized_pars["t_4"] > 0.85) & (all_optimized_pars["t_5"] > 0.85)
-        # all_optimized_pars["k_reasonable"] = (all_optimized_pars["k1"] <= 1000) & (all_optimized_pars["k2"] <= 1000) & (all_optimized_pars["kn"] <= 1000) & (all_optimized_pars["kp"] <= 1000)
-        # all_optimized_pars["acceptable"] = (all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"]) & (all_optimized_pars["k_reasonable"])
-        # all_optimized_pars["bad_t_good_k"] = ~((all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"])) & (all_optimized_pars["k_reasonable"])
-        # all_optimized_pars["bad_t_bad_k"] = ~((all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"])) & ~(all_optimized_pars["k_reasonable"])
+        # Count # of rows where two_modes is true, synergy is true, no k value is > 1000
+        print("Plotting acceptable and bad parameter sets", flush=True)
+        all_optimized_pars = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
+        # print(all_optimized_pars)
+        all_optimized_pars["low_rows"] = (all_optimized_pars["t_1"] <= 0.2) & (all_optimized_pars["t_3"] <= 0.2)
+        all_optimized_pars["high_rows"] = (all_optimized_pars["t_4"] > 0.5) & (all_optimized_pars["t_5"] > 0.5)
+        all_optimized_pars["k_reasonable"] = (all_optimized_pars["k1"] <= 1000) & (all_optimized_pars["k2"] <= 1000) & (all_optimized_pars["kn"] <= 1000) & (all_optimized_pars["kp"] <= 1000)
+        all_optimized_pars["acceptable"] = (all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"]) & (all_optimized_pars["k_reasonable"])
+        all_optimized_pars["bad"] = ~(all_optimized_pars["acceptable"])
 
-        # # Plot count of acceptable parameter sets and bad parameter sets per dataset
-        # summary = all_optimized_pars.groupby("Dataset").agg({"acceptable": "sum", "bad_t_good_k": "sum", "bad_t_bad_k": "sum"}).reset_index()
-        # summary = pd.melt(summary, id_vars="Dataset", var_name="Conclusion", value_name="Count")
-        # summary["Conclusion"] = summary["Conclusion"].replace("acceptable", r"Good: $t_{I}, t_N < 0.15, t_{I_1I_2}, t_{I_1N} > 0.85, k < 1000$")
-        # summary["Conclusion"] = summary["Conclusion"].replace("bad_t_good_k", r"Bad t, reasonable k")
-        # summary["Conclusion"] = summary["Conclusion"].replace("bad_t_bad_k", r"Bad t, bad k")
-        # # Remove "synthetic_" from dataset names
-        # summary["Dataset"] = summary["Dataset"].str.replace("synthetic_", "")
+        # Plot count of acceptable parameter sets and bad parameter sets per dataset
+        summary = all_optimized_pars.groupby("Dataset").agg({"acceptable": "sum", "bad": "sum"}).reset_index()
+        summary = pd.melt(summary, id_vars="Dataset", var_name="Conclusion", value_name="Count")
+        summary["Conclusion"] = summary["Conclusion"].replace("acceptable", r"Good $t$")
+        summary["Conclusion"] = summary["Conclusion"].replace("bad", r"Bad $t$")
+        # Remove "synthetic_" from dataset names
+        summary["Dataset"] = summary["Dataset"].str.replace("synthetic_", "")
 
-        # with sns.plotting_context("paper", rc=plot_rc_pars):
-        #     fig, ax = plt.subplots(figsize=(13,2))
-        #     # Stack barplot
-        #     # ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
-        #     #               palette=states_colors, ax=ax, linewidth=0.5)
-        #     sns.histplot(data=summary, x="Dataset", hue="Conclusion", weights="Count", multiple="stack", shrink=0.8, ax=ax, linewidth=0.5,
-        #                  palette=sns.color_palette("Set2", 3))
-        #     plt.tight_layout()
-        #     sns.move_legend(ax, "lower center", bbox_to_anchor=(0.5, 1), ncol=3)
-        #     plt.savefig("%s/acceptable_bad_pars.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(13,2))
+            # Stack barplot
+            # ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
+            #               palette=states_colors, ax=ax, linewidth=0.5)
+            sns.histplot(data=summary, x="Dataset", hue="Conclusion", weights="Count", multiple="stack", shrink=0.8, ax=ax, linewidth=0.5,
+                         palette=sns.color_palette("Set2", 2))
+            plt.tight_layout()
+            sns.move_legend(ax, "lower center", bbox_to_anchor=(0.5, 1), ncol=3)
+            plt.savefig("%s/acceptable_bad_pars.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
-        # # For each data set count the percantage of bad t reasonable k and acceptable
-        # summary_by_dset = all_optimized_pars.groupby("Dataset").agg({"acceptable": "mean", "bad_t_good_k": "mean", "bad_t_bad_k": "mean"}).reset_index()
-        # summary_by_dset = pd.melt(summary_by_dset, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
-        # summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("acceptable", r"Good: $t_{I}, t_N < 0.15, t_{I_1I_2}, t_{I_1N} > 0.85, k < 1000$")
-        # summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("bad_t_good_k", r"Bad t, reasonable k")
-        # summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("bad_t_bad_k", r"Bad t, bad k")
+        # For each data set count the percantage of bad t reasonable k and acceptable
+        summary_by_dset = all_optimized_pars.groupby("Dataset").agg({"acceptable": "mean", "bad": "mean"}).reset_index()
+        summary_by_dset = pd.melt(summary_by_dset, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
+        summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("acceptable","Good")
+        summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("bad", "Bad")
 
-        # print(summary_by_dset)
+        print(summary_by_dset)
 
-        # with sns.plotting_context("paper", rc=plot_rc_pars):
-        #     fig, ax = plt.subplots(figsize=(2,2))
-        #     sns.boxplot(data=summary_by_dset, x="Conclusion", y="Fraction", ax=ax)
-        #     plt.tight_layout()
-        #     plt.xticks(rotation=45)
-        #     plt.savefig("%s/acceptable_bad_pars_boxplot.png" % figures_dir, bbox_inches="tight")
-        #     plt.close()
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(2,2))
+            sns.boxplot(data=summary_by_dset, x="Conclusion", y="Fraction", ax=ax)
+            plt.tight_layout()
+            plt.xticks(rotation=45)
+            plt.ylabel("Fraction of dataset")
+            plt.savefig("%s/acceptable_bad_pars_boxplot.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
+        print("Plotting bad predictions", flush=True)
+        predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
+
+        if len(all_optimized_pars) != len(predictions_df):
+            raise ValueError("Number of parameter sets (%d) does not match number of predictions (%d)" % (len(all_optimized_pars), len(predictions_df)))
+
+        bad_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == False]
+
+        num_bad_pars = len(bad_predictions)
+        if num_bad_pars > 0:
+            bad_predictions = bad_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
+            bad_predictions = make_predictions_data_frame(bad_predictions)
+
+            with sns.plotting_context("paper", rc=plot_rc_pars):
+                fig, ax = plt.subplots(figsize=(3,2))
+                p = sns.stripplot(data=bad_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(bad_predictions["Dataset"].unique())),
+                                alpha=0.7, jitter=0.2, ax=ax, legend=False)
+                sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+                plt.xticks(rotation=45)
+                # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+                plt.tight_layout()
+                plt.savefig("%s/bad_predictions.png" % figures_dir, bbox_inches="tight")
+                plt.close()
+
+
+            bad_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == False]
+            bad_pars = bad_pars.loc[:,:"Dataset"]
+            df_bad_t_pars, df_bad_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(bad_pars)
+
+            with sns.plotting_context("paper", rc=plot_rc_pars):
+                width = 2.8
+                height = 1
+                fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                                    gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+                
+                legend_handles = []
+                for i, dset in enumerate(datasets):
+                    # Filter data for the current model
+                    if dset in bad_pars["Dataset"].values:
+                        df_model = df_bad_t_pars[df_bad_t_pars["Dataset"] == dset]
+                        l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+
+                        legend_handles.append(l)
+
+                        df_model = df_bad_k_pars[df_bad_k_pars["Dataset"] == dset]
+                        sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+
+                ax[1].set_yscale("log")
+                ax[1].set_ylabel("")
+                ax[0].set_ylabel("Parameter Value")
+                ax[0].set_xlabel("")
+                ax[1].set_xlabel("")
+                sns.despine()
+                plt.tight_layout()
+                plt.savefig("%s/bad_parameters.png" % figures_dir, bbox_inches="tight")
+        else:
+            print("No bad predictions found", flush=True)
+
+        print("Plotting good predictions", flush=True)
+        good_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == True]
+        good_predictions = good_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
+        good_predictions = make_predictions_data_frame(good_predictions)
+
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(3,2))
+            p = sns.stripplot(data=good_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
+                              alpha=0.7, jitter=0.2, ax=ax, legend=False)
+            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+            plt.xticks(rotation=45)
+            # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+            plt.tight_layout()
+            plt.savefig("%s/good_predictions.png" % figures_dir, bbox_inches="tight")
+            plt.close()
+
+        good_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == True]
+        good_pars = good_pars.loc[:,:"Dataset"]
+        df_good_t_pars, df_good_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(good_pars)
+
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            width = 2.8
+            height = 1
+            fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+            
+            legend_handles = []
+            for i, dset in enumerate(datasets):
+                # Filter data for the current model
+                if dset in good_pars["Dataset"].values:
+                    df_model = df_good_t_pars[df_good_t_pars["Dataset"] == dset]
+                    l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+
+                    legend_handles.append(l)
+
+                    df_model = df_good_k_pars[df_good_k_pars["Dataset"] == dset]
+                    sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+
+            ax[1].set_yscale("log")
+            ax[1].set_ylabel("")
+            ax[0].set_ylabel("Parameter Value")
+            ax[0].set_xlabel("")
+            ax[1].set_xlabel("")
+            sns.despine()
+            plt.tight_layout()
+            plt.savefig("%s/good_parameters.png" % figures_dir, bbox_inches="tight")
+
+        # Plot good and bad predictions in different colors
+        print("Plotting good and bad predictions", flush=True)
+        good_predictions["Prediction"] = "Good"
+        bad_predictions["Prediction"] = "Bad"
+        combined_predictions = pd.concat([good_predictions, bad_predictions])
+
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(3,2))
+            p = sns.stripplot(data=combined_predictions, x="Data point", y=r"IFN$\beta$", hue="Prediction", palette=sns.cubehelix_palette(2, rot=0.9),
+                              alpha=0.7, jitter=0.2, ax=ax)
+            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+            plt.xticks(rotation=45)
+            plt.legend(title="Prediction", bbox_to_anchor=(1,1), loc="upper left", frameon=False)
+            plt.tight_layout()
+            plt.savefig("%s/good_bad_predictions.png" % figures_dir, bbox_inches="tight")
+            plt.close()
 
         # Filter parameter sets for predictions where CpG p50ko - CpG WT > 0.05 and CpG_WT < 0.1
         predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
@@ -744,7 +863,7 @@ def main():
 
         # print(predictions_df)
         predictions_df["CpG_p50ko_minus_CpG_WT"] = predictions_df["CpG_p50KO"] - predictions_df["CpG_WT"]
-        cpg_rows_to_keep = predictions_df.loc[(predictions_df["CpG_p50ko_minus_CpG_WT"] > 0.05) & (predictions_df["CpG_WT"] < 0.1), ["Dataset", "par_set"]]
+        cpg_rows_to_keep = predictions_df.loc[(predictions_df["CpG_p50ko_minus_CpG_WT"] > 0.15) & (predictions_df["CpG_WT"] < 0.1), ["Dataset", "par_set"]]
         par_sets_omitted = pd.DataFrame(columns=["Dataset", "par_set"])
 
         for dset in datasets:
@@ -779,9 +898,9 @@ def main():
         predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] = predictions_df_filtered["LPS_WT"] - predictions_df_filtered["LPS_relacrelKO"]
         predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] = predictions_df_filtered["polyIC_irf3irf7KO"] - predictions_df_filtered["polyIC_irf3irf5irf7KO"]
         irf_rows_to_keep = predictions_df_filtered.loc[(predictions_df_filtered["LPS_irf3irf7KO"] < 0.1) & 
-                                                       (predictions_df_filtered["polyIC_irf3irf5irf7KO"] < 0.1) & 
-                                                       (predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] > 0.1) &
-                                                       (predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] > 0.05), ["Dataset", "par_set"]]
+                                                       (predictions_df_filtered["polyIC_irf3irf5irf7KO"] < 0.05) & 
+                                                       (predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] > 0.2) &
+                                                       (predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] > 0.1), ["Dataset", "par_set"]]
         predictions_df_filtered = predictions_df_filtered.drop(columns=["LPS_wt_minus_LPS_nfkbko", "pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO", "CpG_p50ko_minus_CpG_WT"])
         # print(irf_rows_to_keep)
         # par_sets_omitted = pd.DataFrame(columns=["Dataset", "par_set"])
