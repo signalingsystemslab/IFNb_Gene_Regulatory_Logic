@@ -81,7 +81,19 @@ def calculate_rmsd(ifnb_predicted, beta):
     rmsd = np.sqrt(np.mean(residuals**2))
     return rmsd
 
-def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False):
+def get_t_pars(l_bounds, u_bounds):
+    new_t_pars = np.random.uniform(l_bounds, u_bounds)
+    j = 0
+    while new_t_pars[0]*2 > new_t_pars[2] or new_t_pars[0] + new_t_pars[1] > new_t_pars[3]:
+        new_t_pars = np.random.uniform(l_bounds, u_bounds)
+        j += 1
+        if j % 200 == 0:
+            print("Number of attempts to fix this parameter set: %d" % j, flush=True)
+    return new_t_pars
+
+def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False, restrict_t=False):
+    start = time.time()
+
     min_k_order = np.log10(k_bounds[0])
     max_k_order = np.log10(k_bounds[1])
     min_c_order = np.log10(10**-3)
@@ -117,11 +129,39 @@ def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=
         cgrid = grid_tk[:,-1]
         cgrid = 10**cgrid
         grid_tk[:,-1] = cgrid
+    if restrict_t:
+        # tI, tN, tI1I2, tIN, k1, k2, kN, kP
+        # 1. Get all rows where tI*2>tI1I2 or tI+tN>tIN (n rows)
+        # 2. Generate n random values of t parameters such that tI*2<=tI1I2 and tI+tN<=tIN 
+        # 3. Replace rows in grid
+        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]))[0]
+        num_out_of_bounds = len(out_of_bounds)
+        if num_out_of_bounds > 0:
+            new_t_pars = np.zeros((num_out_of_bounds, num_t_pars))
+            print("Correcting %d parameter sets violating t constraints (%d %%)" % (num_out_of_bounds, num_out_of_bounds/num_samples*100), flush=True)
+            with Pool(num_threads) as p:
+                new_t_pars = p.starmap(get_t_pars, [(l_bounds[:num_t_pars], u_bounds[:num_t_pars]) for _ in range(num_out_of_bounds)])
+            grid_tk[out_of_bounds,:num_t_pars] = np.array(new_t_pars)
+
+        # Verify that all rows are within bounds
+        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]))[0]
+        if len(out_of_bounds) > 0:
+            raise ValueError("Number of out of bounds parameter sets after correction: %d" % len(out_of_bounds))
+
+    end = time.time()
+    t = end - start
+    if t < 60:
+        print("Time elapsed for grid calculation: %.2f seconds" % t, flush=True)
+    elif t < 3600:
+        print("Time elapsed for grid calculation: %.2f minutes" % (t/60), flush=True)
+    else:
+        print("Time elapsed for grid calculation: %.2f hours" % (t/3600), flush=True)
 
     return grid_tk
 
 
 def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False, num_to_keep=100):
+    print("\n\nBeginning parameter scan", flush=True)
     # Load data points
     datasets = training_data["Dataset"].unique()
     num_datasets = len(datasets)
@@ -138,7 +178,7 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
 
     # print("Sizes of results arrays:\nBest fits pars: %s\nBest fits results: %s\nBest fits rmsd: %s" % (all_best_fits_pars.shape, all_best_fits_results.shape, all_best_fits_rmsd.shape), flush=True)
 
-    # Only use up to 25 datasets at a time
+    # Only use some datasets at a time
     max_datasets = 10
     num_chunks = -(-num_datasets // max_datasets)  
 
@@ -155,12 +195,12 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
 
         # Calculate IFNb value at each point in grid
         print("Calculating effects at %.1E parameter sets for %d points for %d datasets (%.1E total)" % (num_param_sets, num_data_points, num_datasets_chunk, num_pts_times_num_datasets*num_param_sets), flush=True)
-        # Approximate # of GB used by large objects
-        grid_gb = grid.nbytes/10**9
-        ifnb_predicted_gb = num_param_sets*num_pts_times_num_datasets*8/10**9
-        beta_gb = num_pts_times_num_datasets*8/10**9
-        rmsd_gb = num_param_sets*num_datasets_chunk*8/10**9
-        print("Total memory usage expected: ~%.2f GB" % (grid_gb+ifnb_predicted_gb+beta_gb+rmsd_gb), flush=True)
+        # # Approximate # of GB used by large objects
+        # grid_gb = grid.nbytes/10**9
+        # ifnb_predicted_gb = num_param_sets*num_pts_times_num_datasets*8/10**9
+        # beta_gb = num_pts_times_num_datasets*8/10**9
+        # rmsd_gb = num_param_sets*num_datasets_chunk*8/10**9
+        # print("Total memory usage expected: ~%.2f GB" % (grid_gb+ifnb_predicted_gb+beta_gb+rmsd_gb), flush=True)
 
         start = time.time()
         if c_par:
@@ -252,6 +292,10 @@ def objective_function(pars, *args):
     ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c) for i in range(num_pts)]
 
     rmsd = calculate_rmsd(ifnb_predicted, beta)
+
+    # t0: tI, t1:tN, t2: tII, t3: tIN
+    if (t_pars[2] < 2*t_pars[0]) or (t_pars[3] < t_pars[0] + t_pars[1]):
+        rmsd = 100
 
     return rmsd
 
@@ -356,174 +400,7 @@ def make_predictions_data_frame(df_ifnb_predicted):
     # print(df_ifnb_predicted)
     return df_ifnb_predicted
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o","--optimize", action="store_true")
-    # parser.add_argument("-k","--optimize_kp", action="store_true")
-    parser.add_argument("-p","--param_scan", action="store_true")
-    # parser.add_argument("-s","--state_probabilities", action="store_true")
-    parser.add_argument("-m","--make_plots", action="store_true")
-    parser.add_argument("-c","--c_parameter", action="store_true")
-    parser.add_argument("-1","--h1", type=int, default=3)
-    parser.add_argument("-2","--h2", type=int, default=1)
-    parser.add_argument("-e","--error_val", type=float, default=0.1)
-    parser.add_argument("-t","--test", action="store_true")
-    args = parser.parse_args()
-
-    start_start = time.time()
-
-    print("###############################################\n")
-    print("Starting at %s\n" % time.ctime(), flush=True)
-
-    # Settings    
-    num_threads = 60
-    model = "p50_force_t"
-    h1, h2 = args.h1, args.h2
-    h3 = 1
-    h_val = "%d_%d_%d" % (h1, h2, h3)
-    print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
-    print("Error value: %.1f" % args.error_val, flush=True)
-    c_par= args.c_parameter
-    num_to_keep = 100
-
-    # Model details
-    num_t_pars = 4
-    num_k_pars = 4
-    # num_c_pars = 1
-    # num_h_pars = 2
-
-    # Directories
-    figures_dir = "parameter_scan_force_t/figures_%.1f/" % args.error_val
-    results_dir = "parameter_scan_force_t/results_%.1f/" % args.error_val
-    if h_val != "3_1_1":
-        figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
-        results_dir = results_dir[:-1] + "_h_%s/" % h_val
-    if c_par:
-        figures_dir = figures_dir[:-1] + "_c_scan/"
-        results_dir = results_dir[:-1] + "_c_scan/"
-    os.makedirs(figures_dir, exist_ok=True)
-    os.makedirs(results_dir, exist_ok=True)
-    # pars_dir = "../three_site_model/optimization/results/seed_0/"
-    print("Saving results to %s" % results_dir, flush=True)
-    
-    # Load training data
-    # training_data = pd.read_csv("../data/p50_training_data.csv")
-    # print("Using the following training data:\n", training_data)
-    # N = training_data["NFkB"]
-    # I = training_data["IRF"]
-    # P = training_data["p50"]
-    # beta = training_data["IFNb"]
-    # conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
-    # num_pts = len(N)
-    # len_training = len(N)
-    # # stimuli = training_data["Stimulus"].unique()
-    # # genotypes = training_data["Genotype"].unique()
-    synthetic_data = pd.read_csv("../data/p50_training_data_plus_synthetic_e%.1fpct.csv" % (args.error_val))
-    datasets = synthetic_data["Dataset"].unique()
-
-    if args.test:
-        datasets = datasets[1:4]
-
-    one_dataset = synthetic_data.loc[synthetic_data["Dataset"] == datasets[0]]
-    datapoint_names = one_dataset["Stimulus"] + "_" + one_dataset["Genotype"]
-
-    if c_par:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
-        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp", "c"]
-    else:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
-        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp"]
-
-    # Optimize
-    if args.param_scan:
-        print("###############################################\n")
-        start = time.time()
-        grid = calculate_grid(seed=0, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par)
-
-        
-        # training_data = synthetic_data.copy()
-        # For testing, only 3 datasets
-        training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
-        
-        datasets = parameter_scan(training_data, grid, results_dir, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par,num_to_keep=num_to_keep)
-        np.savetxt("%s/dataset_names.csv" % (results_dir), datasets, delimiter=",", fmt="%s")
-
-        end = time.time()
-        t = end - start
-        if t < 60*60:
-            print("Time elapsed for param scan for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
-        else:
-            print("Time elapsed for param scan for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
-        
-        print("###############################################\n\n###############################################\n")
-
-    if args.optimize:
-
-        start = time.time()
-
-        print("###############################################\n")
-        print("Optimizing model\n\n")
-
-        if not os.path.exists("%s/dataset_names.csv" % (results_dir)):
-            raise FileNotFoundError("Dataset names file (%s/%s_dataset_names.csv) not found" % (results_dir, model))
-
-        dataset_names = np.loadtxt("%s/dataset_names.csv" % (results_dir), delimiter=",", dtype=str)
-
-        # Verify that all dataset names are in the synthetic data
-        if not all([d in synthetic_data["Dataset"].values for d in dataset_names]):
-            missing_names = [d for d in dataset_names if d not in synthetic_data["Dataset"].values]
-            raise ValueError("Dataset names not found in synthetic data: %s" % missing_names)
-
-        dir = "%s/optimization/" % results_dir
-        os.makedirs(dir, exist_ok=True)
-
-        for i, dataset in enumerate(dataset_names):
-            print("Optimizing model using dataset %s" % dataset, flush=True)
-            training_data = synthetic_data.loc[synthetic_data["Dataset"] == dataset]
-            N = training_data["NFkB"].values
-            I = training_data["IRF"].values
-            P = training_data["p50"].values
-            beta = training_data["IFNb"].values
-
-            # Optimize the model
-            print("Optimizing model...", flush=True)
-            initial_pars = np.loadtxt("%s/initial_pars_%s.csv" % (results_dir, dataset), delimiter=",")
-            
-            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
-            # print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
-
-            # Save all results
-            np.savetxt("%s/ifnb_predicted_optimized_%s.csv" % (dir, dataset), ifnb_predicted, delimiter=",")
-            np.savetxt("%s/rmsd_optimized_%s.csv" % (dir, dataset), rmsd, delimiter=",")
-            np.savetxt("%s/optimized_parameters_%s.csv" % (dir, dataset), final_pars, delimiter=",")
-            
-            top20_pars = final_pars[np.argsort(rmsd)[:20]]
-            del final_pars
-            top20_pars = pd.DataFrame(top20_pars, columns=result_par_names)
-            top20_pars.to_csv("%s/best_optimized_parameters_%s.csv" % (dir, dataset), index=False)
-
-            top20_predictions = ifnb_predicted[np.argsort(rmsd)[:20]]
-            del ifnb_predicted
-            np.savetxt("%s/best_optimized_predictions_%s.csv" % (dir, dataset), top20_predictions, delimiter=",")
-
-            top20_rmsd = rmsd[np.argsort(rmsd)[:20]]
-            del rmsd
-            np.savetxt("%s/best_optimized_rmsd_%s.csv" % (dir, dataset), top20_rmsd, delimiter=",")
-            
-            print("Finished optimization.", flush=True)
-
-
-        end = time.time()
-        t = end - start
-        if t < 60*60:
-            print("Time elapsed for optimization for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
-        else:
-            print("Time elapsed for optimization for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
-
-        print("###############################################\n\n###############################################\n") 
-
-    if args.make_plots:
-        # Load and combine optimized parameters, predictions
+def make_all_plots(synthetic_data, results_dir, figures_dir, err):
         datasets = np.loadtxt("%s/dataset_names.csv" % results_dir, delimiter=",", dtype=str)
         dir = "%s/optimization/" % results_dir
         all_optimized_pars = pd.DataFrame()
@@ -669,6 +546,34 @@ def main():
         conclusions_df = conclusions_df.groupby("Dataset").agg({"two_modes": "mean", "synergy": "mean"}).reset_index()
         conclusions_df.to_csv("%s/conclusions.csv" % dir, index=False)
 
+        # Plot datasets colored by conclusion
+        conclusions_df_dsets = conclusions_df.copy()
+        # conclusions_df_dsets["two_modes"] = conclusions_df_dsets["two_modes"] > 0.5
+        # conclusions_df_dsets["synergy"] = conclusions_df_dsets["synergy"] > 0.5
+        # conclusions_df_dsets["both"] = conclusions_df_dsets["two_modes"] & conclusions_df_dsets["synergy"]
+        # conclusions_df_dsets["none"] = ~(conclusions_df_dsets["two_modes"]) & ~(conclusions_df_dsets["synergy"])
+        # conclusions_df_dsets["two_modes"] = conclusions_df_dsets["two_modes"] & ~(conclusions_df_dsets["both"])
+        # conclusions_df_dsets["synergy"] = conclusions_df_dsets["synergy"] & ~(conclusions_df_dsets["both"])
+        # conclusions_df_dsets["Conclusion"] = ["Both" if b else "Synergy" if s else "Two modes of activation" if t else "Neither" for b, s, t in zip(conclusions_df_dsets["both"], conclusions_df_dsets["synergy"], conclusions_df_dsets["two_modes"])]
+        # conclusions_df_dsets = conclusions_df_dsets.drop(columns=["two_modes", "synergy", "both", "none"])
+        conclusions_df_dsets["Conclusion"] = np.where((conclusions_df_dsets["two_modes"] > 0.5) & (conclusions_df_dsets["synergy"] > 0.5), "Both", 
+                                                      np.where(conclusions_df_dsets["two_modes"] > 0.5, "Two modes of activation", 
+                                                               np.where(conclusions_df_dsets["synergy"] > 0.5, "Synergy", 
+                                                                        "Neither")))
+        conclusions_df_dsets.to_csv("%s/conclusions_summary.csv" % dir, index=False)
+        
+        # Join conclusions with all datasets
+        all_datasets = synthetic_data.merge(conclusions_df_dsets, on="Dataset", how="left")
+
+        # Plot IRF vs NFkB, colored by conclusion
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            fig, ax = plt.subplots(figsize=(2,2))
+            sns.scatterplot(data=all_datasets, x="NFkB", y="IRF", hue="Conclusion", palette=sns.color_palette("Set2", 4), ax=ax)
+            plt.tight_layout()
+            sns.move_legend(ax, "lower center", bbox_to_anchor=(0.5, 1), ncol=2)
+            plt.savefig("%s/irf_nfkb_by_conclusions.png" % figures_dir, bbox_inches="tight")
+            plt.close()
+
         # Plot conclusions
         conclusions_df = pd.read_csv("%s/conclusions.csv" % dir)
         conclusions_df = pd.melt(conclusions_df, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
@@ -684,320 +589,510 @@ def main():
             plt.ylim(-0.05, 1.05)
             plt.savefig("%s/conclusions.png" % figures_dir, bbox_inches="tight")
             plt.close()
+
+        
+        # # Plot conclusions as violin plot
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(2,2))
+        #     sns.swarmplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, color=color, size=2)
+        #     sns.violinplot(data=conclusions_df, x="Conclusion", y="Fraction", ax=ax, inner=None, fill=False, color="black")
+        #     plt.tight_layout()
+        #     plt.ylim(-0.05, 1.05)
+        #     plt.savefig("%s/conclusions_violin.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
     
-        # Count # of rows where two_modes is true, synergy is true, no k value is > 1000
-        print("Plotting acceptable and bad parameter sets", flush=True)
-        all_optimized_pars = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
-        # print(all_optimized_pars)
-        all_optimized_pars["low_rows"] = (all_optimized_pars["t_1"] <= 0.2) & (all_optimized_pars["t_3"] <= 0.2)
-        all_optimized_pars["high_rows"] = (all_optimized_pars["t_4"] > 0.5) & (all_optimized_pars["t_5"] > 0.5)
-        all_optimized_pars["k_reasonable"] = (all_optimized_pars["k1"] <= 1000) & (all_optimized_pars["k2"] <= 1000) & (all_optimized_pars["kn"] <= 1000) & (all_optimized_pars["kp"] <= 1000)
-        all_optimized_pars["acceptable"] = (all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"]) & (all_optimized_pars["k_reasonable"])
-        all_optimized_pars["bad"] = ~(all_optimized_pars["acceptable"])
-
-        # Plot count of acceptable parameter sets and bad parameter sets per dataset
-        summary = all_optimized_pars.groupby("Dataset").agg({"acceptable": "sum", "bad": "sum"}).reset_index()
-        summary = pd.melt(summary, id_vars="Dataset", var_name="Conclusion", value_name="Count")
-        summary["Conclusion"] = summary["Conclusion"].replace("acceptable", r"Good $t$")
-        summary["Conclusion"] = summary["Conclusion"].replace("bad", r"Bad $t$")
-        # Remove "synthetic_" from dataset names
-        summary["Dataset"] = summary["Dataset"].str.replace("synthetic_", "")
-
+        # Plot as side by side histograms
+        num_par_sets_per_dset = len(all_optimized_pars.loc[all_optimized_pars["Dataset"] == datasets[0]])
         with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(13,2))
-            # Stack barplot
-            # ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
-            #               palette=states_colors, ax=ax, linewidth=0.5)
-            sns.histplot(data=summary, x="Dataset", hue="Conclusion", weights="Count", multiple="stack", shrink=0.8, ax=ax, linewidth=0.5,
-                         palette=sns.color_palette("Set2", 2))
+            sns.displot(data=conclusions_df, y="Fraction", col="Conclusion", kind="hist", bins = num_par_sets_per_dset, color=color,
+                        height=2, aspect=1.2)
             plt.tight_layout()
-            sns.move_legend(ax, "lower center", bbox_to_anchor=(0.5, 1), ncol=3)
-            plt.savefig("%s/acceptable_bad_pars.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+            plt.ylim(-0.05, 1.05)
+            plt.savefig("%s/conclusions_hist.png" % figures_dir, bbox_inches="tight")
 
-        # For each data set count the percantage of bad t reasonable k and acceptable
-        summary_by_dset = all_optimized_pars.groupby("Dataset").agg({"acceptable": "mean", "bad": "mean"}).reset_index()
-        summary_by_dset = pd.melt(summary_by_dset, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
-        summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("acceptable","Good")
-        summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("bad", "Bad")
+        # # Count # of rows where two_modes is true, synergy is true, no k value is > 1000
+        # print("Plotting acceptable and bad parameter sets", flush=True)
+        # all_optimized_pars = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
+        # # print(all_optimized_pars)
+        # all_optimized_pars["low_rows"] = (all_optimized_pars["t_1"] <= 0.2) & (all_optimized_pars["t_3"] <= 0.2)
+        # all_optimized_pars["high_rows"] = (all_optimized_pars["t_4"] > 0.5) & (all_optimized_pars["t_5"] > 0.5)
+        # all_optimized_pars["k_reasonable"] = (all_optimized_pars["k1"] <= 1000) & (all_optimized_pars["k2"] <= 1000) & (all_optimized_pars["kn"] <= 1000) & (all_optimized_pars["kp"] <= 1000)
+        # all_optimized_pars["acceptable"] = (all_optimized_pars["low_rows"]) & (all_optimized_pars["high_rows"]) & (all_optimized_pars["k_reasonable"])
+        # all_optimized_pars["bad"] = ~(all_optimized_pars["acceptable"])
 
-        print(summary_by_dset)
+        # # Plot count of acceptable parameter sets and bad parameter sets per dataset
+        # summary = all_optimized_pars.groupby("Dataset").agg({"acceptable": "sum", "bad": "sum"}).reset_index()
+        # summary = pd.melt(summary, id_vars="Dataset", var_name="Conclusion", value_name="Count")
+        # summary["Conclusion"] = summary["Conclusion"].replace("acceptable", r"Good $t$")
+        # summary["Conclusion"] = summary["Conclusion"].replace("bad", r"Bad $t$")
+        # # Remove "synthetic_" from dataset names
+        # summary["Dataset"] = summary["Dataset"].str.replace("synthetic_", "")
 
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(2,2))
-            sns.boxplot(data=summary_by_dset, x="Conclusion", y="Fraction", ax=ax)
-            plt.tight_layout()
-            plt.xticks(rotation=45)
-            plt.ylabel("Fraction of dataset")
-            plt.savefig("%s/acceptable_bad_pars_boxplot.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(13,2))
+        #     # Stack barplot
+        #     # ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.8,
+        #     #               palette=states_colors, ax=ax, linewidth=0.5)
+        #     sns.histplot(data=summary, x="Dataset", hue="Conclusion", weights="Count", multiple="stack", shrink=0.8, ax=ax, linewidth=0.5,
+        #                  palette=sns.color_palette("Set2", 2))
+        #     plt.tight_layout()
+        #     sns.move_legend(ax, "lower center", bbox_to_anchor=(0.5, 1), ncol=3)
+        #     plt.savefig("%s/acceptable_bad_pars.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
 
-        print("Plotting bad predictions", flush=True)
-        predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
+        # # For each data set count the percantage of bad t reasonable k and acceptable
+        # summary_by_dset = all_optimized_pars.groupby("Dataset").agg({"acceptable": "mean", "bad": "mean"}).reset_index()
+        # summary_by_dset = pd.melt(summary_by_dset, id_vars="Dataset", var_name="Conclusion", value_name="Fraction")
+        # summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("acceptable","Good")
+        # summary_by_dset["Conclusion"] = summary_by_dset["Conclusion"].replace("bad", "Bad")
 
-        if len(all_optimized_pars) != len(predictions_df):
-            raise ValueError("Number of parameter sets (%d) does not match number of predictions (%d)" % (len(all_optimized_pars), len(predictions_df)))
+        # print(summary_by_dset)
 
-        bad_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == False]
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(2,2))
+        #     sns.boxplot(data=summary_by_dset, x="Conclusion", y="Fraction", ax=ax)
+        #     plt.tight_layout()
+        #     plt.xticks(rotation=45)
+        #     plt.ylabel("Fraction of dataset")
+        #     plt.savefig("%s/acceptable_bad_pars_boxplot.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
 
-        num_bad_pars = len(bad_predictions)
-        if num_bad_pars > 0:
-            bad_predictions = bad_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
-            bad_predictions = make_predictions_data_frame(bad_predictions)
+        # print("Plotting bad predictions", flush=True)
+        # predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
 
-            with sns.plotting_context("paper", rc=plot_rc_pars):
-                fig, ax = plt.subplots(figsize=(3,2))
-                p = sns.stripplot(data=bad_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(bad_predictions["Dataset"].unique())),
-                                alpha=0.7, jitter=0.2, ax=ax, legend=False)
-                sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-                plt.xticks(rotation=45)
-                # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
-                plt.tight_layout()
-                plt.savefig("%s/bad_predictions.png" % figures_dir, bbox_inches="tight")
-                plt.close()
+        # if len(all_optimized_pars) != len(predictions_df):
+        #     raise ValueError("Number of parameter sets (%d) does not match number of predictions (%d)" % (len(all_optimized_pars), len(predictions_df)))
+
+        # bad_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == False]
+
+        # num_bad_pars = len(bad_predictions)
+        # if num_bad_pars > 0:
+        #     bad_predictions = bad_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
+        #     bad_predictions = make_predictions_data_frame(bad_predictions)
+
+        #     with sns.plotting_context("paper", rc=plot_rc_pars):
+        #         fig, ax = plt.subplots(figsize=(3,2))
+        #         p = sns.stripplot(data=bad_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(bad_predictions["Dataset"].unique())),
+        #                         alpha=0.7, jitter=0.2, ax=ax, legend=False)
+        #         sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+        #         plt.xticks(rotation=45)
+        #         # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+        #         plt.tight_layout()
+        #         plt.savefig("%s/bad_predictions.png" % figures_dir, bbox_inches="tight")
+        #         plt.close()
 
 
-            bad_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == False]
-            bad_pars = bad_pars.loc[:,:"Dataset"]
-            df_bad_t_pars, df_bad_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(bad_pars)
+        #     bad_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == False]
+        #     bad_pars = bad_pars.loc[:,:"Dataset"]
+        #     df_bad_t_pars, df_bad_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(bad_pars)
 
-            with sns.plotting_context("paper", rc=plot_rc_pars):
-                width = 2.8
-                height = 1
-                fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                                    gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+        #     with sns.plotting_context("paper", rc=plot_rc_pars):
+        #         width = 2.8
+        #         height = 1
+        #         fig, ax = plt.subplots(1,2, figsize=(width, height), 
+        #                             gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
                 
-                legend_handles = []
-                for i, dset in enumerate(datasets):
-                    # Filter data for the current model
-                    if dset in bad_pars["Dataset"].values:
-                        df_model = df_bad_t_pars[df_bad_t_pars["Dataset"] == dset]
-                        l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+        #         legend_handles = []
+        #         for i, dset in enumerate(datasets):
+        #             # Filter data for the current model
+        #             if dset in bad_pars["Dataset"].values:
+        #                 df_model = df_bad_t_pars[df_bad_t_pars["Dataset"] == dset]
+        #                 l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
 
-                        legend_handles.append(l)
+        #                 legend_handles.append(l)
 
-                        df_model = df_bad_k_pars[df_bad_k_pars["Dataset"] == dset]
-                        sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+        #                 df_model = df_bad_k_pars[df_bad_k_pars["Dataset"] == dset]
+        #                 sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
 
-                ax[1].set_yscale("log")
-                ax[1].set_ylabel("")
-                ax[0].set_ylabel("Parameter Value")
-                ax[0].set_xlabel("")
-                ax[1].set_xlabel("")
-                sns.despine()
-                plt.tight_layout()
-                plt.savefig("%s/bad_parameters.png" % figures_dir, bbox_inches="tight")
-        else:
-            print("No bad predictions found", flush=True)
+        #         ax[1].set_yscale("log")
+        #         ax[1].set_ylabel("")
+        #         ax[0].set_ylabel("Parameter Value")
+        #         ax[0].set_xlabel("")
+        #         ax[1].set_xlabel("")
+        #         sns.despine()
+        #         plt.tight_layout()
+        #         plt.savefig("%s/bad_parameters.png" % figures_dir, bbox_inches="tight")
+        # else:
+        #     print("No bad predictions found", flush=True)
 
-        print("Plotting good predictions", flush=True)
-        good_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == True]
-        good_predictions = good_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
-        good_predictions = make_predictions_data_frame(good_predictions)
+        # print("Plotting good predictions", flush=True)
+        # good_predictions = predictions_df.loc[all_optimized_pars["acceptable"] == True]
+        # good_predictions = good_predictions.melt(id_vars="Dataset", var_name="Data point", value_name=r"IFN$\beta$")
+        # good_predictions = make_predictions_data_frame(good_predictions)
 
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(3,2))
-            p = sns.stripplot(data=good_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
-                              alpha=0.7, jitter=0.2, ax=ax, legend=False)
-            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-            plt.xticks(rotation=45)
-            # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
-            plt.tight_layout()
-            plt.savefig("%s/good_predictions.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(3,2))
+        #     p = sns.stripplot(data=good_predictions, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
+        #                       alpha=0.7, jitter=0.2, ax=ax, legend=False)
+        #     sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+        #     plt.xticks(rotation=45)
+        #     # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+        #     plt.tight_layout()
+        #     plt.savefig("%s/good_predictions.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
 
-        good_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == True]
-        good_pars = good_pars.loc[:,:"Dataset"]
-        df_good_t_pars, df_good_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(good_pars)
+        # good_pars = all_optimized_pars.loc[all_optimized_pars["acceptable"] == True]
+        # good_pars = good_pars.loc[:,:"Dataset"]
+        # df_good_t_pars, df_good_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(good_pars)
 
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            width = 2.8
-            height = 1
-            fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     width = 2.8
+        #     height = 1
+        #     fig, ax = plt.subplots(1,2, figsize=(width, height), 
+        #                         gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
             
-            legend_handles = []
-            for i, dset in enumerate(datasets):
-                # Filter data for the current model
-                if dset in good_pars["Dataset"].values:
-                    df_model = df_good_t_pars[df_good_t_pars["Dataset"] == dset]
-                    l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+        #     legend_handles = []
+        #     for i, dset in enumerate(datasets):
+        #         # Filter data for the current model
+        #         if dset in good_pars["Dataset"].values:
+        #             df_model = df_good_t_pars[df_good_t_pars["Dataset"] == dset]
+        #             l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
 
-                    legend_handles.append(l)
+        #             legend_handles.append(l)
 
-                    df_model = df_good_k_pars[df_good_k_pars["Dataset"] == dset]
-                    sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+        #             df_model = df_good_k_pars[df_good_k_pars["Dataset"] == dset]
+        #             sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
 
-            ax[1].set_yscale("log")
-            ax[1].set_ylabel("")
-            ax[0].set_ylabel("Parameter Value")
-            ax[0].set_xlabel("")
-            ax[1].set_xlabel("")
-            sns.despine()
-            plt.tight_layout()
-            plt.savefig("%s/good_parameters.png" % figures_dir, bbox_inches="tight")
+        #     ax[1].set_yscale("log")
+        #     ax[1].set_ylabel("")
+        #     ax[0].set_ylabel("Parameter Value")
+        #     ax[0].set_xlabel("")
+        #     ax[1].set_xlabel("")
+        #     sns.despine()
+        #     plt.tight_layout()
+        #     plt.savefig("%s/good_parameters.png" % figures_dir, bbox_inches="tight")
 
-        # Plot good and bad predictions in different colors
-        print("Plotting good and bad predictions", flush=True)
-        good_predictions["Prediction"] = "Good"
-        bad_predictions["Prediction"] = "Bad"
-        combined_predictions = pd.concat([good_predictions, bad_predictions])
+        # # Plot good and bad predictions in different colors
+        # print("Plotting good and bad predictions", flush=True)
+        # good_predictions["Prediction"] = "Good"
+        # bad_predictions["Prediction"] = "Bad"
+        # combined_predictions = pd.concat([good_predictions, bad_predictions])
 
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(3,2))
-            p = sns.stripplot(data=combined_predictions, x="Data point", y=r"IFN$\beta$", hue="Prediction", palette=sns.cubehelix_palette(2, rot=0.9),
-                              alpha=0.7, jitter=0.2, ax=ax)
-            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-            plt.xticks(rotation=45)
-            plt.legend(title="Prediction", bbox_to_anchor=(1,1), loc="upper left", frameon=False)
-            plt.tight_layout()
-            plt.savefig("%s/good_bad_predictions.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(3,2))
+        #     p = sns.stripplot(data=combined_predictions, x="Data point", y=r"IFN$\beta$", hue="Prediction", palette=sns.cubehelix_palette(2, rot=0.9),
+        #                       alpha=0.7, jitter=0.2, ax=ax)
+        #     sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+        #     plt.xticks(rotation=45)
+        #     plt.legend(title="Prediction", bbox_to_anchor=(1,1), loc="upper left", frameon=False)
+        #     plt.tight_layout()
+        #     plt.savefig("%s/good_bad_predictions.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
 
-        # Filter parameter sets for predictions where CpG p50ko - CpG WT > 0.05 and CpG_WT < 0.1
-        predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
-        predictions_df["par_set"] = predictions_df.groupby(["Dataset"]).cumcount()
+        # # Filter parameter sets for predictions where CpG p50ko - CpG WT > 0.05 and CpG_WT < 0.1
+        # predictions_df = pd.read_csv("%s/best_optimized_predictions_combined.csv" % dir)
+        # predictions_df["par_set"] = predictions_df.groupby(["Dataset"]).cumcount()
 
-        parameters_df = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
-        parameters_df["par_set"] = parameters_df.groupby(["Dataset"]).cumcount()
+        # parameters_df = pd.read_csv("%s/best_optimized_pars_combined.csv" % dir)
+        # parameters_df["par_set"] = parameters_df.groupby(["Dataset"]).cumcount()
 
-        # print(predictions_df)
-        predictions_df["CpG_p50ko_minus_CpG_WT"] = predictions_df["CpG_p50KO"] - predictions_df["CpG_WT"]
-        cpg_rows_to_keep = predictions_df.loc[(predictions_df["CpG_p50ko_minus_CpG_WT"] > 0.15) & (predictions_df["CpG_WT"] < 0.1), ["Dataset", "par_set"]]
-        par_sets_omitted = pd.DataFrame(columns=["Dataset", "par_set"])
-
-        for dset in datasets:
-            par_sets_kept = cpg_rows_to_keep.loc[cpg_rows_to_keep["Dataset"] == dset, "par_set"].values
-            num_par_sets = len(predictions_df.loc[predictions_df["Dataset"] == dset])
-            par_sets_left = [i for i in range(num_par_sets) if i not in par_sets_kept]
-            if len(par_sets_kept) < num_par_sets:
-                # print([dset]*len(par_sets_left))
-                par_sets_omitted = pd.concat([par_sets_omitted, pd.DataFrame({"Dataset": [dset.replace("synthetic_", "")]*len(par_sets_left), "par_set": par_sets_left})])
-
-        par_sets_omitted["Dataset"] = pd.Categorical(par_sets_omitted["Dataset"], categories= np.char.replace(datasets, "synthetic_", ""), ordered=True)
-
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(10,2))
-            sns.stripplot(data=par_sets_omitted, x="Dataset", y="par_set", ax=ax, jitter=False)
-            sns.despine()
-            plt.tight_layout()
-            plt.title("Omitted parameter sets")
-            plt.savefig("%s/par_sets_omitted_CpG_filter.png" % figures_dir, bbox_inches="tight")
-
-
-        predictions_df_filtered = pd.merge(predictions_df, cpg_rows_to_keep, on=["Dataset", "par_set"], how="inner")
-        parameters_df_filtered = pd.merge(parameters_df, cpg_rows_to_keep, on=["Dataset", "par_set"], how="inner")
-        
-        # print(predictions_df_filtered.columns)
-        # print(parameters_df_filtered.columns)
-        
-        # raise ValueError("Stop here")
-
-
-        # Filter predictions and parameters for LPS IRF3/7ko < 0.1, pIC IRF 3/5/7ko < 0.1, LPS WT- LPS NFkBko > 0.05, pIC IRF 3/7 ko - pIC IRF 3/5/7 ko > 0.05
-        predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] = predictions_df_filtered["LPS_WT"] - predictions_df_filtered["LPS_relacrelKO"]
-        predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] = predictions_df_filtered["polyIC_irf3irf7KO"] - predictions_df_filtered["polyIC_irf3irf5irf7KO"]
-        irf_rows_to_keep = predictions_df_filtered.loc[(predictions_df_filtered["LPS_irf3irf7KO"] < 0.1) & 
-                                                       (predictions_df_filtered["polyIC_irf3irf5irf7KO"] < 0.05) & 
-                                                       (predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] > 0.2) &
-                                                       (predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] > 0.1), ["Dataset", "par_set"]]
-        predictions_df_filtered = predictions_df_filtered.drop(columns=["LPS_wt_minus_LPS_nfkbko", "pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO", "CpG_p50ko_minus_CpG_WT"])
-        # print(irf_rows_to_keep)
+        # # print(predictions_df)
+        # predictions_df["CpG_p50ko_minus_CpG_WT"] = predictions_df["CpG_p50KO"] - predictions_df["CpG_WT"]
+        # cpg_rows_to_keep = predictions_df.loc[(predictions_df["CpG_p50ko_minus_CpG_WT"] > 0.15) & (predictions_df["CpG_WT"] < 0.1), ["Dataset", "par_set"]]
         # par_sets_omitted = pd.DataFrame(columns=["Dataset", "par_set"])
 
-        for dset in datasets:
-            par_sets_kept = irf_rows_to_keep.loc[irf_rows_to_keep["Dataset"] == dset, "par_set"].values
-            num_par_sets = len(predictions_df.loc[predictions_df["Dataset"] == dset])
-            par_sets_left = [i for i in range(num_par_sets) if i not in par_sets_kept]
-            if len(par_sets_kept) < num_par_sets:
-                par_sets_omitted = pd.concat([par_sets_omitted, pd.DataFrame({"Dataset": [dset]*len(par_sets_left), "par_set": par_sets_left})])
+        # for dset in datasets:
+        #     par_sets_kept = cpg_rows_to_keep.loc[cpg_rows_to_keep["Dataset"] == dset, "par_set"].values
+        #     num_par_sets = len(predictions_df.loc[predictions_df["Dataset"] == dset])
+        #     par_sets_left = [i for i in range(num_par_sets) if i not in par_sets_kept]
+        #     if len(par_sets_kept) < num_par_sets:
+        #         # print([dset]*len(par_sets_left))
+        #         par_sets_omitted = pd.concat([par_sets_omitted, pd.DataFrame({"Dataset": [dset.replace("synthetic_", "")]*len(par_sets_left), "par_set": par_sets_left})])
 
-        # print(par_sets_omitted)
-        # Remove synthetic_ from dataset names
-        par_sets_omitted["Dataset"] = pd.Categorical(par_sets_omitted["Dataset"].str.replace("synthetic_", ""), categories=np.char.replace(datasets, "synthetic_", ""), ordered=True)
-        # print(par_sets_omitted)
+        # par_sets_omitted["Dataset"] = pd.Categorical(par_sets_omitted["Dataset"], categories= np.char.replace(datasets, "synthetic_", ""), ordered=True)
+
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(10,2))
+        #     sns.stripplot(data=par_sets_omitted, x="Dataset", y="par_set", ax=ax, jitter=False)
+        #     sns.despine()
+        #     plt.tight_layout()
+        #     plt.title("Omitted parameter sets")
+        #     plt.savefig("%s/par_sets_omitted_CpG_filter.png" % figures_dir, bbox_inches="tight")
+
+
+        # predictions_df_filtered = pd.merge(predictions_df, cpg_rows_to_keep, on=["Dataset", "par_set"], how="inner")
+        # parameters_df_filtered = pd.merge(parameters_df, cpg_rows_to_keep, on=["Dataset", "par_set"], how="inner")
         
-        # raise ValueError("Stop here")
-
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            fig, ax = plt.subplots(figsize=(10,2))
-            sns.stripplot(data=par_sets_omitted, x="Dataset", y="par_set", ax=ax, jitter=False)
-            sns.despine()
-            plt.tight_layout()
-            plt.title("Omitted parameter sets")
-            plt.savefig("%s/par_sets_omitted_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
-
-        predictions_df_filtered = pd.merge(predictions_df_filtered, irf_rows_to_keep, on=["Dataset", "par_set"], how="inner")
-        parameters_df_filtered = pd.merge(parameters_df_filtered, irf_rows_to_keep, on=["Dataset", "par_set"], how="inner")
-
-
-        # Plot filtered predictions
-        predictions_df_filtered = predictions_df_filtered.melt(id_vars=["Dataset", "par_set"], var_name="Data point", value_name=r"IFN$\beta$")
-        # print(predictions_df_filtered["Data point"].unique())
-
-        predictions_df_filtered = make_predictions_data_frame(predictions_df_filtered)
-        # print(predictions_df_filtered["Data point"].unique())
+        # # print(predictions_df_filtered.columns)
+        # # print(parameters_df_filtered.columns)
         
-        # raise ValueError("Stop here")
+        # # raise ValueError("Stop here")
 
-        predictions_df_filtered["Dataset"] = pd.Categorical(predictions_df_filtered["Dataset"], categories= datasets, ordered=True)
 
-        data_df = pd.read_csv("../data/p50_training_data.csv")
-        data_df["Data point"] = data_df["Stimulus"] + "_" + data_df["Genotype"]
-        data_df = data_df.rename(columns={"IFNb": r"IFN$\beta$"})
-        data_df = make_predictions_data_frame(data_df)
-        new_data_color = "#A7535E"
+        # # Filter predictions and parameters for LPS IRF3/7ko < 0.1, pIC IRF 3/5/7ko < 0.1, LPS WT- LPS NFkBko > 0.05, pIC IRF 3/7 ko - pIC IRF 3/5/7 ko > 0.05
+        # predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] = predictions_df_filtered["LPS_WT"] - predictions_df_filtered["LPS_relacrelKO"]
+        # predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] = predictions_df_filtered["polyIC_irf3irf7KO"] - predictions_df_filtered["polyIC_irf3irf5irf7KO"]
+        # irf_rows_to_keep = predictions_df_filtered.loc[(predictions_df_filtered["LPS_irf3irf7KO"] < 0.1) & 
+        #                                                (predictions_df_filtered["polyIC_irf3irf5irf7KO"] < 0.05) & 
+        #                                                (predictions_df_filtered["LPS_wt_minus_LPS_nfkbko"] > 0.2) &
+        #                                                (predictions_df_filtered["pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO"] > 0.1), ["Dataset", "par_set"]]
+        # predictions_df_filtered = predictions_df_filtered.drop(columns=["LPS_wt_minus_LPS_nfkbko", "pIC_irf3irf7KO_minus_pIC_irf3irf5irf7KO", "CpG_p50ko_minus_CpG_WT"])
+        # # print(irf_rows_to_keep)
+        # # par_sets_omitted = pd.DataFrame(columns=["Dataset", "par_set"])
 
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            # Scatterplot, x = datapoint name, y= IFNb value, color = dataset
-            fig, ax = plt.subplots(figsize=(3,2))
-            p = sns.stripplot(data=predictions_df_filtered, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
-                              alpha=0.7, jitter=0.2, ax=ax, legend=False)
-            sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
-            plt.xticks(rotation=45)
-            # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
-            plt.tight_layout()
-            plt.savefig("%s/predictions_combined_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+        # for dset in datasets:
+        #     par_sets_kept = irf_rows_to_keep.loc[irf_rows_to_keep["Dataset"] == dset, "par_set"].values
+        #     num_par_sets = len(predictions_df.loc[predictions_df["Dataset"] == dset])
+        #     par_sets_left = [i for i in range(num_par_sets) if i not in par_sets_kept]
+        #     if len(par_sets_kept) < num_par_sets:
+        #         par_sets_omitted = pd.concat([par_sets_omitted, pd.DataFrame({"Dataset": [dset]*len(par_sets_left), "par_set": par_sets_left})])
 
-        # Plot filtered parameters
-        df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(parameters_df_filtered)
+        # # print(par_sets_omitted)
+        # # Remove synthetic_ from dataset names
+        # par_sets_omitted["Dataset"] = pd.Categorical(par_sets_omitted["Dataset"].str.replace("synthetic_", ""), categories=np.char.replace(datasets, "synthetic_", ""), ordered=True)
+        # # print(par_sets_omitted)
+        
+        # # raise ValueError("Stop here")
 
-        colors = sns.color_palette(dataset_cmap_pars, len(datasets))
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     fig, ax = plt.subplots(figsize=(10,2))
+        #     sns.stripplot(data=par_sets_omitted, x="Dataset", y="par_set", ax=ax, jitter=False)
+        #     sns.despine()
+        #     plt.tight_layout()
+        #     plt.title("Omitted parameter sets")
+        #     plt.savefig("%s/par_sets_omitted_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
 
-        with sns.plotting_context("paper",rc=plot_rc_pars):
-            width = 2.8
-            height = 1
-            fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+        # predictions_df_filtered = pd.merge(predictions_df_filtered, irf_rows_to_keep, on=["Dataset", "par_set"], how="inner")
+        # parameters_df_filtered = pd.merge(parameters_df_filtered, irf_rows_to_keep, on=["Dataset", "par_set"], how="inner")
+
+
+        # # Plot filtered predictions
+        # predictions_df_filtered = predictions_df_filtered.melt(id_vars=["Dataset", "par_set"], var_name="Data point", value_name=r"IFN$\beta$")
+        # # print(predictions_df_filtered["Data point"].unique())
+
+        # predictions_df_filtered = make_predictions_data_frame(predictions_df_filtered)
+        # # print(predictions_df_filtered["Data point"].unique())
+        
+        # # raise ValueError("Stop here")
+
+        # predictions_df_filtered["Dataset"] = pd.Categorical(predictions_df_filtered["Dataset"], categories= datasets, ordered=True)
+
+        # data_df = pd.read_csv("../data/p50_training_data.csv")
+        # data_df["Data point"] = data_df["Stimulus"] + "_" + data_df["Genotype"]
+        # data_df = data_df.rename(columns={"IFNb": r"IFN$\beta$"})
+        # data_df = make_predictions_data_frame(data_df)
+        # new_data_color = "#A7535E"
+
+        # with sns.plotting_context("paper", rc=plot_rc_pars):
+        #     # Scatterplot, x = datapoint name, y= IFNb value, color = dataset
+        #     fig, ax = plt.subplots(figsize=(3,2))
+        #     p = sns.stripplot(data=predictions_df_filtered, x="Data point", y=r"IFN$\beta$", hue="Dataset", palette=sns.color_palette(dataset_cmap_pars, len(datasets)),
+        #                       alpha=0.7, jitter=0.2, ax=ax, legend=False)
+        #     sns.stripplot(data=data_df, x="Data point", y=r"IFN$\beta$", color=new_data_color, alpha=0.7, jitter=0.2, ax=ax)
+        #     plt.xticks(rotation=45)
+        #     # plt.legend(title="Dataset", bbox_to_anchor=(1,1), loc="upper left")
+        #     plt.tight_layout()
+        #     plt.savefig("%s/predictions_combined_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
+
+        # # Plot filtered parameters
+        # df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(parameters_df_filtered)
+
+        # colors = sns.color_palette(dataset_cmap_pars, len(datasets))
+
+        # with sns.plotting_context("paper",rc=plot_rc_pars):
+        #     width = 2.8
+        #     height = 1
+        #     fig, ax = plt.subplots(1,2, figsize=(width, height), 
+        #                         gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
             
-            legend_handles = []
-            for i, dset in enumerate(datasets):
-                # Filter data for the current model
-                df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
-                l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+        #     legend_handles = []
+        #     for i, dset in enumerate(datasets):
+        #         # Filter data for the current model
+        #         df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
+        #         l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
 
-                legend_handles.append(l)
+        #         legend_handles.append(l)
 
-                df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
-                sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+        #         df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
+        #         sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
             
-            ax[1].set_yscale("log")
-            ax[1].set_ylabel("")
+        #     ax[1].set_yscale("log")
+        #     ax[1].set_ylabel("")
 
-            ax[0].set_ylabel("Parameter Value")
-            ax[0].set_xlabel("")
-            ax[1].set_xlabel("")
+        #     ax[0].set_ylabel("Parameter Value")
+        #     ax[0].set_xlabel("")
+        #     ax[1].set_xlabel("")
 
-            sns.despine()
-            plt.tight_layout()
-            plt.savefig("%s/optimized_parameters_combined_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+        #     sns.despine()
+        #     plt.tight_layout()
+        #     plt.savefig("%s/optimized_parameters_combined_CpG_LPS_pIC_filter.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
 
         print("Finished saving plots to %s" % figures_dir, flush=True)
 
         print("###############################################\n\n###############################################\n")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o","--optimize", action="store_true")
+    # parser.add_argument("-k","--optimize_kp", action="store_true")
+    parser.add_argument("-p","--param_scan", action="store_true")
+    # parser.add_argument("-s","--state_probabilities", action="store_true")
+    parser.add_argument("-m","--make_plots", action="store_true")
+    parser.add_argument("-c","--c_parameter", action="store_true")
+    parser.add_argument("-1","--h1", type=int, default=3)
+    parser.add_argument("-2","--h2", type=int, default=1)
+    parser.add_argument("-e","--error_val", type=float, default=0.1)
+    parser.add_argument("-t","--test", action="store_true")
+    parser.add_argument("-n","--num_threads", type=int, default=60)
+    args = parser.parse_args()
+
+    start_start = time.time()
+
+    print("###############################################\n")
+    print("Starting at %s\n" % time.ctime(), flush=True)
+
+    # Settings    
+    num_threads = args.num_threads
+    model = "p50_force_t"
+    h1, h2 = args.h1, args.h2
+    h3 = 1
+    h_val = "%d_%d_%d" % (h1, h2, h3)
+    print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
+    print("Error value: %.1f" % args.error_val, flush=True)
+    c_par= args.c_parameter
+    num_to_keep = 100
+
+    # Model details
+    num_t_pars = 4
+    num_k_pars = 4
+    # num_c_pars = 1
+    # num_h_pars = 2
+
+    # Directories
+    figures_dir = "parameter_scan_force_t/figures_%.1f/" % args.error_val
+    results_dir = "parameter_scan_force_t/results_%.1f/" % args.error_val
+    if h_val != "3_1_1":
+        figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
+        results_dir = results_dir[:-1] + "_h_%s/" % h_val
+    if c_par:
+        figures_dir = figures_dir[:-1] + "_c_scan/"
+        results_dir = results_dir[:-1] + "_c_scan/"
+    os.makedirs(figures_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
+    # pars_dir = "../three_site_model/optimization/results/seed_0/"
+    print("Saving results to %s" % results_dir, flush=True)
+    
+    # Load training data
+    # training_data = pd.read_csv("../data/p50_training_data.csv")
+    # print("Using the following training data:\n", training_data)
+    # N = training_data["NFkB"]
+    # I = training_data["IRF"]
+    # P = training_data["p50"]
+    # beta = training_data["IFNb"]
+    # conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
+    # num_pts = len(N)
+    # len_training = len(N)
+    # # stimuli = training_data["Stimulus"].unique()
+    # # genotypes = training_data["Genotype"].unique()
+    synthetic_data = pd.read_csv("../data/p50_training_data_plus_synthetic_e%.1fpct.csv" % (args.error_val))
+    datasets = synthetic_data["Dataset"].unique()
+
+    if args.test:
+        datasets = datasets[1:4]
+        print("IN TEST MODE: Using only %d datasets" % len(datasets), flush=True)
+
+    one_dataset = synthetic_data.loc[synthetic_data["Dataset"] == datasets[0]]
+    datapoint_names = one_dataset["Stimulus"] + "_" + one_dataset["Genotype"]
+
+    if c_par:
+        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
+        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp", "c"]
+    else:
+        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
+        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp"]
+
+    # Optimize
+    if args.param_scan:
+        print("###############################################\n")
+        start = time.time()
+        grid = calculate_grid(seed=0, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par, restrict_t=True)
+
+        training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
         
+        datasets = parameter_scan(training_data, grid, results_dir, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par,num_to_keep=num_to_keep)
+        np.savetxt("%s/dataset_names.csv" % (results_dir), datasets, delimiter=",", fmt="%s")
+
+        end = time.time()
+        t = end - start
+        if t < 60*60:
+            print("Time elapsed for param scan for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
+        else:
+            print("Time elapsed for param scan for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
+        
+        print("###############################################\n\n###############################################\n")
+
+    if args.optimize:
+
+        start = time.time()
+
+        print("###############################################\n")
+        print("Optimizing model\n\n")
+
+        if not os.path.exists("%s/dataset_names.csv" % (results_dir)):
+            raise FileNotFoundError("Dataset names file (%s/%s_dataset_names.csv) not found" % (results_dir, model))
+
+        dataset_names = np.loadtxt("%s/dataset_names.csv" % (results_dir), delimiter=",", dtype=str)
+
+        # Verify that all dataset names are in the synthetic data
+        if not all([d in synthetic_data["Dataset"].values for d in dataset_names]):
+            missing_names = [d for d in dataset_names if d not in synthetic_data["Dataset"].values]
+            raise ValueError("Dataset names not found in synthetic data: %s" % missing_names)
+
+        dir = "%s/optimization/" % results_dir
+        os.makedirs(dir, exist_ok=True)
+
+        for i, dataset in enumerate(dataset_names):
+            print("Optimizing model using dataset %s" % dataset, flush=True)
+            training_data = synthetic_data.loc[synthetic_data["Dataset"] == dataset]
+            N = training_data["NFkB"].values
+            I = training_data["IRF"].values
+            P = training_data["p50"].values
+            beta = training_data["IFNb"].values
+
+            # Optimize the model
+            print("Optimizing model...", flush=True)
+            initial_pars = np.loadtxt("%s/initial_pars_%s.csv" % (results_dir, dataset), delimiter=",")
+            
+            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+            # print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
+
+            # Save all results
+            np.savetxt("%s/ifnb_predicted_optimized_%s.csv" % (dir, dataset), ifnb_predicted, delimiter=",")
+            np.savetxt("%s/rmsd_optimized_%s.csv" % (dir, dataset), rmsd, delimiter=",")
+            np.savetxt("%s/optimized_parameters_%s.csv" % (dir, dataset), final_pars, delimiter=",")
+            
+            top20_pars = final_pars[np.argsort(rmsd)[:20]]
+            del final_pars
+            top20_pars = pd.DataFrame(top20_pars, columns=result_par_names)
+            top20_pars.to_csv("%s/best_optimized_parameters_%s.csv" % (dir, dataset), index=False)
+
+            top20_predictions = ifnb_predicted[np.argsort(rmsd)[:20]]
+            del ifnb_predicted
+            np.savetxt("%s/best_optimized_predictions_%s.csv" % (dir, dataset), top20_predictions, delimiter=",")
+
+            top20_rmsd = rmsd[np.argsort(rmsd)[:20]]
+            del rmsd
+            np.savetxt("%s/best_optimized_rmsd_%s.csv" % (dir, dataset), top20_rmsd, delimiter=",")
+            
+            print("Finished optimization.", flush=True)
+
+
+        end = time.time()
+        t = end - start
+        if t < 60*60:
+            print("Time elapsed for optimization for all synthetic datasets: %.2f minutes" % (t/60), flush=True)
+        else:
+            print("Time elapsed for optimization for all synthetic datasets: %.2f hours" % (t/3600), flush=True)
+
+        print("###############################################\n\n###############################################\n") 
+
+    if args.make_plots:
+        # Load and combine optimized parameters, predictions
+        make_all_plots(synthetic_data, results_dir, figures_dir, args.error_val)
+
+          
 
     end_end = time.time()
     t = end_end - start_start
