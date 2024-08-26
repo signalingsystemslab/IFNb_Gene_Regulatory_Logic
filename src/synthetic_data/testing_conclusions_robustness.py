@@ -13,6 +13,7 @@ from multiprocessing import Pool
 import argparse
 import seaborn as sns
 import scipy.stats.qmc as qmc
+import gc
 
 mpl.rcParams["figure.dpi"] = 600
 mpl.rcParams["font.sans-serif"] = "Arial"
@@ -170,13 +171,13 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
     if len(training_data) % num_datasets != 0:
         raise ValueError("Number of data points (%d) is not divisible by number of datasets (%d)" % (len(training_data), num_datasets))
 
-    # print("\nStarting parameter scan for %d datasets with %d data points each" % (num_datasets, num_data_points), flush=True)
-
-    # all_best_fits_pars = np.zeros((num_datasets,num_to_keep, num_t_pars+num_k_pars))
-    # all_best_fits_results = np.zeros((num_datasets,num_to_keep, len(training_data)))
-    # all_best_fits_rmsd = np.zeros((num_datasets,num_to_keep))
-
-    # print("Sizes of results arrays:\nBest fits pars: %s\nBest fits results: %s\nBest fits rmsd: %s" % (all_best_fits_pars.shape, all_best_fits_results.shape, all_best_fits_rmsd.shape), flush=True)
+    # Reduce type to float32
+    training_data = training_data.astype({
+        "NFkB": np.float32,
+        "IRF": np.float32,
+        "p50": np.float32,
+        "IFNb": np.float32
+    })
 
     # Only use some datasets at a time
     max_datasets = 10
@@ -192,15 +193,11 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
         num_param_sets = len(grid)
         num_datasets_chunk = len(chunk)
         del data_chunk
+        gc.collect()
 
         # Calculate IFNb value at each point in grid
         print("Calculating effects at %.1E parameter sets for %d points for %d datasets (%.1E total)" % (num_param_sets, num_data_points, num_datasets_chunk, num_pts_times_num_datasets*num_param_sets), flush=True)
-        # # Approximate # of GB used by large objects
-        # grid_gb = grid.nbytes/10**9
-        # ifnb_predicted_gb = num_param_sets*num_pts_times_num_datasets*8/10**9
-        # beta_gb = num_pts_times_num_datasets*8/10**9
-        # rmsd_gb = num_param_sets*num_datasets_chunk*8/10**9
-        # print("Total memory usage expected: ~%.2f GB" % (grid_gb+ifnb_predicted_gb+beta_gb+rmsd_gb), flush=True)
+        grid = grid.astype(np.float32)
 
         start = time.time()
         if c_par:
@@ -213,6 +210,11 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
 
         ifnb_predicted = np.array(results).reshape(num_param_sets, num_pts_times_num_datasets)
         del results
+        gc.collect()
+
+        # Change to float32
+        ifnb_predicted = ifnb_predicted.astype(np.float32)
+
         print("Memory used by ifnb_predicted: %.2f GB" % (ifnb_predicted.nbytes/10**9), flush=True)
 
         # Make sure all elements for each dataset are the same
@@ -229,11 +231,13 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
 
         ifnb_predicted_bydset = np.array_split(ifnb_predicted, num_datasets_chunk, axis=1)
         del ifnb_predicted
+        gc.collect()
 
         # Calculate residuals
         with Pool(num_threads) as p:
             rmsd = p.starmap(calculate_rmsd, [(ifnb_predicted_bydset[j][i], beta_bydset[j]) for i in range(num_param_sets) for j in range(num_datasets_chunk)])
         del beta_bydset
+        gc.collect()
 
         rmsd = np.array(rmsd).reshape(num_param_sets, num_datasets_chunk)
 
@@ -259,6 +263,7 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
             np.savetxt("%s/ifnb_predicted_%s.csv" % (results_dir, dname), ifnb_predicted_subset, delimiter=",")
             # all_best_fits_results[c*num_datasets_chunk+dset] = ifnb_predicted_subset
             del ifnb_predicted_subset
+            gc.collect()
 
             print("Saved parameter scan results for dataset %s" % dname, flush=True)
 
@@ -961,8 +966,8 @@ def main():
     # num_h_pars = 2
 
     # Directories
-    figures_dir = "parameter_scan_force_t/figures_%.1f/" % args.error_val
-    results_dir = "parameter_scan_force_t/results_%.1f/" % args.error_val
+    figures_dir = "parameter_scan/figures_%.1f/" % args.error_val
+    results_dir = "parameter_scan/results_%.1f/" % args.error_val
     if h_val != "3_1_1":
         figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
         results_dir = results_dir[:-1] + "_h_%s/" % h_val
