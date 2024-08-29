@@ -487,12 +487,12 @@ def make_parameters_data_frame(pars):
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("kn", r"$k_N$")
     df_k_pars.loc[df_k_pars["Parameter"] == "k1", "Parameter"] = r"$k_{I_2}$" # Rename
     df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_{I_1}$" # Rename
-    df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$k_N$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$k_N$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$k_P$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$k_P$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$K_N$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$K_N$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$K_P$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$K_P$"
     df_k_pars.loc[df_k_pars["Parameter"] == "c", "Parameter"] = r"$C$"
-    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$",r"$C$"], ordered=True)
+    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$K_N$", r"$K_P$",r"$C$"], ordered=True)
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
 def combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3):
@@ -524,44 +524,43 @@ def combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3):
     
     return df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars
 
-# # Plot parameters one plot
-# def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
-#     df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3)
+def make_ki_plot(df_ki_pars, name, figures_dir):
+    # Filter for parameter containing "I"
+    df_ki_pars = df_ki_pars.loc[df_ki_pars["Parameter"].str.contains("I")]
 
-#     colors = sns.color_palette(models_cmap_pars, n_colors=4)
-#     new_rc_pars = plot_rc_pars.copy()
-#     pars_rc = {"axes.labelsize":7, "font.size":7, "legend.fontsize":6, "xtick.labelsize":7, 
-#                                           "ytick.labelsize":7, "legend.title_fontsize":5}
-#     new_rc_pars.update(pars_rc)
-#     with sns.plotting_context("paper",rc=new_rc_pars):
-#         fig, ax = plt.subplots(1,2, figsize=(3.1,1.5), gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-#         # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
-#         # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
-#         # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
-#         #                 zorder = 0)
-#         # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
-        
-#         unique_models = np.unique(df_all_t_pars["Model"])
-#         for i, model in enumerate(unique_models):
-#             # Filter data for the current model
-#             df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
-#             sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, label=model, errorbar=None)
-#             sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
+    IRF_array = np.arange(0, 1.1, 0.05)
+    # Duplicate the dataframe for each value of IRF
+    df_ki_pars = pd.concat([df_ki_pars]*len(IRF_array), ignore_index=True)
+    df_ki_pars["IRF"] = np.repeat(IRF_array, len(df_ki_pars)/len(IRF_array))
 
-#             df_model = df_all_k_pars[df_all_k_pars["Model"] == model]
-#             sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None)
-#             sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0)
+    df_ki_pars[r"$H_{I_1}$"] = df_ki_pars["H_{I_1}"].astype(int)
+    df_ki_pars[r"$H_{I_2}$"] = df_ki_pars["H_{I_2}"].astype(int)
+    # H_I is equal to value of HI1 when parameter is k_I1 and HI2 when parameter is k_I2
+    df_ki_pars[r"$h_I$"] = np.where(df_ki_pars["Parameter"] == r"$k_{I_1}$", df_ki_pars[r"$H_{I_1}$"], 
+                                    np.where(df_ki_pars["Parameter"] == r"$k_{I_2}$",
+                                             df_ki_pars[r"$H_{I_2}$"], None))
+    df_ki_pars[r"$K_I$"] = df_ki_pars["Value"]*df_ki_pars["IRF"]**(df_ki_pars[r"$h_I$"]-1)
 
-#         ax[1].set_yscale("log")
-#         ax[1].set_ylabel("")
-#         sns.despine()
-#         plt.tight_layout()
-#         handles, labels = ax[0].get_legend_handles_labels()
-#         fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
-#         ax[0].get_legend().remove()
-#         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
-#         plt.close()
+    df_ki_pars["Parameter"] = df_ki_pars["Parameter"].cat.remove_unused_categories()
 
+    colors = sns.color_palette(models_cmap_pars, n_colors=4)
+
+    # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2)
+        g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
+        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        g.set_titles(r"$k=$" +"{col_name}")
+        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+        g.despine()
+        leg = g._legend
+        for line in leg.get_lines():
+            line.set_alpha(1)
+        plt.tight_layout()
+        plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+# Plot parameters one plot
 def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
     df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
@@ -577,67 +576,142 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
 
-    df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
-
     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
                                         np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
-    df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
-
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
+
+    k_parameters = [r"$K_N$",r"$K_P$"]
 
     with sns.plotting_context("paper",rc=plot_rc_pars):
         width = 2.8
         height = 1
         fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                               gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-        # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
-        # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
-        # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
-        #                 zorder = 0)
-        # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
+                               gridspec_kw={"width_ratios":[num_t_pars, 2.5]})
         
         unique_models = np.unique(df_all_t_pars["Model"])
         legend_handles = []
-        for i, model in enumerate(unique_models):
-            # Filter data for the current model
-            df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
-            l = sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
-            sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
 
-            legend_handles.append(l.lines[0])
-
-            df_model = df_all_k_pars[df_all_k_pars["Model"] == model]
-            sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
-            sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0, alpha=0.2)
+        s = sns.stripplot(data=df_all_t_pars, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[0], zorder = 0, linewidth=0,
+                            alpha=0.2, jitter=0, dodge=True, legend=False)
         
+        legend_handles = s.collections
+       
+
+        df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(k_parameters))]
+        df2 = df2.copy()
+        df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
+        s = sns.stripplot(data=df2, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[1], zorder = 0, linewidth=0, 
+                          alpha=0.2, jitter=0, dodge=True, legend=False)        
+       
         ax[1].set_yscale("log")
-        ax[1].set_ylabel("")
+        ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
+        
+        ax1_xtick_labels = ax[1].get_xticklabels()
+        # Replace ", " with "\n" in xtick labels
+        new_xtick_labels = [label.get_text().replace(", $h_{I_2}$=", "\n") for label in ax1_xtick_labels]
+        new_xtick_labels = [label.replace("$h_{I_1}$=", "") for label in new_xtick_labels]
+
+        ax[1].set_xticklabels(new_xtick_labels)
 
         ax[0].set_ylabel("Parameter Value")
-        ax[0].set_xlabel("")
-        ax[1].set_xlabel("")
+        
+        for x in ax[0], ax[1]:
+            x.set_xlabel("")
 
         sns.despine()
         plt.tight_layout()
-        # handles, labels = ax[0].get_legend_handles_labels()
-
-        # leg = fig.legend(legend_handles, unique_models, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
         leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
                          ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
 
-        for i in range(len(unique_models)):
+        for i in range(4):
             leg.legend_handles[i].set_alpha(1)
             leg.legend_handles[i].set_color(colors[i])
 
-
-        # fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
-        # ax[0].get_legend().remove()
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+
+        make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir)
+
+# def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
+#     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
+#     df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
+#     df_t_pars_3_1, df_k_pars_3_1, _, _ = make_parameters_data_frame(pars_3_1)
+#     df_t_pars_3_3, df_k_pars_3_3, num_t_pars, num_k_pars = make_parameters_data_frame(pars_3_3)
+
+#     df_all_t_pars = pd.concat([df_t_pars_1_1, df_t_pars_1_3, df_t_pars_3_1, df_t_pars_3_3], ignore_index=True)
+#     df_all_k_pars = pd.concat([df_k_pars_1_1, df_k_pars_1_3, df_k_pars_3_1, df_k_pars_3_3], ignore_index=True)
+
+#     df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)), np.repeat("1", len(df_t_pars_1_3)),
+#                                         np.repeat("3", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
+#     df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)), np.repeat("3", len(df_t_pars_1_3)),
+#                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
+#     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
+
+#     df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+
+#     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
+#                                         np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
+#     df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
+#                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
+#     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
+
+#     df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+
+#     colors = sns.color_palette(models_cmap_pars, n_colors=4)
+
+#     with sns.plotting_context("paper",rc=plot_rc_pars):
+#         width = 2.8
+#         height = 1
+#         fig, ax = plt.subplots(1,2, figsize=(width, height), 
+#                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+#         # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
+#         # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
+#         # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
+#         #                 zorder = 0)
+#         # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
+        
+#         unique_models = np.unique(df_all_t_pars["Model"])
+#         legend_handles = []
+#         for i, model in enumerate(unique_models):
+#             # Filter data for the current model
+#             df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
+#             l = sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
+#             sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
+
+#             legend_handles.append(l.lines[0])
+
+#             df_model = df_all_k_pars[df_all_k_pars["Model"] == model]
+#             sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
+#             sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0, alpha=0.2)
+        
+#         ax[1].set_yscale("log")
+#         ax[1].set_ylabel("")
+
+#         ax[0].set_ylabel("Parameter Value")
+#         ax[0].set_xlabel("")
+#         ax[1].set_xlabel("")
+
+#         sns.despine()
+#         plt.tight_layout()
+#         # handles, labels = ax[0].get_legend_handles_labels()
+
+#         # leg = fig.legend(legend_handles, unique_models, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+#         leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
+#                          ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
+
+#         for i in range(len(unique_models)):
+#             leg.legend_handles[i].set_alpha(1)
+#             leg.legend_handles[i].set_color(colors[i])
+
+
+#         # fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 1), ncol=2, frameon=False)
+#         # ax[0].get_legend().remove()
+#         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+#         plt.close()
     
     
 def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir):

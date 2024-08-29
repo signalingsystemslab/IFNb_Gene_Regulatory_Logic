@@ -517,9 +517,9 @@ def make_parameters_data_frame(pars):
     df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_{I_1}$" # Rename
     df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$K_N$"
     df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$K_N$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$k_P$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$k_P$"
-    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$K_N$", r"$k_P$"], ordered=True)
+    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$K_P$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$K_P$"
+    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$K_N$", r"$K_P$"], ordered=True)
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
 def make_ki_plot(df_ki_pars, name, figures_dir):
@@ -563,12 +563,15 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
 
     # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=1)
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2)
         g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
-        g.set_axis_labels(r"$IRF$", r"$k_I [IRF]^{h_I-1}$")
-        g.set_titles("{col_name}")
-        # g.add_legend(title=r"$h_I$")
+        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        g.set_titles(r"$k=$" +"{col_name}")
+        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
         g.despine()
+        leg = g._legend
+        for line in leg.get_lines():
+            line.set_alpha(1)
         plt.tight_layout()
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
@@ -603,7 +606,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         width = 2.8
         height = 1
         fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                               gridspec_kw={"width_ratios":[num_t_pars, 3]})
+                               gridspec_kw={"width_ratios":[num_t_pars, 1]})
         # sns.lineplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, zorder = 0, errorbar=None)
         # sns.scatterplot(data=df_all_t_pars, x="Parameter", y="Value", hue="Model", ax=ax[0], palette=colors, legend=False, zorder = 1, linewidth=0)
         # sns.lineplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, errorbar=None,
@@ -612,40 +615,47 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         
         unique_models = np.unique(df_all_t_pars["Model"])
         legend_handles = []
-        for i, model in enumerate(unique_models):
-            # Filter data for the current model
-            df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
-            l = sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
-            s = sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
+        # for i, model in enumerate(unique_models):
+        #     # Filter data for the current model
+        #     df_model = df_all_t_pars[df_all_t_pars["Model"] == model]
+        #     l = sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        #     s = sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], legend=False, zorder = i+0.5, linewidth=0)
 
-            dots = s.collections
-            for d in dots:
-                offsets = d.get_offsets()
-                jitter = offsets + np.random.normal(0, 0.01, offsets.shape)
-                d.set_offsets(jitter)
+        #     dots = s.collections
+        #     for d in dots:
+        #         offsets = d.get_offsets()
+        #         jitter = offsets + np.random.normal(0, 0.01, offsets.shape)
+        #         d.set_offsets(jitter)
 
-            legend_handles.append(l.lines[0])
+        #     legend_handles.append(l.lines[0])
 
-            # df_model = df_all_k_pars[(df_all_k_pars["Model"] == model) & (df_all_k_pars["Parameter"].isin(k_parameters))] 
-            df_model = df_all_k_pars[(df_all_k_pars["Model"] == model) & (df_all_k_pars["Parameter"].isin(k_parameters))]
-            df_model = df_model.copy()
-            df_model["Parameter"] = df_model["Parameter"].cat.remove_unused_categories()
-            s = sns.stripplot(data=df_model, x="Model", y="Value", color=colors[i], ax=ax[1], zorder = i, linewidth=0, alpha=0.2, jitter=0.1)
-            # sns.lineplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
-            # s = sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0, alpha=0.2)
+        s = sns.stripplot(data=df_all_t_pars, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[0], zorder = 0, linewidth=0,
+                            alpha=0.2, jitter=0, dodge=True, legend=False)
+        
+        legend_handles = s.collections
+       
 
-            # for collection in s.collections:
-            #     offsets = collection.get_offsets()
-            #     offsets = np.log1p(offsets)
-            #     vertical_jitter = np.random.normal(0, 0.01, offsets.shape[0])
-            #     vertical_jitter = np.expm1(vertical_jitter)
-            #     jittered_offsets = offsets + np.column_stack((np.zeros(offsets.shape[0]), vertical_jitter))
-            #     collection.set_offsets(jittered_offsets)
+        # df_model = df_all_k_pars[(df_all_k_pars["Model"] == model) & (df_all_k_pars["Parameter"].isin(k_parameters))] 
+        df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(k_parameters))]
+        df2 = df2.copy()
+        df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
+        s = sns.stripplot(data=df2, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[1], zorder = 0, linewidth=0, 
+                          alpha=0.2, jitter=0, dodge=True, legend=False)
+        # sns.lineplot(data=df2, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # s = sns.scatterplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], legend=False, zorder = i+0.5, linewidth=0, alpha=0.2)
+
+        # for collection in s.collections:
+        #     offsets = collection.get_offsets()
+        #     offsets = np.log1p(offsets)
+        #     vertical_jitter = np.random.normal(0, 0.01, offsets.shape[0])
+        #     vertical_jitter = np.expm1(vertical_jitter)
+        #     jittered_offsets = offsets + np.column_stack((np.zeros(offsets.shape[0]), vertical_jitter))
+        #     collection.set_offsets(jittered_offsets)
 
         
        
         ax[1].set_yscale("log")
-        ax[1].set_ylabel(r"$K_N$")
+        ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
         
         ax1_xtick_labels = ax[1].get_xticklabels()
         # Replace ", " with "\n" in xtick labels
