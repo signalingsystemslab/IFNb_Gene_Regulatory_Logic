@@ -545,9 +545,29 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
 
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
 
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     fig, ax = plt.subplots(figsize=(2.1,1.5))
+    #     sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+    #     # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+    #     ax.set_xlabel(r"$[IRF]$ (MNU)")
+    #     ax.set_ylabel(r"$k_{I_2} [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+    #     sns.despine()
+    #     sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+    #                     columnspacing=1, handletextpad=0.5, handlelength=1.5)
+    #     plt.tight_layout()
+
+    #     # Change alpha of legend
+    #     leg = ax.get_legend()
+    #     for line in leg.get_lines():
+    #         line.set_alpha(1)
+
+    #     plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+    #     plt.close()
+
+
     # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2)
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.5, sharey=False)
         g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
         g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
         g.set_titles(r"$k=$" +"{col_name}")
@@ -576,22 +596,38 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
 
+    df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+
+
     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
                                         np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
+    df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
 
-    k_parameters = [r"$K_N$",r"$K_P$"]
+    k_parameters = [r"$k_{I_1}$",r"$K_N$",r"$K_P$"]
+
+    all_parameters = df_all_k_pars["Parameter"].unique()
+
+    if (r"$C$" in all_parameters) or ("C" in all_parameters):
+        has_c=True
+    else:
+        has_c=False
 
     with sns.plotting_context("paper",rc=plot_rc_pars):
         width = 2.8
         height = 1
-        fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                               gridspec_kw={"width_ratios":[num_t_pars, 2.5]})
-        
+        if has_c:
+            fig, ax = plt.subplots(1,3, figsize=(width+1, height), 
+                               gridspec_kw={"width_ratios":[num_t_pars, 2.5, 1]})
+        else:
+            fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                                gridspec_kw={"width_ratios":[num_t_pars, 2.5]})
+       
         unique_models = np.unique(df_all_t_pars["Model"])
         legend_handles = []
 
@@ -609,6 +645,17 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
        
         ax[1].set_yscale("log")
         ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
+
+        if has_c:
+            df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(["C",r"$C$"]))]
+            df2 = df2.copy()
+            df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
+            s = sns.stripplot(data=df2, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[2], zorder = 0, linewidth=0, 
+                          alpha=0.2, jitter=0, dodge=True, legend=False)
+            ax[2].set_yscale("log")
+            ax[2].set_ylabel(r"Value")
+            ax[2].set_xlabel("")
+            ax[2].set_ylim(ax[1].get_ylim())
         
         ax1_xtick_labels = ax[1].get_xticklabels()
         # Replace ", " with "\n" in xtick labels
@@ -627,7 +674,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
                          ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
 
-        for i in range(4):
+        for i in range(len(leg.legend_handles)):
             leg.legend_handles[i].set_alpha(1)
             leg.legend_handles[i].set_color(colors[i])
 

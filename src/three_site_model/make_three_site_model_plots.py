@@ -563,7 +563,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
 
     # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2)
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2, sharey=False)
         g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
         g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
         g.set_titles(r"$k=$" +"{col_name}")

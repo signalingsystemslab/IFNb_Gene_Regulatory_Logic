@@ -646,11 +646,21 @@ def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, 
 
     unique_models = np.unique(df_all_t_pars["Model"])
 
+    all_parameters = df_all_k_pars["Parameter"].unique()
+    if (r"$C$" in all_parameters) or ("C" in all_parameters):
+        has_c=True
+    else:
+        has_c=False
+
     with sns.plotting_context("paper",rc=plot_rc_pars):
         width = 2.8
         height = 1
-        fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                               gridspec_kw={"width_ratios":[num_t_pars, 1]})
+        if has_c:
+            fig, ax = plt.subplots(1,3, figsize=(width, height), 
+                               gridspec_kw={"width_ratios":[num_t_pars, 1, 1]})
+        else:
+            fig, ax = plt.subplots(1,2, figsize=(width, height), 
+                                gridspec_kw={"width_ratios":[num_t_pars, 1]})
         unique_models = np.unique(df_all_t_pars["Model"])
         legend_handles = []
 
@@ -667,13 +677,18 @@ def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, 
 
         ax[1].set_yscale("log")
         ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
-        
-        ax1_xtick_labels = ax[1].get_xticklabels()
-        # Replace ", " with "\n" in xtick labels
-        new_xtick_labels = [label.get_text().replace(", $h_{I_2}$=", "\n") for label in ax1_xtick_labels]
-        new_xtick_labels = [label.replace("$h_{I_1}$=", "") for label in new_xtick_labels]
 
-        ax[1].set_xticklabels(new_xtick_labels)
+        if has_c:
+            df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(["C",r"$C$"]))]
+            df2 = df2.copy()
+            df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
+            s = sns.stripplot(data=df2, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[2], zorder = 0, linewidth=0, 
+                          alpha=0.2, jitter=0, dodge=True, legend=False)
+            ax[2].set_yscale("log")
+            ax[2].set_ylabel(r"Value")
+            ax[2].set_xlabel("")
+            ax[2].set_ylim(ax[1].get_ylim())
+        
 
         ax[0].set_ylabel("Parameter Value")
         
@@ -686,7 +701,7 @@ def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, 
         leg = fig.legend(legend_handles, unique_models, loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
                          ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
 
-        for i in range(4):
+        for i in range(len(leg.legend_handles)):
             leg.legend_handles[i].set_alpha(1)
             leg.legend_handles[i].set_color(colors[i])
 
