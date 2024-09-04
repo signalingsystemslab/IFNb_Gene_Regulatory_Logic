@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 import argparse
 
+
 def generate_synthetic_dataset(training_data, err, seed, number, unscaled=False, clevel=0.95):
     # generate synthetic data based on training data and standard error
     lps_wt_loc = training_data.loc[(training_data["Stimulus"]=="LPS") & (training_data["Genotype"]=="WT")].index[0]

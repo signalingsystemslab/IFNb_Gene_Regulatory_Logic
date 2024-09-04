@@ -367,18 +367,18 @@ def make_parameters_data_frame(pars):
 
     df_k_pars = df_pars.loc[df_pars["Parameter"].str.startswith("k") | df_pars["Parameter"].str.startswith("c")].copy()
     num_k_pars = len(df_k_pars["Parameter"].unique())
-    # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k3", r"$k_N$")
+    # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k3", r"$K_N$")
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k2", r"$k_2$")
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("k1", r"$k_1$")
-    # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("kn", r"$k_N$")
+    # df_k_pars["Parameter"] = df_k_pars["Parameter"].str.replace("kn", r"$K_N$")
     df_k_pars.loc[df_k_pars["Parameter"] == "k1", "Parameter"] = r"$k_{I_2}$" # Rename
     df_k_pars.loc[df_k_pars["Parameter"] == "k2", "Parameter"] = r"$k_{I_1}$" # Rename
-    df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$k_N$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$k_N$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$k_P$"
-    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$k_P$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "kn", "Parameter"] = r"$K_N$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k3", "Parameter"] = r"$K_N$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "kp", "Parameter"] = r"$K_P$"
+    df_k_pars.loc[df_k_pars["Parameter"] == "k4", "Parameter"] = r"$K_P$"
     df_k_pars.loc[df_k_pars["Parameter"] == "c", "Parameter"] = r"$C$"
-    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$",r"$C$"], ordered=True)
+    df_k_pars["Parameter"] = pd.Categorical(df_k_pars["Parameter"], categories=[r"$k_{I_1}$", r"$k_{I_2}$", r"$K_N$", r"$K_P$",r"$C$"], ordered=True)
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
 def make_predictions_data_frame(df_ifnb_predicted):
@@ -439,54 +439,118 @@ def make_all_plots(synthetic_data, results_dir, figures_dir, err):
         df_all_t_pars, df_all_k_pars, num_t_pars, num_k_pars = make_parameters_data_frame(all_optimized_pars)
 
         colors = sns.color_palette(dataset_cmap_pars, len(datasets))
-        
+
+        # with sns.plotting_context("paper",rc=plot_rc_pars):
+        #     width = 2.8
+        #     height = 1
+        #     fig, ax = plt.subplots(1,2, figsize=(width, height), 
+        #                         gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+            
+        #     legend_handles = []
+        #     for i, dset in enumerate(datasets):
+        #         # Filter data for the current model
+        #         df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
+        #         l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+
+        #         legend_handles.append(l)
+
+        #         df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
+        #         sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
+            
+        #     ax[1].set_yscale("log")
+        #     ax[1].set_ylabel("")
+
+        #     ax[0].set_ylabel("Parameter Value")
+        #     ax[0].set_xlabel("")
+        #     ax[1].set_xlabel("")
+
+        #     sns.despine()
+        #     plt.tight_layout()
+        #     plt.savefig("%s/optimized_parameters_old_plot.png" % figures_dir, bbox_inches="tight")
+        #     plt.close()
+
+        #######
+        col  = sns.color_palette(models_cmap_pars, n_colors=4)[1]
+        k_parameters = [r"$k_{I_1}$",r"$K_N$",r"$K_P$"]
+
+        df_all_t_pars["Source"] = "Synthetic"
+        df_all_t_pars.loc[df_all_t_pars["Dataset"].str.contains(datasets[0]), "Source"] = "Original"
+        df_all_t_pars["Source"] = pd.Categorical(df_all_t_pars["Source"], categories=["Original", "Synthetic"], ordered=True)
+
+        df_all_k_pars["Source"] = "Synthetic"
+        df_all_k_pars.loc[df_all_k_pars["Dataset"].str.contains(datasets[0]), "Source"] = "Original"
+        df_all_k_pars["Source"] = pd.Categorical(df_all_k_pars["Source"], categories=["Original", "Synthetic"], ordered=True)
+
         with sns.plotting_context("paper",rc=plot_rc_pars):
             width = 2.8
             height = 1
             fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-            
-            legend_handles = []
-            for i, dset in enumerate(datasets):
-                # Filter data for the current model
-                df_model = df_all_t_pars[df_all_t_pars["Dataset"] == dset]
-                l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[0], zorder = i, alpha=0.2)
+                                gridspec_kw={"width_ratios":[num_t_pars, 2.5]})
+        
+            # unique_models = np.unique(df_all_t_pars["Model"])
+            # legend_handles = []
 
-                legend_handles.append(l)
+            cols = ["black", col]
 
-                df_model = df_all_k_pars[df_all_k_pars["Dataset"] == dset]
-                sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[i], ax=ax[1], zorder = i, alpha=0.2)
-            
+            s = sns.stripplot(data=df_all_t_pars, x="Parameter", y="Value", hue ="Source", palette=cols, ax=ax[0], zorder = 0, linewidth=0,
+                                alpha=0.2, jitter=0.1, dodge=True, legend=False)
+
+            legend_handles = s.collections
+        
+
+            df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(k_parameters))]
+            df2 = df2.copy()
+            df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
+            s = sns.stripplot(data=df2, x="Parameter", y="Value", hue ="Source", palette=cols, ax=ax[1], zorder = 0, linewidth=0, 
+                            alpha=0.2, jitter=0.1, dodge=True, legend=False)        
+        
             ax[1].set_yscale("log")
-            ax[1].set_ylabel("")
+            ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
+            
+            ax1_xtick_labels = ax[1].get_xticklabels()
+            # Replace ", " with "\n" in xtick labels
+            new_xtick_labels = [label.get_text().replace(", $h_{I_2}$=", "\n") for label in ax1_xtick_labels]
+            new_xtick_labels = [label.replace("$h_{I_1}$=", "") for label in new_xtick_labels]
+
+            ax[1].set_xticklabels(new_xtick_labels)
 
             ax[0].set_ylabel("Parameter Value")
-            ax[0].set_xlabel("")
-            ax[1].set_xlabel("")
+            
+            for x in ax[0], ax[1]:
+                x.set_xlabel("")
 
             sns.despine()
             plt.tight_layout()
+            leg = fig.legend(legend_handles, ["Original", "Synthetic"], loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False, 
+                            ncol=4, columnspacing=1, handletextpad=0.5, handlelength=1.5)
+
+            for i in range(len(leg.legend_handles)):
+                leg.legend_handles[i].set_alpha(1)
+                leg.legend_handles[i].set_color(cols[i])
+
             plt.savefig("%s/optimized_parameters_combined.png" % figures_dir, bbox_inches="tight")
             plt.close()
 
-            # Plot original dataset only
-            fig, ax = plt.subplots(1,2, figsize=(width, height),
-                                gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
-            legend_handles = []
-            df_model = df_all_t_pars[df_all_t_pars["Dataset"] == datasets[0]]
-            l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[0], zorder = 0, alpha=0.2)
-            legend_handles.append(l)
-            df_model = df_all_k_pars[df_all_k_pars["Dataset"] == datasets[0]]
-            sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[1], zorder = 0, alpha=0.2)
-            ax[1].set_yscale("log")
-            ax[1].set_ylabel("")
-            ax[0].set_ylabel("Parameter Value")
-            ax[0].set_xlabel("")
-            ax[1].set_xlabel("")
-            sns.despine()
-            plt.tight_layout()
-            plt.savefig("%s/optimized_parameters_original.png" % figures_dir, bbox_inches="tight")
-            plt.close()
+
+
+            # # Plot original dataset only
+            # fig, ax = plt.subplots(1,2, figsize=(width, height),
+            #                     gridspec_kw={"width_ratios":[num_t_pars, num_k_pars]})
+            # legend_handles = []
+            # df_model = df_all_t_pars[df_all_t_pars["Dataset"] == datasets[0]]
+            # l = sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[0], zorder = 0, alpha=0.2)
+            # legend_handles.append(l)
+            # df_model = df_all_k_pars[df_all_k_pars["Dataset"] == datasets[0]]
+            # sns.stripplot(data=df_model, x="Parameter", y="Value", color=colors[0], ax=ax[1], zorder = 0, alpha=0.2)
+            # ax[1].set_yscale("log")
+            # ax[1].set_ylabel("")
+            # ax[0].set_ylabel("Parameter Value")
+            # ax[0].set_xlabel("")
+            # ax[1].set_xlabel("")
+            # sns.despine()
+            # plt.tight_layout()
+            # plt.savefig("%s/optimized_parameters_original.png" % figures_dir, bbox_inches="tight")
+            # plt.close()
 
         # Plot optimized predictions
         print("Plotting optimized predictions", flush=True)
