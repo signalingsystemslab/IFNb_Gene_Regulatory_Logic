@@ -576,6 +576,39 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
+    # Log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2, sharey=False)
+        g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
+        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        g.set_titles(r"$k=$" +"{col_name}")
+        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+        g.despine()
+        g.set(yscale="log")
+        leg = g._legend
+        for line in leg.get_lines():
+            line.set_alpha(1)
+        plt.tight_layout()
+        plt.savefig("%s/%s_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+    # log-log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2, sharey=False)
+        g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
+        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        g.set_titles(r"$k=$" +"{col_name}")
+        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+        g.despine()
+        g.set(yscale="log")
+        g.set(xscale="log")
+        leg = g._legend
+        for line in leg.get_lines():
+            line.set_alpha(1)
+        plt.tight_layout()
+        plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
 # Plot parameters one plot
 def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
@@ -598,6 +631,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
+
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
 
     k_parameters = [r"$K_N$"] # Only plot K_N
@@ -614,6 +648,8 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         # sns.scatterplot(data=df_all_k_pars, x="Parameter", y="Value", hue="Model", ax=ax[1], palette=colors, legend=False, zorder = 1, linewidth=0)
         
         unique_models = np.unique(df_all_t_pars["Model"])
+        df_all_k_pars["Model"] = pd.Categorical(df_all_k_pars["Model"], categories=unique_models, ordered=True)
+
         legend_handles = []
         # for i, model in enumerate(unique_models):
         #     # Filter data for the current model

@@ -526,7 +526,7 @@ def combine_parameters_data_frame(pars_1_1, pars_1_3, pars_3_1, pars_3_3):
 
 def make_ki_plot(df_ki_pars, name, figures_dir):
     # Filter for parameter containing "I"
-    df_ki_pars = df_ki_pars.loc[df_ki_pars["Parameter"].str.contains("I")]
+    df_ki_pars = df_ki_pars.loc[df_ki_pars["Parameter"].str.contains("I_2")]
 
     IRF_array = np.arange(0, 1.1, 0.05)
     # Duplicate the dataframe for each value of IRF
@@ -545,40 +545,83 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
 
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
 
-    # with sns.plotting_context("paper", rc=plot_rc_pars):
-    #     fig, ax = plt.subplots(figsize=(2.1,1.5))
-    #     sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
-    #     # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
-    #     ax.set_xlabel(r"$[IRF]$ (MNU)")
-    #     ax.set_ylabel(r"$k_{I_2} [IRF]^{h_I-1}$ (MNU$^{-1}$)")
-    #     sns.despine()
-    #     sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
-    #                     columnspacing=1, handletextpad=0.5, handlelength=1.5)
-    #     plt.tight_layout()
-
-    #     # Change alpha of legend
-    #     leg = ax.get_legend()
-    #     for line in leg.get_lines():
-    #         line.set_alpha(1)
-
-    #     plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
-    #     plt.close()
-
-
-    # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.5, sharey=False)
-        g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
-        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
-        g.set_titles(r"$k=$" +"{col_name}")
-        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
-        g.despine()
-        leg = g._legend
+        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_{I_2} [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
         for line in leg.get_lines():
             line.set_alpha(1)
-        plt.tight_layout()
+
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+
+    # Log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_{I_2} [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        ax.set_yscale("log")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
+        for line in leg.get_lines():
+            line.set_alpha(1)
+
+        plt.savefig("%s/%s_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+    # log-log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_{I_2} [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        ax.set_yscale("log")
+        ax.set_xscale("log")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
+        for line in leg.get_lines():
+            line.set_alpha(1)
+
+        plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+
+    # # plot with different colors for each value of h_I, x-axis is IRF, y-axis is K_I, facet by Parameter
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.5, sharey=False)
+    #     g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
+    #     g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+    #     g.set_titles(r"$k=$" +"{col_name}")
+    #     g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+    #     g.despine()
+    #     leg = g._legend
+    #     for line in leg.get_lines():
+    #         line.set_alpha(1)
+    #     plt.tight_layout()
+    #     plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
+    #     plt.close()
 
 # Plot parameters one plot
 def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):

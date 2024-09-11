@@ -635,6 +635,49 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
+    # Log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_I [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        ax.set_yscale("log")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
+        for line in leg.get_lines():
+            line.set_alpha(1)
+
+        plt.savefig("%s/%s_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
+    # Log-log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_I [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
+        for line in leg.get_lines():
+            line.set_alpha(1)
+
+        plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
 def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, figures_dir):
     colors = sns.color_palette(models_cmap_pars, n_colors=4)
     width = 2.1
