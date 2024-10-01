@@ -171,7 +171,7 @@ def minimize_objective(pars, N, I, P, beta, h_pars, c_par, bounds):
 def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3):
     start = time.time()    
     min_k_order = -3
-    max_k_order = 4
+    max_k_order = 3
     min_c_order = -3
     max_c_order = 4
 
