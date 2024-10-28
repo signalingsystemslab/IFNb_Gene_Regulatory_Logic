@@ -18,13 +18,16 @@ mpl.rcParams["font.sans-serif"] = "Arial"
 data_color = "#6F5987"
 
 states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
-models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
+# models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
 
-# # states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
-# states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
-# # models_cmap = sns.cubehelix_palette(start=0.9, rot=-.75, dark=0.3, light=0.8, hue=0.6, cmap=True)
-# models_cmap_pars = "ch:s=0.9,r=-0.75,h=0.6,l=0.8,d=0.3"
-heatmap_cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.4,start=-.2, hue=0.6)
+# # # states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
+# # states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
+# # # models_cmap = sns.cubehelix_palette(start=0.9, rot=-.75, dark=0.3, light=0.8, hue=0.6, cmap=True)
+# # models_cmap_pars = "ch:s=0.9,r=-0.75,h=0.6,l=0.8,d=0.3"
+# heatmap_cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.4,start=-.2, hue=0.6)
+
+models_colors=["#83CCD2","#A7CDA8","#D6CE7E","#E69F63"]
+heatmap_cmap = sns.blend_palette(["#17131C","#D2A8FF","#F3EDFC","white"],as_cmap=True)
 
 plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
                                           "ytick.labelsize":6, "axes.titlesize":7, "legend.title_fontsize":7,
@@ -393,7 +396,7 @@ def fix_ax_labels(ax, is_heatmap=False):
 #         with sns.plotting_context("paper", rc=new_rc_pars):
 #             num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
 #             fig, ax = plt.subplots(figsize=(num_bars*1.5 + 1, 3))
-#             cols =[data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+#             cols =[data_color] + models_colors
 #             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
 #                         palette=cols, ax=ax, width=0.8, errorbar=None)
 #             ax.set_xlabel("")
@@ -451,9 +454,10 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
             width  = 3.1*num_bars/3/2.1
             height = 1.3/1.7
             fig, ax = plt.subplots(figsize=(width, height))
-            cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+            cols = [data_color] + models_colors
             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=0.9)
+                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=0.9, 
+                        linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
             ax.set_xlabel("")
             ax.set_ylabel(r"IFNβ $f$")
             # ax.set_title(category)
@@ -473,9 +477,9 @@ def plot_predictions_one_plot(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predi
         width  = 3.1*num_bars/3/2.1 + 0.5
         height = 1.3/1.7
         fig, ax = plt.subplots(figsize=(width, height))
-        cols = [data_color] + sns.color_palette(models_cmap_pars, n_colors=4)
+        cols = [data_color] + models_colors
         sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                    palette=cols, ax=ax, width=0.8, errorbar=None, saturation=0.9)
+                    palette=cols, ax=ax, width=0.8, errorbar=None, saturation=0.9, linewidth=0.5, edgecolor="black")
         ax.set_xlabel("")
         ax.set_ylabel(r"IFN$\beta$")
         # ax.set_title(category)
@@ -541,7 +545,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
 
     df_ki_pars["Parameter"] = df_ki_pars["Parameter"].cat.remove_unused_categories()
 
-    colors = sns.color_palette(models_cmap_pars, n_colors=4)
+    colors = models_colors
     # with sns.plotting_context("paper", rc=plot_rc_pars):
     #     fig, ax = plt.subplots(figsize=(2.1,1.5))
     #     sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
@@ -632,7 +636,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
 
-    colors = sns.color_palette(models_cmap_pars, n_colors=4)
+    colors = models_colors
 
     k_parameters = [r"$K_N$"] # Only plot K_N
 
