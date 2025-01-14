@@ -1,3 +1,6 @@
+# IRF has same t parameter regardless of binding site
+# Synergy is not restricted to neighboring sites
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,8 +9,6 @@ class Modelp50:
         self.parsT = t_pars
         
         if len(t_pars) != 5:
-            # print("Got %d pars when expected %d" % (len(t_pars), 5))
-            # print("pars = " + str(t_pars))
             raise ValueError("Got %d pars when expected %d. Pars = %s" % (len(t_pars), 5, str(t_pars)))
 
         if k_pars is not None:
@@ -59,15 +60,15 @@ class Modelp50:
 
         self.t = np.array([0.0 for i in range(12)])
         self.t[1] = self.parsT[0] # IRF - t1
-        self.t[2] = self.parsT[1] # IRF_G - t2
+        self.t[2] = self.parsT[0] # IRF_G - t1
         self.t[3] = self.parsT[0] # IRF + p50 - t1
-        self.t[4] = self.parsT[2] # NFkB - t3
-        self.t[5] = self.parsT[2] # NFkB + p50 - t3
+        self.t[4] = self.parsT[1] # NFkB - t3
+        self.t[5] = self.parsT[1] # NFkB + p50 - t3
         # 6 is zero
-        self.t[7] = self.parsT[3] # IRF + IRF_G - t4
-        self.t[8] = self.parsT[0] + self.parsT[2] # IRF + NFkB - t1 + t3
-        self.t[9] = self.parsT[4] # IRF_G + NFkB - t5
-        self.t[10] = self.parsT[0] + self.parsT[2] # IRF + NFkB + p50 - t1 + t3
+        self.t[7] = self.parsT[2] # IRF + IRF_G - t4
+        self.t[8] = self.parsT[4] # IRF + NFkB - t6
+        self.t[9] = self.parsT[3] # IRF_G + NFkB - t5
+        self.t[10] = self.parsT[4] # IRF + NFkB + p50 - t6
         self.t[11] = 1
 
 

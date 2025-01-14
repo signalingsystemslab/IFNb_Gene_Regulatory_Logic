@@ -174,7 +174,7 @@ def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_
     min_k_order = -3
     max_k_order = 3
     min_c_order = -3
-    max_c_order = 4
+    max_c_order = 3
 
     # Define bounds
     bnds = [(0, 1) for i in range(num_t_pars)] + [(10**min_k_order, 10**max_k_order) for i in range(num_k_pars)]

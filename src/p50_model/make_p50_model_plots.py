@@ -15,20 +15,12 @@ import matplotlib.colors as mcolors
 
 mpl.rcParams["figure.dpi"] = 600
 mpl.rcParams["font.sans-serif"] = "Arial"
-# irf_color = "#5D9FB5"
-# nfkb_color = "#BA4961"
 data_color = "#6F5987"
 
 states_cmap_pars = "ch:s=0.9,r=-0.8,h=0.6,l=0.9,d=0.2"
 # models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
 # models_cmap_pars = "ch:s=0.1,r=0.7,h=1,d=0.3,l=0.8,g=1_r"
 models_colors=["#83CCD2","#A7CDA8","#D6CE7E","#E69F63"]
-
-# # states_cmap = sns.cubehelix_palette(start=2.2, rot=.75, dark=0.25, light=0.8, hue=0.6, cmap=True)
-# states_cmap_pars = "ch:s=2.2,r=0.75,h=0.6,l=0.8,d=0.25"
-# # models_cmap = sns.cubehelix_palette(start=0.9, rot=-.75, dark=0.3, light=0.8, hue=0.6, cmap=True)
-# models_cmap_pars = "ch:s=0.9,r=-0.75,h=0.6,l=0.8,d=0.3"
-# heatmap_cmap = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.4,start=-.2, hue=0.6)
 heatmap_cmap = sns.blend_palette(["#17131C","#997BBA","#D2A8FF","#E7D4FC","#F4EEFA"],as_cmap=True)
 
 plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
@@ -107,15 +99,16 @@ def get_renaming_dict(results_dir):
     state_names["state_only"] = state_names["state_old"].str.split(" s", expand=True)[0]
     state_names["state_new"] = state_names["state_only"].replace("$IRF$", "$IRF_2$")
     state_names["state_new"] = state_names["state_new"].replace("$IRF_G$", "$IRF_1$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G$", "$IRF_1\cdot IRF_2$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B$", "$IRF_2\cdot NF\kappa B$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF_G\cdot NF\kappa B$", "$IRF_1\cdot NF\kappa B$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B\cdot p50$", "$IRF_2\cdot NF\kappa B\cdot p50$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G\cdot NF\kappa B$", "$IRF_1\cdot IRF_2\cdot NF\kappa B$")
-    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot p50$", "$IRF_2\cdot p50$")
-    state_name_order = ["Unbound", r"$IRF_1$", r"$IRF_2$", r"$IRF_2\cdot p50$", r"$NF\kappa B$",
-                        r"$NF\kappa B\cdot p50$", r"$p50$", r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$",
-                        r"$IRF_2\cdot NF\kappa B$", r"$IRF_2\cdot NF\kappa B\cdot p50$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G$", "$IRF_1& IRF_2$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B$", "$IRF_2& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF_G\cdot NF\kappa B$", "$IRF_1& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B\cdot p50$", "$IRF_2& NF\kappa B& p50$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G\cdot NF\kappa B$", "$IRF_1& IRF_2& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot p50$", "$IRF_2& p50$")
+    state_names["state_new"] = state_names["state_new"].replace("$NF\kappa B\cdot p50$", "$NF\kappa B& p50$")
+    state_name_order = ["Unbound", r"$IRF_1$", r"$IRF_2$", r"$IRF_2& p50$", r"$NF\kappa B$",
+                        r"$NF\kappa B& p50$", r"$p50$", r"$IRF_1& IRF_2$", r"$IRF_1& NF\kappa B$",
+                        r"$IRF_2& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", r"$IRF_1& IRF_2& NF\kappa B$"]
     state_names["state_new"] = pd.Categorical(state_names["state_new"], categories=state_name_order, ordered=True)
     state_names = state_names.sort_values("state_new")
     state_names["state"] = state_names["state_new"].astype(str)
@@ -242,10 +235,10 @@ def make_contribution_plots():
     make_heatmap(contrib_df, cmap, model, "contrib_sweep_WT", figures_dir)
 
     # Filter for three states: IRF1IRF2, IRF1NFkB, IRF1IRF2NFkB
-    contrib_df_three = contrib_df.loc[contrib_df["state"].isin([r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"])].copy()
+    contrib_df_three = contrib_df.loc[contrib_df["state"].isin([r"$IRF_1& IRF_2$", r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"])].copy()
     contrib_df_three["state"] = contrib_df_three["state"].cat.remove_unused_categories()
 
-    contrib_df_other = contrib_df.loc[~contrib_df["state"].isin([r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"])].copy()
+    contrib_df_other = contrib_df.loc[~contrib_df["state"].isin([r"$IRF_1& IRF_2$", r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"])].copy()
     contrib_df_other = contrib_df_other.groupby([r"NF$\kappa$B", "IRF"])["contribution"].sum().reset_index()
     contrib_df_other["state"] = "Other"
     contrib_df_other["state"] = pd.Categorical(contrib_df_other["state"], categories=["Other"], ordered=True)
@@ -300,7 +293,7 @@ def make_contribution_plots():
     contrib_df["Condition"] = pd.Categorical(contrib_df["Condition"], categories=condition_levels, ordered=True)
 
     # Contributing states
-    contrib_states = [r"$IRF_1\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
+    contrib_states = [r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2$", r"$IRF_1& IRF_2& NF\kappa B$"]
     # Sum all non-contributing states into "Other"
     contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
     contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
@@ -637,7 +630,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir, colors = models_colors):
     df_ki_pars["Parameter"] = df_ki_pars["Parameter"].cat.remove_unused_categories()
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        fig, ax = plt.subplots(figsize=(2,1))
         sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
         # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
         ax.set_xlabel(r"$[IRF]$ (MNU)")
@@ -657,7 +650,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir, colors = models_colors):
 
     # Log scale
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        fig, ax = plt.subplots(figsize=(2,1))
         sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
         # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
         ax.set_xlabel(r"$[IRF]$ (MNU)")
@@ -678,7 +671,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir, colors = models_colors):
 
     # log-log scale
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.1,1.5))
+        fig, ax = plt.subplots(figsize=(2,1.25))
         sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
         # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
         ax.set_xlabel(r"$[IRF]$ (MNU)")
@@ -730,7 +723,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
 
-    df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+    df_all_t_pars = df_all_t_pars.loc[(df_all_t_pars[r"H_{I_1}"]  == "1") & (df_all_t_pars[r"H_{I_2}"]  == "3")] # acceptable models only
 
 
     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
@@ -739,9 +732,9 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
-    df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
+    df_all_k_pars = df_all_k_pars.loc[(df_all_k_pars[r"H_{I_1}"]  == "1") & (df_all_k_pars[r"H_{I_2}"]  == "3")] # acceptable models only
 
-    colors = models_colors
+    colors = models_colors[1:]
 
     k_parameters = [r"$k_{I_1}$",r"$K_N$",r"$K_P$"]
 
@@ -753,7 +746,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         has_c=False
 
     with sns.plotting_context("paper",rc=plot_rc_pars):
-        width = 2.8
+        width = 3
         height = 1
         if has_c:
             fig, ax = plt.subplots(1,3, figsize=(width+1, height), 
@@ -815,7 +808,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         plt.savefig("%s/%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
-        make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir)
+        make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir, colors=colors)
 
 # def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
 #     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)

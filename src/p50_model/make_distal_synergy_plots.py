@@ -119,7 +119,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         has_c=False
 
     with sns.plotting_context("paper",rc=plot_rc_pars):
-        width = 2.8
+        width = 3
         height = 1
         if has_c:
             fig, ax = plt.subplots(1,3, figsize=(width+1, height), 
@@ -457,8 +457,8 @@ def make_contribution_plots():
     make_heatmap(contrib_df, cmap, model, "contrib_sweep_WT", figures_dir)
 
     # Filter for four states: IRF1IRF2, IRF1NFkB, IRF1IRF2NFkB, IRF1NFkBp50
-    active_states = [r"$IRF_1\cdot NF\kappa B$", r"$IRF_2\cdot NF\kappa B\cdot p50$", 
-                     r"$IRF_2\cdot NF\kappa B$", r"$IRF_1\cdot IRF_2$", r"$IRF_1\cdot IRF_2\cdot NF\kappa B$"]
+    active_states = [r"$IRF_1& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", 
+                     r"$IRF_2& NF\kappa B$", r"$IRF_1& IRF_2$", r"$IRF_1& IRF_2& NF\kappa B$"]
     contrib_df_three = contrib_df.loc[contrib_df["state"].isin(active_states)].copy()
     contrib_df_three["state"] = contrib_df_three["state"].cat.remove_unused_categories()
 
@@ -720,11 +720,147 @@ def make_state_probabilities_plots():
     make_cbars(t_pars_df, cmap_t, figures_dir, "t")
     make_state_heatmaps(t_pars_df, "all", cmap_t, figures_dir, "t")
 
+def modify_supp_contrib_dfs(df,state_name_dict):
+    state_names = list(state_name_dict.values())
+    df.rename(columns=state_name_dict, inplace=True)
+    df = pd.melt(df, id_vars=[r"NF$\kappa$B", "IRF", "par_set"], value_vars=state_names, var_name="state", value_name="contribution")
+    df["state"] = pd.Categorical(df["state"], categories=state_names, ordered=True)
+    df = df.groupby([r"NF$\kappa$B", "IRF", "state"])["contribution"].mean().reset_index()
+    df = df.groupby([r"NF$\kappa$B", "IRF"])["contribution"].sum().reset_index()
+    return df
+
+def make_supplemental_plots():
+    # Param scan
+    figures_dir = "parameter_scan_dist_syn/nice_figures/"
+    os.makedirs(figures_dir, exist_ok=True)
+ 
+    training_data = pd.read_csv("../data/p50_training_data.csv")
+    beta = training_data["IFNb"]
+    conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
+
+    force_t_dir = "parameter_scan_dist_syn/"
+    model_t = "p50_dist_syn"
+
+    # Make contribution plots for WT/p50 difference
+    contrib_results_dir = "parameter_scan_dist_syn/p50_contrib"
+    model = "p50_dist_syn"
+    # best_20_pars_df = pd.read_csv("%s/%s_all_best_20_pars_h_%s.csv" % (best_fit_dir, model, h))
+
+    # get_contribution_data()
+
+    t = time.time()
+    print("Making supplemental contribution plots, starting at %s" % time.ctime(), flush=True)
+
+    ## Make heatmaps for all states, WT p50 ##
+    contrib_df_WT = pd.read_csv("%s/%s_best_params_contributions_sweep_p1.csv" % (contrib_results_dir, model))
+    contrib_df_p50ko = pd.read_csv("%s/%s_best_params_contributions_sweep_p0.csv" % (contrib_results_dir, model))
+
+    # Rename the columns in contrib_df
+    state_name_dict = get_renaming_dict(contrib_results_dir)
+    contrib_df_WT = modify_supp_contrib_dfs(contrib_df_WT, state_name_dict)
+    contrib_df_p50ko = modify_supp_contrib_dfs(contrib_df_p50ko, state_name_dict)
+       
+    # df_combined = contrib_df_WT.join(contrib_df_p50ko, lsuffix="_WT", rsuffix="_p50ko", how="outer", on=["NF$\kappa$B", "IRF"])
+    df_combined = contrib_df_WT.merge(contrib_df_p50ko, on=["NF$\kappa$B", "IRF"], suffixes=("_WT", "_p50ko"), how="outer")
+    df_combined.rename(columns={"contribution_WT":"WT", "contribution_p50ko":"p50ko"}, inplace=True)
+    df_combined["Difference"] = df_combined["p50ko"] - df_combined["WT"]
+    # df_combined["contribution_diff"] = df_combined["contribution_p50ko"] - df_combined["contribution_WT"]
+    df_combined = df_combined.melt(id_vars=["NF$\kappa$B", "IRF"], value_vars=["WT", "p50ko", "Difference"], var_name="genotype", value_name="contribution")
+
+    # Make heatmap for WT, p50ko, and difference
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        ncols = 3 
+        p = sns.FacetGrid(df_combined, col="genotype", col_wrap=ncols, sharex=True, sharey=True, height=1.3)
+        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=df_combined, cbar=False, vmin=0, vmax=1,
+                        square=True, cmap = heatmap_cmap)
+        p.set_titles("{col_name}")
+        # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
+        plt.tight_layout()
+        plt.savefig("%s/transcription_difference_heatmap.png" % (figures_dir))
+        plt.close()
+
+    # best fit cooperativity model with different Hill combinations
+    predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_scan" % force_t_dir, model_t), delimiter=",")
+    predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_scan" % force_t_dir, model_t), delimiter=",")
+    plot_predictions_one_plot(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
+                              "best_20_ifnb_c_scan", figures_dir)
+    
+    del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
+
+    # best fit parameters from cooperativity model with different Hill combinations
+    best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_scan" % force_t_dir, model_t))
+    best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_scan" % force_t_dir, model_t))
+    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_scan", figures_dir)
+
+    del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
+    
+    # Pairwise plot of parameters
+    pars_df_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1/" % force_t_dir, model_t))
+    pars_df_1_1["Model"] = r"$h_{I_1}$=1, $h_{I_2}$=1"
+    pars_df_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1/" % force_t_dir, model_t))
+    pars_df_1_3["Model"] = r"$h_{I_1}$=3, $h_{I_2}$=1"
+    pars_df_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results/" % force_t_dir, model_t))
+    pars_df_3_1["Model"] = r"$h_{I_1}$=1, $h_{I_2}$=3"
+    pars_df_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1/" % force_t_dir, model_t))
+    pars_df_3_3["Model"] = r"$h_{I_1}$=3, $h_{I_2}$=3"
+    df_pars = pd.concat([pars_df_1_1, pars_df_1_3, pars_df_3_1, pars_df_3_3], ignore_index=True)
+    new_par_names = [r"$t_{I}$", r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$", r"$t_{I_2N}$",r"$k_{I_2}$", r"$k_{I_1}$", r"$k_N$", r"$k_P$"]
+    old_par_names = ["t_1", "t_2", "t_3", "t_4", "t_5", "t_6", "k_1", "k_2", "k_n", "k_p"]
+    old_par_names2 = ["t1", "t2", "t3", "t4", "t5", "t6", "k1", "k2", "kn", "kp"]
+    rename_dict = {old:new for old, new in zip(old_par_names, new_par_names)}
+    rename_dict2 = {old:new for old, new in zip(old_par_names2, new_par_names)}
+    df_pars = df_pars.rename(columns=rename_dict)
+    df_pars = df_pars.rename(columns=rename_dict2)
+    df_pars = df_pars.drop(columns=["rmsd"])
+    column_order = [r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$", r"$t_{I_2N}$", r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$", "Model"]
+    df_pars = df_pars[column_order]
+    k_val_ranges = {}
+    for k_val in [r"$k_{I_1}$", r"$k_{I_2}$", r"$k_N$", r"$k_P$"]:
+        # print("k val: %s, min: %f, max: %f" % (k_val, df_pars[k_val].min(), df_pars[k_val].max()))
+        # add k value ranges to the dict. round to nearest 10^x
+        min = df_pars[k_val].min()
+        max = df_pars[k_val].max()
+        min = 10**np.floor(np.log10(min))
+        max = 10**np.ceil(np.log10(max))
+        if max > 10**4-1:
+            max = 10**5
+        k_val_ranges[k_val] = (min, max)
+        print("k val: %s, min: %f, max: %f" % (k_val, min, max))
+
+    rc = {"axes.labelsize":25,"xtick.labelsize":20,"ytick.labelsize":20, "legend.fontsize":20}
+    with sns.plotting_context("talk", rc=rc):
+        g = sns.pairplot(df_pars, hue="Model", palette=models_colors, diag_kind="kde", height=2, aspect=1)
+        for i, ax in enumerate(g.axes.flatten()):
+            # Skip the diagonal axes
+            if i % (g.axes.shape[0] + 1) == 0:
+                continue
+            for k_val, rgs in k_val_ranges.items():
+                if k_val in ax.get_xlabel():
+                    ax.set_xlim(rgs)
+                    ax.set_xscale("log")
+                if k_val in ax.get_ylabel():
+                    ax.set_ylim(rgs)
+                    ax.set_yscale("log")
+            if "t" in ax.get_xlabel():
+                ax.set_xlim(0-0.1,1+0.1)
+            if "t" in ax.get_ylabel():
+                ax.set_ylim(0-0.1,1+0.1)
+        # g._legend.remove()
+        sns.move_legend(g, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="upper left")
+        plt.tight_layout()
+        plt.savefig("%s/pairwise_parameters.png" % figures_dir)
+        plt.close()
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c","--contributions", action="store_true")
     parser.add_argument("-p","--param_scan", action="store_true")
     parser.add_argument("-s","--state_probs", action="store_true")
+    parser.add_argument("-x","--supplemental", action="store_true")
     args = parser.parse_args()
 
     t = time.time()
@@ -736,6 +872,9 @@ def main():
 
     if args.state_probs:
         make_state_probabilities_plots()
+
+    if args.supplemental:
+        make_supplemental_plots()
 
     print("Finished making all plots, took %.2f seconds" % (time.time() - t))
 

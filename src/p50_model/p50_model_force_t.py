@@ -61,12 +61,12 @@ class Modelp50:
         self.t[1] = self.parsT[0] # IRF - t1
         self.t[2] = self.parsT[0] # IRF_G - t1
         self.t[3] = self.parsT[0] # IRF + p50 - t1
-        self.t[4] = self.parsT[1] # NFkB - t2
-        self.t[5] = self.parsT[1] # NFkB + p50 - t2
+        self.t[4] = self.parsT[1] # NFkB - t3
+        self.t[5] = self.parsT[1] # NFkB + p50 - t3
         # 6 is zero
-        self.t[7] = self.parsT[2] # IRF + IRF_G - t3
+        self.t[7] = self.parsT[2] # IRF + IRF_G - t4
         self.t[8] = self.parsT[0] + self.parsT[1] # IRF + NFkB - t1 + t2
-        self.t[9] = self.parsT[3] # IRF_G + NFkB - t4
+        self.t[9] = self.parsT[3] # IRF_G + NFkB - t5
         self.t[10] = self.parsT[0] + self.parsT[1] # IRF + NFkB + p50 - t1 + t2
         self.t[11] = 1
 

@@ -9,8 +9,8 @@ import argparse
 import seaborn as sns
 import scipy.stats.qmc as qmc
 
-figures_dir = "p50_contrib/figures"
-results_dir = "p50_contrib/results"
+figures_dir = "parameter_scan_dist_syn/p50_contrib/"
+results_dir = "parameter_scan_dist_syn/p50_contrib/"
 os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
 num_t_pars = 4
@@ -19,11 +19,11 @@ num_h_pars = 2
 
 def main():
     h_pars = "3_1_1"
-    best_fit_dir ="parameter_scan_force_t/results/"
-    model = "p50"
+    best_fit_dir ="parameter_scan_dist_syn/results/"
+    model = "p50_dist_syn"
     num_threads = 40
     # col_names = ["t%d" % i for i in range(1, num_t_pars+1)] + ["k%d" % i for i in range(1, num_k_pars+1)]
-    best_20_pars_df = pd.read_csv("%s/%s_force_t_best_fits_pars.csv" % (best_fit_dir, model))
+    best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (best_fit_dir, model))
     best_20_pars_df["h1"] = int(h_pars.split("_")[0])
     best_20_pars_df["h2"] = int(h_pars.split("_")[1])
     best_20_pars_df["hn"] = int(h_pars.split("_")[2])
