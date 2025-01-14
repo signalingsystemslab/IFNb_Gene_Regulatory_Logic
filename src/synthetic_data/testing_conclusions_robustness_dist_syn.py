@@ -2,7 +2,7 @@
 # Optimize the parameters of the model: t parameters and k parameters
 # Initial parameters from parameter scan
 
-from p50_model_force_t import *
+from p50_model_distal_synergy import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pandas as pd
@@ -85,10 +85,10 @@ def calculate_rmsd(ifnb_predicted, beta):
 def get_t_pars(l_bounds, u_bounds):
     new_t_pars = np.random.uniform(l_bounds, u_bounds)
     j = 0
-    while new_t_pars[0]*2 > new_t_pars[2] or new_t_pars[0] + new_t_pars[1] > new_t_pars[3]:
+    while (new_t_pars[0]*2 > new_t_pars[2]) or (new_t_pars[0] + new_t_pars[1] > new_t_pars[3] or (new_t_pars[0] + new_t_pars[1] > new_t_pars[4])):
         new_t_pars = np.random.uniform(l_bounds, u_bounds)
         j += 1
-        if j % 200 == 0:
+        if j % 300 == 0:
             print("Number of attempts to fix this parameter set: %d" % j, flush=True)
     return new_t_pars
 
@@ -131,11 +131,22 @@ def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=
         cgrid = 10**cgrid
         grid_tk[:,-1] = cgrid
     if restrict_t:
-        # tI, tN, tI1I2, tIN, k1, k2, kN, kP
+        # self.t[1] = self.parsT[0] # IRF - t1
+        # self.t[2] = self.parsT[0] # IRF_G - t1
+        # self.t[3] = self.parsT[0] # IRF + p50 - t1
+        # self.t[4] = self.parsT[1] # NFkB - t3
+        # self.t[5] = self.parsT[1] # NFkB + p50 - t3
+        # # 6 is zero
+        # self.t[7] = self.parsT[2] # IRF + IRF_G - t4
+        # self.t[8] = self.parsT[4] # IRF + NFkB - t6
+        # self.t[9] = self.parsT[3] # IRF_G + NFkB - t5
+        # self.t[10] = self.parsT[4] # IRF + NFkB + p50 - t6
+        # self.t[11] = 1
+
         # 1. Get all rows where tI*2>tI1I2 or tI+tN>tIN (n rows)
         # 2. Generate n random values of t parameters such that tI*2<=tI1I2 and tI+tN<=tIN 
         # 3. Replace rows in grid
-        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]))[0]
+        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,4]))[0]
         num_out_of_bounds = len(out_of_bounds)
         if num_out_of_bounds > 0:
             new_t_pars = np.zeros((num_out_of_bounds, num_t_pars))
@@ -145,7 +156,7 @@ def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=
             grid_tk[out_of_bounds,:num_t_pars] = np.array(new_t_pars)
 
         # Verify that all rows are within bounds
-        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]))[0]
+        out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,4]))[0]
         if len(out_of_bounds) > 0:
             raise ValueError("Number of out of bounds parameter sets after correction: %d" % len(out_of_bounds))
 
@@ -284,11 +295,11 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
     return  datasets
 
 def objective_function(pars, *args):
-    N, I, P, beta, h_pars, c_par = args
-    t_pars = pars[0:4]
-    k_pars = pars[4:8]
+    N, I, P, beta, h_pars, c_par, restrict_t = args
+    t_pars = pars[0:5]
+    k_pars = pars[5:9]
     if c_par:
-        c = pars[8]
+        c = pars[9]
     else:
         c = None
 
@@ -299,15 +310,17 @@ def objective_function(pars, *args):
     rmsd = calculate_rmsd(ifnb_predicted, beta)
 
     # t0: tI, t1:tN, t2: tII, t3: tIN
-    if (t_pars[2] < 2*t_pars[0]) or (t_pars[3] < t_pars[0] + t_pars[1]):
-        rmsd = 100
+    # out_of_bounds = np.where((grid_tk[:,0]*2 > grid_tk[:,2]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,3]) | (grid_tk[:,0] + grid_tk[:,1] > grid_tk[:,4]))[0]
+    if restrict_t:
+        if (t_pars[2] < 2*t_pars[0]) or (t_pars[3] < t_pars[0] + t_pars[1]) or (t_pars[4] < t_pars[0] + t_pars[1]):
+            rmsd = 100
 
     return rmsd
 
-def minimize_objective(pars, N, I, P, beta, h_pars, c_par, bounds):
-    return opt.minimize(objective_function, pars, args=(N, I, P, beta, h_pars, c_par), method="Nelder-Mead", bounds=bounds)
+def minimize_objective(pars, N, I, P, beta, h_pars, c_par, bounds, restrict_t):
+    return opt.minimize(objective_function, pars, args=(N, I, P, beta, h_pars, c_par, restrict_t), method="Nelder-Mead", bounds=bounds)
 
-def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3):
+def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3, restrict_t=True):
     start = time.time()    
     min_k_order = -3
     max_k_order = 3
@@ -322,7 +335,7 @@ def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_
 
     # Optimize
     with Pool(num_threads) as p:
-        results = p.starmap(minimize_objective, [(pars, N, I, P, beta, h, c, bnds) for pars in initial_pars])
+        results = p.starmap(minimize_objective, [(pars, N, I, P, beta, h, c, bnds, restrict_t) for pars in initial_pars])
 
     final_pars = np.array([result.x for result in results]) # each row is a set of optimized parameters
     rmsd = np.array([result.fun for result in results])
@@ -357,12 +370,13 @@ def make_parameters_data_frame(pars):
     # df_t_pars = df_pars[df_pars["Parameter"].str.startswith("t")]
     df_t_pars = df_pars.loc[df_pars["Parameter"].str.startswith("t")].copy()
     num_t_pars = len(df_t_pars["Parameter"].unique())
-    new_t_par_names = [r"$t_{I}$", r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$"]
+
+    new_t_par_names = [r"$t_{I}$", r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$", r"$t_{I_2N}$"]
     # Rename t parameters
-    df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t1", "t2", "t3", "t4", "t5"], new_t_par_names)
-    df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t_1", "t_2", "t_3", "t_4", "t_5"], new_t_par_names)
+    df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t1", "t2", "t3", "t4", "t5", "t6"], new_t_par_names)
+    df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t_1", "t_2", "t_3", "t_4", "t_5", "t_6"], new_t_par_names)
     df_t_pars["Parameter"] = df_t_pars["Parameter"].replace(["t_0", "t_I1I2N"], [r"$t_0$", r"$t_{I_1I_2N}$"])
-    new_t_par_order = [r"$t_0$",r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$", r"$t_{I_1I_2N}$"]
+    new_t_par_order = [r"$t_0$",r"$t_{I}$", r"$t_N$", r"$t_{I_1I_2}$", r"$t_{I_1N}$", r"$t_{I_2N}$", r"$t_{I_1I_2N}$"]
     df_t_pars["Parameter"] = pd.Categorical(df_t_pars["Parameter"], categories=new_t_par_order, ordered=True)
 
     df_k_pars = df_pars.loc[df_pars["Parameter"].str.startswith("k") | df_pars["Parameter"].str.startswith("c")].copy()
@@ -1005,6 +1019,7 @@ def main():
     parser.add_argument("-e","--error_val", type=float, default=0.1)
     parser.add_argument("-t","--test", action="store_true")
     parser.add_argument("-n","--num_threads", type=int, default=60)
+    parser.add_argument("-s","--num_samples_power", type=int, default=6)
     args = parser.parse_args()
 
     start_start = time.time()
@@ -1014,7 +1029,7 @@ def main():
 
     # Settings    
     num_threads = args.num_threads
-    model = "p50_force_t"
+    model = "p50_dist_syn"
     h1, h2 = args.h1, args.h2
     h3 = 1
     h_val = "%d_%d_%d" % (h1, h2, h3)
@@ -1022,16 +1037,19 @@ def main():
     print("Error value: %.1f" % args.error_val, flush=True)
     c_par= args.c_parameter
     num_to_keep = 100
+    num_samples = 10**args.num_samples_power
+    restrict_t = False
 
     # Model details
-    num_t_pars = 4
+    num_t_pars = 5
     num_k_pars = 4
     # num_c_pars = 1
     # num_h_pars = 2
 
     # Directories
-    figures_dir = "parameter_scan/figures_%.1f/" % args.error_val
-    results_dir = "parameter_scan/results_%.1f/" % args.error_val
+    insert_dir = "" if restrict_t else "no_restrict/"
+    figures_dir = "parameter_scan_dist_syn/%sfigures_%.1f/" % (insert_dir, args.error_val)
+    results_dir = "parameter_scan_dist_syn/%sresults_%.1f/" % (insert_dir, args.error_val)
     if h_val != "3_1_1":
         figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
         results_dir = results_dir[:-1] + "_h_%s/" % h_val
@@ -1059,24 +1077,26 @@ def main():
     datasets = synthetic_data["Dataset"].unique()
 
     if args.test:
-        datasets = datasets[1:4]
+        datasets = datasets[1:10]
         print("IN TEST MODE: Using only %d datasets" % len(datasets), flush=True)
+        num_samples = 10**4
+        print("Using only %d samples" % num_samples, flush=True)
 
     one_dataset = synthetic_data.loc[synthetic_data["Dataset"] == datasets[0]]
     datapoint_names = one_dataset["Stimulus"] + "_" + one_dataset["Genotype"]
 
     if c_par:
         # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
-        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp", "c"]
+        result_par_names = ["t_1","t_3","t_4","t_5","t_6", "k1", "k2", "kn", "kp", "c"]
     else:
         # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
-        result_par_names = ["t_1","t_3","t_4","t_5", "k1", "k2", "kn", "kp"]
+        result_par_names = ["t_1","t_3","t_4","t_5","t_6", "k1", "k2", "kn", "kp"]
 
     # Optimize
     if args.param_scan:
         print("###############################################\n")
         start = time.time()
-        grid = calculate_grid(seed=0, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par, restrict_t=True)
+        grid = calculate_grid(seed=0, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par, num_samples=num_samples, restrict_t=restrict_t)
 
         training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
         
@@ -1124,7 +1144,8 @@ def main():
             print("Optimizing model...", flush=True)
             initial_pars = np.loadtxt("%s/initial_pars_%s.csv" % (results_dir, dataset), delimiter=",")
             
-            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, 
+                                                              num_t_pars=num_t_pars, num_k_pars=num_k_pars, restrict_t=restrict_t)
             # print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
 
             # Save all results
