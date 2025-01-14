@@ -164,9 +164,9 @@ def minimize_objective(pars, N, I, beta, h_pars, c_par, bounds):
 def optimize_model(N, I, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=2, num_k_pars=2):
     start = time.time()    
     min_k_order = -3
-    max_k_order = 4
+    max_k_order = 3
     min_c_order = -3
-    max_c_order = 4
+    max_c_order = 3
 
     # Define bounds
     bnds = [(0, 1) for i in range(num_t_pars)] + [(10**min_k_order, 10**max_k_order) for i in range(num_k_pars)]
