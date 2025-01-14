@@ -1,7 +1,8 @@
 # Optimize the parameters of the model: t parameters and k parameters
-# Initial parameters from parameter scan
+# IRF has same t parameter regardless of binding site
+# Synergy is not restricted to neighboring sites
 
-from three_site_model_force_t import *
+from three_site_model_distal_synergy import *
 from three_site_model_figures import plot_parameters, plot_predictions, plot_parameter_distributions
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,17 +21,19 @@ def get_N_I_P(data, stimulus, genotype):
     P = row["p50"].values[0]
     return N, I, P
 
-def get_state_prob(t_pars, k_pars, N, I, c_par=None, h_pars=None):
-    model = three_site(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
-    model.calculateState(N, I)
-    model.calculateProb()
-    probabilities = model.prob
+# def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
+#     model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+#     model.calculateState(N, I)
+#     model.calculateProb()
+#     probabilities = model.prob
     
-    # 1, I, Ig, N,  I*Ig, I*N, Ig*N, I*Ig*N
-    state_names = ["none", r"$IRF$", r"$IRF_G$", r"$NF\kappa B$", r"$IRF\cdot IRF_G$", 
-                   r"$IRF\cdot NF\kappa B$", r"$IRF_G\cdot NF\kappa B$", r"$IRF\cdot IRF_G\cdot NF\kappa B$"]
+#     # 1, I, Ig, N,  I*Ig, I*N, Ig*N, I*Ig*N
+#     state_names = ["none", r"$IRF$", r"$IRF_G$", r"$IRF\cdot p50$", r"$NF\kappa B$", 
+#                 r"$NF\kappa B\cdot p50$", r"$p50$", r"$IRF\cdot IRF_G$", 
+#                 r"$IRF\cdot NF\kappa B$", r"$IRF_G\cdot NF\kappa B$", r"$IRF\cdot NF\kappa B\cdot p50$", 
+#                 r"$IRF\cdot IRF_G\cdot NF\kappa B$"]
 
-    return probabilities, state_names
+#     return probabilities, state_names
 
 def calc_state_prob(k_pars, N, I, P, num_t=6, h_pars=None):
     # print(N, I, P, flush=True)
@@ -68,7 +71,8 @@ def calculate_rmsd(ifnb_predicted, beta):
     rmsd = np.sqrt(np.mean(residuals**2))
     return rmsd
 
-def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False, hn=1):
+def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, 
+                   num_k_pars=4, num_h_pars=2, c_par=False, hn=1):
     min_k_order = np.log10(k_bounds[0])
     max_k_order = np.log10(k_bounds[1])
     min_c_order = np.log10(10**-3)
@@ -149,10 +153,10 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
 
 def objective_function(pars, *args):
     N, I, beta, h_pars, c_par = args
-    t_pars = pars[0:4]
-    k_pars = pars[4:7]
+    t_pars = pars[0:5]
+    k_pars = pars[5:8]
     if c_par:
-        c = pars[7]
+        c = pars[8]
     else:
         c = None
 
@@ -169,9 +173,9 @@ def minimize_objective(pars, N, I, beta, h_pars, c_par, bounds):
 def optimize_model(N, I, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3):
     start = time.time()    
     min_k_order = -3
-    max_k_order = 4
+    max_k_order = 3
     min_c_order = -3
-    max_c_order = 4
+    max_c_order = 3
 
     # Define bounds
     bnds = [(0, 1) for i in range(num_t_pars)] + [(10**min_k_order, 10**max_k_order) for i in range(num_k_pars)]
@@ -227,8 +231,7 @@ def main():
 
     # Settings    
     num_threads = 40
-    model = "three_site_force_t"
-    par_type = "k"
+    model = "three_site_dist_syn"
     h1, h2 = args.h1, args.h2
     hn = args.hn
     h_val = "%d_%d_%d" % (h1, h2, hn)
@@ -236,14 +239,12 @@ def main():
     c_par= args.c_parameter
 
     # Model details
-    num_t_pars = 4
+    num_t_pars = 5
     num_k_pars = 3
-    # num_c_pars = 1
-    # num_h_pars = 2
 
     # Directories
-    figures_dir = "parameter_scan_force_t/figures/"
-    results_dir = "parameter_scan_force_t/results/"
+    figures_dir = "parameter_scan_dist_syn/figures/"
+    results_dir = "parameter_scan_dist_syn/results/"
     if h_val != "3_1_1":
         figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
         results_dir = results_dir[:-1] + "_h_%s/" % h_val
@@ -252,7 +253,7 @@ def main():
         results_dir = results_dir[:-1] + "_c_scan/"
     os.makedirs(figures_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
-    pars_dir = "../three_site_model/optimization/results/seed_0/"
+    # pars_dir = "../three_site_model/optimization/results/seed_0/"
     print("Saving results to %s" % results_dir, flush=True)
     
     # Load training data
@@ -269,17 +270,16 @@ def main():
     # genotypes = training_data["Genotype"].unique()
     
     if c_par:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
-        result_par_names = ["t1","t3","t4","t5", "k1", "k2", "kn", "c"]
+        result_par_names = ["t1","t3","t4","t5", "t6", "k1", "k2", "kn", "c"]
     else:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
-        result_par_names = ["t1","t3","t4","t5", "k1", "k2", "kn"]
+        result_par_names = ["t1","t3","t4","t5", "t6", "k1", "k2", "kn"]
 
     # Optimize
     if args.param_scan:
         # Perform parameter scan
         print("Performing parameter scan...", flush=True)
-        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h1=h1, h2=h2, hn=hn, c_par=c_par,num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h1=h1, h2=h2, hn=hn, c_par=c_par,
+                                                          num_t_pars=num_t_pars, num_k_pars=num_k_pars)
         print("Finished parameter scan.", flush=True)
 
         
@@ -373,7 +373,7 @@ def main():
         final_pars = pd.read_csv("%s/%s_best_fits_pars.csv" % (results_dir, model)).values
         print("Calculating and plotting state probabilities...", flush=True)
         all_k_pars = final_pars[:, num_t_pars:num_t_pars+num_k_pars]
-        h_pars = [h1, h2, hn]
+        h_pars = [h1, h2]
 
         extra_training_data = pd.DataFrame({"Stimulus":"basal", "Genotype":"WT", "IRF":0.01, "NFkB":0.01, "p50":1}, index=[0])
         training_data_extended = pd.concat([training_data, extra_training_data], ignore_index=True)

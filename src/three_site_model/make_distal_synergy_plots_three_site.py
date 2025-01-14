@@ -1,6 +1,6 @@
 # Make nice version of the plots for the three site model
 from three_site_model_distal_synergy import get_f, get_contribution
-from make_three_site_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot, plot_parameters_one_plot
+from make_three_site_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -85,6 +85,44 @@ def make_parameters_data_frame(pars):
     # df_k_pars["Parameter"] = df_k_pars["Parameter"].cat.remove_unused_categories()
     return df_t_pars, df_k_pars, num_t_pars, num_k_pars
 
+def make_ki_plot(df_ki_pars, name, figures_dir):
+    # Filter for parameter containing "I"
+    df_ki_pars = df_ki_pars.loc[df_ki_pars["Parameter"].str.contains("I")]
+
+    IRF_array = np.arange(0, 1.1, 0.05)
+    # Duplicate the dataframe for each value of IRF
+    df_ki_pars = pd.concat([df_ki_pars]*len(IRF_array), ignore_index=True)
+    df_ki_pars["IRF"] = np.repeat(IRF_array, len(df_ki_pars)/len(IRF_array))
+
+    df_ki_pars[r"$H_{I_1}$"] = df_ki_pars["H_{I_1}"].astype(int)
+    df_ki_pars[r"$H_{I_2}$"] = df_ki_pars["H_{I_2}"].astype(int)
+    # H_I is equal to value of HI1 when parameter is k_I1 and HI2 when parameter is k_I2
+    df_ki_pars[r"$h_I$"] = np.where(df_ki_pars["Parameter"] == r"$k_{I_1}$", df_ki_pars[r"$H_{I_1}$"], 
+                                    np.where(df_ki_pars["Parameter"] == r"$k_{I_2}$",
+                                             df_ki_pars[r"$H_{I_2}$"], None))
+    df_ki_pars[r"$K_I$"] = df_ki_pars["Value"]*df_ki_pars["IRF"]**(df_ki_pars[r"$h_I$"]-1)
+
+    df_ki_pars["Parameter"] = df_ki_pars["Parameter"].cat.remove_unused_categories()
+
+    colors = models_colors
+
+    # log-log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        g = sns.FacetGrid(df_ki_pars, col="Parameter", hue="Model", palette=colors, col_wrap=2, height=1.5, aspect=.2, sharey=False)
+        g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
+        g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
+        g.set_titles(r"$k=$" +"{col_name}")
+        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+        g.despine()
+        g.set(yscale="log")
+        g.set(xscale="log")
+        leg = g._legend
+        for line in leg.get_lines():
+            line.set_alpha(1)
+        plt.tight_layout()
+        plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
 def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
     df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
@@ -113,7 +151,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
 
     colors = models_colors
 
-    k_parameters = [r"$k_{I_1}$",r"$K_N$",r"$K_P$"]
+    k_parameters = [r"$K_N$",r"$K_P$"]
 
     all_parameters = df_all_k_pars["Parameter"].unique()
 
@@ -127,10 +165,10 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         height = 1
         if has_c:
             fig, ax = plt.subplots(1,3, figsize=(width+1, height), 
-                               gridspec_kw={"width_ratios":[num_t_pars, 2.5, 1]})
+                               gridspec_kw={"width_ratios":[num_t_pars, len(k_parameters)-0.5, 1]})
         else:
             fig, ax = plt.subplots(1,2, figsize=(width, height), 
-                                gridspec_kw={"width_ratios":[num_t_pars, 2.5]})
+                                gridspec_kw={"width_ratios":[num_t_pars, len(k_parameters)-0.5]})
        
         unique_models = np.unique(df_all_t_pars["Model"])
         legend_handles = []
@@ -763,10 +801,119 @@ def make_state_probabilities_plots():
     make_cbars(t_pars_df, cmap_t, figures_dir, "t")
     make_state_heatmaps(t_pars_df, "all", cmap_t, figures_dir, "t")
 
+def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, name="rmsd_boxplot"):
+    all_opt_rmsd["Hill"] = pd.Categorical(all_opt_rmsd["Hill"], ordered=True)
+    all_opt_rmsd = all_opt_rmsd.sort_values("Hill")
+    
+    rmsd_df = all_opt_rmsd.copy()
+
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(3,2))
+        col = sns.color_palette("rocket", n_colors=2)[1]
+        sns.boxplot(data=rmsd_df, x="Hill", y="rmsd", color="white")
+
+        ax.set_ylabel("RMSD")
+
+        # Remove x-axis labels
+        ax.set_xticklabels([])
+        # Remove x-axis title
+        ax.set_xlabel("")
+        # # Remove x-axis ticks
+        # ax.set_xticks([])
+
+        # Create a table of h values
+        table_data = rmsd_df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"]].drop_duplicates().values.tolist()
+        # print(table_data)
+        table_data = np.array(table_data).T
+        table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+
+        colors = sns.color_palette("rocket", n_colors=4)
+        alpha = 0.5
+        colors = [(color[0], color[1], color[2], alpha) for color in colors]
+        # Loop through the cells and change their color based on their text
+        for i in range(len(table_data)):
+            for j in range(len(table_data[i])):
+                cell = table[i, j] 
+                if table_data[i][j] in [5,"5"]:
+                    cell.set_facecolor(colors[0])
+                elif table_data[i][j] in [3,"3"]:
+                    cell.set_facecolor(colors[1])
+                elif table_data[i][j] in [1,"1"]:
+                    cell.set_facecolor(colors[2])
+                else:
+                    cell.set_facecolor(colors[3])
+
+        # Adjust layout to make room for the table:
+        plt.subplots_adjust(left=0.2, bottom=0.18)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
+        plt.savefig("%s/%s_%s.png" % (figures_dir, name, model), bbox_inches="tight")
+        plt.close()
+
+def make_supplemental_plots():
+    figures_dir = "parameter_scan_dist_syn/nice_figures/"
+    os.makedirs(figures_dir, exist_ok=True)
+
+
+    model = "three_site_dist_syn"
+    training_data = pd.read_csv("../data/training_data.csv")
+    h_values = np.meshgrid([1,3], [1,3], [1,3])
+    h_values = np.array(h_values).T.reshape(-1,3)
+
+    force_t_dir = "parameter_scan_dist_syn/"
+
+    # Load RMSD for all hill combinations
+    all_best_rmsd = pd.DataFrame()
+    for row in h_values:
+        h_vals_str = "_".join([str(i) for i in row])
+        dir = "%s/results_h_%s/" % (force_t_dir, h_vals_str)
+        if h_vals_str == "3_1_1":
+            dir = "%s/results/" % force_t_dir
+
+        # Check that the file exists
+        if not os.path.exists("%s/%s_rmsd_optimized.csv" % (dir, model)):
+            print("File %s/%s_rmsd_optimized.csv does not exist" % (dir, model))
+            continue
+
+        rmsd_df = pd.read_csv("%s/%s_rmsd_optimized.csv" % (dir, model))
+        rmsd_df = rmsd_df[rmsd_df["rmsd_type"] == "rmsd_final"]
+        h1, h2, hn = row
+        rmsd_df[r"$h_{I_1}$"] = h2.astype(str)
+        rmsd_df[r"$h_{I_2}$"] = h1.astype(str)
+        rmsd_df[r"$h_N$"] = hn.astype(str)
+        all_best_rmsd = pd.concat([all_best_rmsd, rmsd_df], ignore_index=True)
+        del rmsd_df
+
+    # Plot box plot of rmsd
+    all_best_rmsd["Hill"] = all_best_rmsd[r"$h_{I_1}$"].astype(str) + "_" + all_best_rmsd[r"$h_{I_2}$"].astype(str) + "_" + all_best_rmsd[r"$h_N$"].astype(str)
+    all_best_rmsd = all_best_rmsd.rename(columns={"RMSD":"rmsd"})
+    plot_rmsd_boxplot(all_best_rmsd, model, figures_dir, name="rmsd_boxplot_all_hills")
+    
+
 def main():
-    make_param_scan_plots()
-    make_contribution_plots()
-    make_state_probabilities_plots()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c","--contributions", action="store_true")
+    parser.add_argument("-p","--param_scan", action="store_true")
+    parser.add_argument("-s","--state_probs", action="store_true")
+    parser.add_argument("-x","--supplemental", action="store_true")
+    args = parser.parse_args()
+
+    t = time.time()
+    if args.contributions:
+        make_contribution_plots()
+
+    if args.param_scan:
+        make_param_scan_plots()
+
+    if args.state_probs:
+        make_state_probabilities_plots()
+
+    if args.supplemental:
+        make_supplemental_plots()
+
+    print("Finished making all plots, took %.2f seconds" % (time.time() - t))
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,6 @@
 # Three site model, no p50 competition
+# IRF has same t parameter regardless of binding site
+# Synergy is not restricted to neighboring sites
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -57,15 +59,16 @@ class three_site:
         # States
         # 1, I, Ig, N,  I*Ig, I*N, Ig*N, I*Ig*N
         # t-vals
-        # 0, t1, t2, t3, t4, t5, t6, 1
+        # 0, t1, t1, t2, t3, t5, t4, 1
 
+        # Force t for both IRFs to be the same
         self.t = np.array([0.0 for i in range(8)])
-        self.t[1] = self.parsT[0]
-        self.t[2] = self.parsT[1]
-        self.t[3] = self.parsT[2]
-        self.t[4] = self.parsT[3]
-        self.t[5] = self.parsT[0] + self.parsT[2]
-        self.t[6] = self.parsT[4]
+        self.t[1] = self.parsT[0] # t1 - IRF2
+        self.t[2] = self.parsT[0] # t1 - IRF1
+        self.t[3] = self.parsT[1] # t2 - NFkB
+        self.t[4] = self.parsT[2] # t3 - IRF1&IRF2
+        self.t[5] = self.parsT[4] # t5 - IRF2&NFkB
+        self.t[6] = self.parsT[3] # t4 - IRF1&NFkB
         self.t[7] = 1
 
 
