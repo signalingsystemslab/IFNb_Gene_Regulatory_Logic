@@ -1,8 +1,8 @@
 IRF,NFkB,IFNb,p50,Stimulus,Genotype
-0.01,0.8,0,1,CpG,WT
-0.01,0.8,0.3,0,CpG,p50KO
 0.25,1,0.6,1,LPS,WT
 0.25,1,0.6,0,LPS,p50KO
+0.01,0.8,0,1,CpG,WT
+0.01,0.8,0.3,0,CpG,p50KO
 0.25,0,0.2,1,LPS,relacrelKO
 0.01,1,0,1,LPS,irf3irf7KO
 1,0.5,1,1,polyIC,WT
