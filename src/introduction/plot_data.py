@@ -105,16 +105,18 @@ def fix_ax_labels(ax, is_heatmap=False):
 def plot_data_bar(df, name="IFNb"):
     with sns.plotting_context("paper", rc=plot_rc_pars):
         num_bars = len(df["Data point"].unique())
-        add_vals = {"Stimulus specific": 0.1, "NFκB dependence": 0.026, "IRF dependence": 0.1, "p50 dependence": 0.1}
+        add_vals = {"Stimulus specific": 0.065, "NFκB dependence": 0.017, "IRF dependence": 0.11, "p50 dependence": 0.1}
         add_val = add_vals[name]
-        heights = {"Stimulus specific": 0.9, "NFκB dependence": 0.9, "IRF dependence": 0.9, "p50 dependence": 0.85}
+        heights = {"Stimulus specific": 0.85, "NFκB dependence": 0.85, "IRF dependence": 0.85, "p50 dependence": 0.85}
         fig, ax = plt.subplots(figsize=(num_bars/3.8+add_val, heights[name]))
-        p = sns.barplot(data=df, x="Data point", y="IFNb", color=data_color, ax=ax, width=0.8, saturation=.9)
+        p = sns.barplot(data=df, x="Data point", y="IFNb", color=data_color, ax=ax, width=0.6, saturation=.9, 
+                        linewidth=0.5, edgecolor="black")
 
         ax.set_xlabel("")
         ax.set_ylabel(r"")
         # remove ytick labels
-        if name != "Stimulus specific":
+        # if name != "Stimulus specific":
+        if name not in ["Stimulus specific", "p50 dependence"]:
             ax.set_yticklabels([])
 
         # ax.set_title(name)
@@ -202,16 +204,16 @@ def plot_irf_nfkb_bar(df, name="irf_nfkb"):
         add_vals = {"Stimulus specific": 0.05, "NFκB dependence": 0.0, "IRF dependence": 0.025, "p50 dependence": 0.1}
         widths = {"Stimulus specific": 0.8, "NFκB dependence": 0.75, "IRF dependence": 0.7, "p50 dependence": 0.8}
         add_val = add_vals[name]
-        heights = {"Stimulus specific": 0.62, "NFκB dependence": 0.595, "IRF dependence": 0.595, "p50 dependence": 0.45}
+        heights = {"Stimulus specific": 0.62, "NFκB dependence": 0.6, "IRF dependence": 0.6, "p50 dependence": 0.6}
 
         fig, ax = plt.subplots(figsize=(num_bars/3.8+add_val, heights[name]))
         # cbar_ax = fig.add_axes([.8, .3, .03, .4])
         colors = {"IRF": irf_color, r"$NF\kappa B$": nfkb_color}
-        sns.barplot(data=df, x="Data point", y="Activity", hue="Protein", palette=colors, ax=ax, width=widths[name], 
-                    legend=False, saturation=.9)
+        sns.barplot(data=df, x="Data point", y="Activity", hue="Protein", palette=colors, ax=ax, width=widths[name]*0.9, 
+                    legend=False, saturation=.9, linewidth=0.5, edgecolor="black")
         ax.set_xlabel("")
         ax.set_ylabel("")
-        if name != "Stimulus specific":
+        if name not in ["Stimulus specific", "p50 dependence"]:
             ax.set_yticklabels([])
         else:
             ax.set_yticks([0,0.5,1.0])
@@ -233,8 +235,8 @@ def plot_irf_nfkb_bar(df, name="irf_nfkb"):
             fig, ax = plt.subplots(figsize=(num_bars/3.8+0.1, 0.6))
             # cbar_ax = fig.add_axes([.8, .3, .03, .4])
             colors = {"IRF": irf_color, r"$NF\kappa B$": nfkb_color}
-            sns.barplot(data=df, x="Data point", y="Activity", hue="Protein", palette=colors, ax=ax, width=0.8,
-                saturation=.9)
+            sns.barplot(data=df, x="Data point", y="Activity", hue="Protein", palette=colors, ax=ax, width=0.6,
+                saturation=.9, linewidth=0.5, edgecolor="black")
             ax.set_xlabel("")
             ax.set_ylabel("")
             if name != "Stimulus specific":
