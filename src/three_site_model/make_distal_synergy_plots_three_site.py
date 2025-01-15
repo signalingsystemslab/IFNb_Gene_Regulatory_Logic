@@ -1,6 +1,6 @@
 # Make nice version of the plots for the three site model
 from three_site_model_distal_synergy import get_f, get_contribution
-from make_three_site_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot
+from make_three_site_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot, make_predictions_data_frame
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -225,6 +225,8 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
 
         make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir)
 
+
+
 def make_param_scan_plots():
     figures_dir = "parameter_scan_dist_syn/nice_figures/"
     os.makedirs(figures_dir, exist_ok=True)
@@ -240,8 +242,119 @@ def make_param_scan_plots():
     predictions_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1/" % scan_dir, model_t), delimiter=",")
     predictions_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results/" % scan_dir, model_t), delimiter=",")
     predictions_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1/" % scan_dir, model_t), delimiter=",")
-    plot_predictions_one_plot(predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3, beta, conditions, "best_20_ifnb", figures_dir)
-    del predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3        
+    plot_predictions_one_plot(predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3, beta, conditions, "best_20_ifnb", figures_dir)         
+
+    # Compare predictions for NFkBko in two-site vs three-site model
+    two_site_results_dir = "../two_site_model/parameter_scan/"
+    model_2 = "two_site"
+    predictionstwo_1_1 = np.loadtxt("%s/results_h_1_1/%s_best_fits_ifnb_predicted.csv" % (two_site_results_dir, model_2), delimiter=",")
+    predictionstwo_2_1 = np.loadtxt("%s/results_h_2_1/%s_best_fits_ifnb_predicted.csv" % (two_site_results_dir, model_2), delimiter=",")
+    predictionstwo_3_1 = np.loadtxt("%s/results_h_3_1/%s_best_fits_ifnb_predicted.csv" % (two_site_results_dir, model_2), delimiter=",")
+    predictionstwo_4_1 = np.loadtxt("%s/results_h_4_1/%s_best_fits_ifnb_predicted.csv" % (two_site_results_dir, model_2), delimiter=",")
+    
+    # Two-site predictions
+    predictionstwo_1 = make_predictions_data_frame(predictionstwo_1_1, beta, conditions)
+    predictionstwo_1["Model"] = r"Two-site, $h_{I}=1$"
+    predictionstwo_2 = make_predictions_data_frame(predictionstwo_2_1, beta, conditions)
+    predictionstwo_2["Model"] = r"Two-site, $h_{I}=2$"
+    predictionstwo_3 = make_predictions_data_frame(predictionstwo_3_1, beta, conditions)
+    predictionstwo_3["Model"] = r"Two-site, $h_{I}=3$"
+    predictionstwo_4 = make_predictions_data_frame(predictionstwo_4_1, beta, conditions)
+    predictionstwo_4["Model"] = r"Two-site, $h_{I}=4$"
+
+    # Three-site predictions
+    predictionsthree_1_1 = make_predictions_data_frame(predictions_1_1, beta, conditions)
+    predictionsthree_1_1["Model"] = r"Three-site, $h_{I_1}=1, h_{I_2}=1$"
+    predictionsthree_1_3 = make_predictions_data_frame(predictions_1_3, beta, conditions)
+    predictionsthree_1_3["Model"] = r"Three-site, $h_{I_1}=1, h_{I_2}=3$"
+    predictionsthree_3_1 = make_predictions_data_frame(predictions_3_1, beta, conditions)
+    predictionsthree_3_1["Model"] = r"Three-site, $h_{I_1}=3, h_{I_2}=1$"
+    predictionsthree_3_3 = make_predictions_data_frame(predictions_3_3, beta, conditions)
+    predictionsthree_3_3["Model"] = r"Three-site, $h_{I_1}=3, h_{I_2}=3$"
+    del predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3   
+
+    all_predictions = pd.concat([predictionstwo_1, predictionstwo_2, predictionstwo_3, predictionstwo_4,
+                                predictionsthree_1_1, predictionsthree_1_3, predictionsthree_3_1, predictionsthree_3_3], ignore_index=True)
+    del predictionstwo_1, predictionstwo_2, predictionstwo_3, predictionstwo_4, predictionsthree_1_1, predictionsthree_1_3, predictionsthree_3_1, predictionsthree_3_3
+    # Plot NFkB dependence residual values
+    all_predictions = all_predictions.loc[all_predictions["Category"].isin(["NFκB dependence", "Stimulus specific"])]
+    all_predictions = all_predictions.loc[~(all_predictions["Stimulus"] == "CpG")]
+    all_predictions = all_predictions.loc[~(all_predictions["par_set"] == "Data")]
+    training_data_small=training_data[["Stimulus","Genotype","IFNb"]]
+    training_data_small.loc[training_data_small["Genotype"] == "relacrelKO", "Genotype"] = r"NFκBko"
+    training_data_small.loc[training_data_small["Stimulus"] == "polyIC", "Stimulus"] = "PolyIC"
+    all_predictions = all_predictions.merge(training_data_small, on=["Stimulus","Genotype"], how="left")
+    all_predictions["Residual"] = all_predictions[r"IFN$\beta$"] - all_predictions["IFNb"]
+    # print(all_predictions)
+    
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     # Plot residuals
+    #     fig, ax = plt.subplots(figsize=(1.6,1.1))
+    #     g = sns.FacetGrid(all_predictions, col="Stimulus", row="Genotype", sharey=True, sharex=True, height=1.5, aspect=1.5)
+    #     g.map(sns.stripplot, "Model", "Residual", palette=models_colors+models_colors, ax=ax)
+    #     g.set_axis_labels("", "Residual")
+    #     g.set_titles("{row_name} {col_name}")
+    #     # g.set(yscale="symlog")
+    #     g.set(ylim=(-0.3*1.05, 0.3*1.05))
+    #     g.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/NFkBko_residuals.png" % figures_dir)
+
+    # Divide NFkBko IFNB predictions by WT IFNB predictions for each parameter set
+    # print(all_predictions)
+    WT_only = all_predictions.loc[all_predictions["Genotype"] == "WT", ["par_set", r"IFN$\beta$", "IFNb","Stimulus", "Model"]]
+    # print(WT_only)
+    WT_only.columns = ["par_set", r"IFN$\beta$_WT", "IFNb_WT","Stimulus","Model"]
+    KO_only = all_predictions.loc[all_predictions["Genotype"] == r"NFκBko", ["par_set", r"IFN$\beta$", "IFNb","Stimulus", "Model"]]
+    # print(KO_only)
+    merged_predictions = KO_only.merge(WT_only, on=["par_set", "Stimulus","Model"], how="left")
+    merged_predictions["IFNb_ratio"] = merged_predictions["IFNb"]/merged_predictions["IFNb_WT"]
+    merged_predictions["IFNb_predicted_ratio"] = merged_predictions[r"IFN$\beta$"]/merged_predictions[r"IFN$\beta$_WT"]
+    # merged_predictions = merged_predictions.drop(columns=["Genotype","Category","Data point","Residual", r"IFN$\beta$_WT", "IFNb_WT"])
+    merged_predictions["Model_type"] = merged_predictions["Model"].str.split(", ").str[0]
+    merged_predictions["Model"] = merged_predictions["Model"].str.split(" ",1).str[1]
+    # replace "," with "\n"
+    merged_predictions["Model"] = merged_predictions["Model"].str.replace(",", "$\n$")
+
+    print(merged_predictions)
+    
+    # Plot residuals as strip plot
+    model_color = "#E08C8F"
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        g = sns.FacetGrid(merged_predictions, row="Stimulus", sharey=True, sharex="col", height=1.3, aspect=2.3)
+        g.map(sns.stripplot, "Model", "IFNb_predicted_ratio", color= model_color, data=merged_predictions)
+        g.map(sns.stripplot, "Model", "IFNb_ratio", color=data_color)
+        g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
+        g.set_titles("{row_name}")
+        # g.set(ylim=(0.8, 1.2))
+        g.despine()
+        plt.tight_layout()
+        plt.savefig("%s/NFkBko_IFNb_ratio_stripplot.png" % figures_dir)
+
+        # Make separate figure with legend
+        data = pd.DataFrame({"Group_name":["Exp.","Model"], "x":[0,1], "y":[0,0]})
+        fig, ax = plt.subplots(figsize=(2,1))
+        sns.scatterplot(data=data, x="x", y="y", hue="Group_name", palette=[data_color, model_color], ax=ax)
+        sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
+        plt.tight_layout()
+        plt.savefig("%s/NFkBko_IFNb_ratio_legend.png" % figures_dir)
+
+
+    # # pLot differences as bar plot
+    # merged_predictions["difference"] = merged_predictions["IFNb_predicted_ratio"] - merged_predictions["IFNb_ratio"]
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     fig, ax = plt.subplots(figsize=(1.6,0.8))
+    #     g = sns.FacetGrid(merged_predictions, col="Model_type", row="Stimulus", sharey=True, sharex="col", height=1.5, aspect=1.5)
+    #     g.map(sns.barplot, "Model", "difference", palette=models_colors, ax=ax)
+    #     g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
+    #     g.set_titles("{col_name}, {row_name}")
+    #     # g.set(ylim=(-0.3, 0.3))
+    #     g.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/NFkBko_IFNb_ratio_barplot.png" % figures_dir)
+    
+
+    raise ValueError("Stop here")
 
     # Plot parameters on one plot
     print("Plotting best-fit parameters for all hill combinations on one plot", flush=True)
