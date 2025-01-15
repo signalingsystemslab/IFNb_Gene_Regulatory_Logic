@@ -314,27 +314,28 @@ def make_param_scan_plots():
     merged_predictions["Model_type"] = merged_predictions["Model"].str.split(", ").str[0]
     merged_predictions["Model"] = merged_predictions["Model"].str.split(" ",1).str[1]
     # replace "," with "\n"
-    merged_predictions["Model"] = merged_predictions["Model"].str.replace(",", "$\n$")
+    # merged_predictions["Model"] = merged_predictions["Model"].str.replace(",", "$\n$")
 
     print(merged_predictions)
     
     # Plot residuals as strip plot
     model_color = "#E08C8F"
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        g = sns.FacetGrid(merged_predictions, row="Stimulus", sharey=True, sharex="col", height=1.3, aspect=2.3)
+        g = sns.FacetGrid(merged_predictions, row="Stimulus", sharey=True, sharex="col", height=1.2, aspect=1.7)
         g.map(sns.stripplot, "Model", "IFNb_predicted_ratio", color= model_color, data=merged_predictions)
         g.map(sns.stripplot, "Model", "IFNb_ratio", color=data_color)
         g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
         g.set_titles("{row_name}")
-        # g.set(ylim=(0.8, 1.2))
+        g.set(ylim=(0,1.08))
         g.despine()
+        plt.xticks(rotation=90)
         plt.tight_layout()
         plt.savefig("%s/NFkBko_IFNb_ratio_stripplot.png" % figures_dir)
 
         # Make separate figure with legend
         data = pd.DataFrame({"Group_name":["Exp.","Model"], "x":[0,1], "y":[0,0]})
         fig, ax = plt.subplots(figsize=(2,1))
-        sns.scatterplot(data=data, x="x", y="y", hue="Group_name", palette=[data_color, model_color], ax=ax)
+        sns.stripplot(data=data, x="x", y="y", hue="Group_name", palette=[data_color, model_color], ax=ax)
         sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
         plt.tight_layout()
         plt.savefig("%s/NFkBko_IFNb_ratio_legend.png" % figures_dir)
