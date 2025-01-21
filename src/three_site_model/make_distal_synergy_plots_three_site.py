@@ -326,11 +326,27 @@ def make_param_scan_plots():
         g.map(sns.stripplot, "Model", "IFNb_ratio", color=data_color)
         g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
         g.set_titles("{row_name}")
-        g.set(ylim=(0,1.08))
+        plt.yscale('log', base=2)
+        tick_positions = [2**(-3), 2**(-2), 2**(-1), 2**(0)]
+        plt.yticks(tick_positions, ["%.3f" % tick for tick in tick_positions])
         g.despine()
         plt.xticks(rotation=90)
         plt.tight_layout()
         plt.savefig("%s/NFkBko_IFNb_ratio_stripplot.png" % figures_dir)
+        
+        # # Version with y-label as fraction
+        # g = sns.FacetGrid(merged_predictions, row="Stimulus", sharey=True, sharex="col", height=1.2, aspect=1.7)
+        # g.map(sns.stripplot, "Model", "IFNb_predicted_ratio", color= model_color, data=merged_predictions)
+        # g.map(sns.stripplot, "Model", "IFNb_ratio", color=data_color)
+        # g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
+        # g.set_titles("{row_name}")
+        # plt.yscale('log', base=2)
+        # tick_positions = [2**(-3), 2**(-2), 2**(-1), 2**(0)]
+        # plt.yticks(tick_positions, [r"$\frac{1}{8}$", r"$\frac{1}{4}$", r"$\frac{1}{2}$", 1])
+        # g.despine()
+        # plt.xticks(rotation=90)
+        # plt.tight_layout()
+        # plt.savefig("%s/NFkBko_IFNb_ratio_stripplot_frac.png" % figures_dir)
 
         # Make separate figure with legend
         data = pd.DataFrame({"Group_name":["Exp.","Model"], "x":[0,1], "y":[0,0]})
@@ -339,23 +355,7 @@ def make_param_scan_plots():
         sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
         plt.tight_layout()
         plt.savefig("%s/NFkBko_IFNb_ratio_legend.png" % figures_dir)
-
-
-    # # pLot differences as bar plot
-    # merged_predictions["difference"] = merged_predictions["IFNb_predicted_ratio"] - merged_predictions["IFNb_ratio"]
-    # with sns.plotting_context("paper", rc=plot_rc_pars):
-    #     fig, ax = plt.subplots(figsize=(1.6,0.8))
-    #     g = sns.FacetGrid(merged_predictions, col="Model_type", row="Stimulus", sharey=True, sharex="col", height=1.5, aspect=1.5)
-    #     g.map(sns.barplot, "Model", "difference", palette=models_colors, ax=ax)
-    #     g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
-    #     g.set_titles("{col_name}, {row_name}")
-    #     # g.set(ylim=(-0.3, 0.3))
-    #     g.despine()
-    #     plt.tight_layout()
-    #     plt.savefig("%s/NFkBko_IFNb_ratio_barplot.png" % figures_dir)
     
-
-    raise ValueError("Stop here")
 
     # Plot parameters on one plot
     print("Plotting best-fit parameters for all hill combinations on one plot", flush=True)
