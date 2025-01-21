@@ -22,7 +22,14 @@ states_cmap_pars = "ch:s=0.9,r=-0.8,h=0.6,l=0.9,d=0.2"
 # models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
 # models_cmap_pars = "ch:s=0.1,r=0.7,h=1,d=0.3,l=0.8,g=1_r"
 models_colors=["#83CCD2","#A7CDA8","#D6CE7E","#E69F63"]
-heatmap_cmap = sns.blend_palette(["#17131C","#997BBA","#D2A8FF","#E7D4FC","#F4EEFA"],as_cmap=True)
+heatmap_cmap = sns.blend_palette(["#17131C", "#3F324D","#997BBA", "#B38FD9","#D2A8FF","#F4EEFA"][::-1],as_cmap=True)
+cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, rot=0.3,start=2, hue=0.6)
+cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, rot=0.25,start=0.9, hue=0.6)
+
+# # Background black version of color palettes:
+# heatmap_cmap = sns.blend_palette(["#17131C","#997BBA","#D2A8FF","#E7D4FC","#F4EEFA"],as_cmap=True)
+# cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.3,start=2, hue=0.6)
+# cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.25,start=0.9, hue=0.6)
 
 plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
                                           "ytick.labelsize":6, "axes.titlesize":7, "legend.title_fontsize":7,
@@ -692,8 +699,8 @@ def make_state_probabilities_plots():
         n_columns = state_probs_df_category.shape[1]
         n_rows = state_probs_df_category.shape[0]
 
-        cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.3,start=2, hue=0.6)
-        cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.25,start=0.9, hue=0.6)
+        # cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.3,start=2, hue=0.6)
+        # cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.25,start=0.9, hue=0.6)
 
         # IFNb column
         ifnb_df = pd.read_csv("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), header=None, names=training_data["Stimulus"] + "_" + training_data["Genotype"]).mean()
