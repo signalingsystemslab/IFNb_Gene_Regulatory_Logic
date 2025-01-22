@@ -1,6 +1,6 @@
 # Make nice version of the plots for the three site model
 from p50_model_distal_synergy import get_f, get_contribution
-from make_p50_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot, plot_parameters_one_plot, make_cbars, make_state_heatmaps
+from make_p50_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot, plot_parameters_one_plot, make_cbars
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -22,14 +22,16 @@ states_cmap_pars = "ch:s=0.9,r=-0.8,h=0.6,l=0.9,d=0.2"
 # models_cmap_pars = "ch:s=-0.0,r=0.6,h=1,d=0.3,l=0.8,g=1_r"
 # models_cmap_pars = "ch:s=0.1,r=0.7,h=1,d=0.3,l=0.8,g=1_r"
 models_colors=["#83CCD2","#A7CDA8","#D6CE7E","#E69F63"]
-heatmap_cmap = sns.blend_palette(["#17131C", "#3F324D","#997BBA", "#B38FD9","#D2A8FF","#F4EEFA"][::-1],as_cmap=True)
-cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, rot=0.3,start=2, hue=0.6)
-cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, rot=0.25,start=0.9, hue=0.6)
+
+# Background white version of color palettes:
+heatmap_cmap = sns.blend_palette(["#17131C", "#3F324D","#997BBA", "#B38FD9","#D2A8FF","#F8F4F9"][::-1],as_cmap=True)
+cmap_probs = sns.blend_palette(["white", "#77A5A4","#5A8A8A","#182828"], as_cmap=True)
+cmap_t = sns.blend_palette(["white", "black"], as_cmap=True)
 
 # # Background black version of color palettes:
 # heatmap_cmap = sns.blend_palette(["#17131C","#997BBA","#D2A8FF","#E7D4FC","#F4EEFA"],as_cmap=True)
-# cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.3,start=2, hue=0.6)
-# cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.95, dark=0, reverse=True, rot=0.25,start=0.9, hue=0.6)
+# cmap_probs = sns.cubehelix_palette(as_cmap=True, light=0.8, dark=0, reverse=True, rot=0.3,start=2, hue=0.6)
+# cmap_t = sns.cubehelix_palette(as_cmap=True, light=0.8, dark=0, reverse=True, rot=0.25,start=0.9, hue=0.6)
 
 plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.labelsize":6, 
                                           "ytick.labelsize":6, "axes.titlesize":7, "legend.title_fontsize":7,
@@ -245,6 +247,16 @@ def get_contribution_data(num_t_pars=5, num_k_pars=4, results_dir="parameter_sca
     best_fit_dir ="parameter_scan_dist_syn/results/"
     model = "p50_dist_syn"
     num_threads = 40
+
+    specific_conds_file = "%s/%s_specific_conds_contributions.csv" % (results_dir, model)
+    
+    # check date of file
+    if os.path.exists(specific_conds_file):
+        file_time = os.path.getmtime(specific_conds_file)
+        if (time.time() - file_time) < 60*60*24:
+            print("File %s was modified %.2f hours ago. Not recalculating contributions" % (specific_conds_file, (time.time() - file_time)/3600))
+            return 1
+
     # col_names = ["t%d" % i for i in range(1, num_t_pars+1)] + ["k%d" % i for i in range(1, num_k_pars+1)]
     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (best_fit_dir, model))
     best_20_pars_df["h1"] = int(h_pars.split("_")[0])
@@ -360,6 +372,13 @@ def helper_contrib_heatmap(*args, **kwargs):
     # Format x and y tick labels
     ax.set_xticklabels(["%.1f" % i for i in x_ticks_labels])
     ax.set_yticklabels(["%.1f" % i for i in y_ticks_labels])
+
+    if False:
+        # set spines
+        for spine in ['top', 'right', 'bottom', 'left']:
+            ax.spines[spine].set_visible(True) 
+            ax.spines[spine].set_linewidth(0.5)
+            ax.spines[spine].set_color('black') 
 
 def make_heatmap(contrib_df, cmap, model, name, figures_dir, facet_type="state"):
     # heatmap_pars = {"axes.titlesize":7}
@@ -580,6 +599,31 @@ def make_contribution_plots():
         plt.close()
 
     print("Finished making contribution plots, took %.2f seconds" % (time.time() - t), flush=True)
+
+def make_state_heatmaps(df, category, cmap, figures_dir, plt_type):
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        # Make heatmaps for probability, f-value, or t and corresponding colorbar
+        # Create the heatmap
+        fig, ax = plt.subplots(figsize=(2, 2), sharey=True)
+        if plt_type == "ifnb":
+            figwidth = 2/12
+            fig, ax = plt.subplots(figsize=(figwidth, 2), sharey=True)
+        sns.heatmap(data=df, cbar=False, ax=ax, vmin=0, vmax=1, square=True, cmap=cmap, linecolor="black", linewidths=0.25, clip_on=False)
+        ax.set_ylabel("")
+        ax.set_xlabel("")
+        ax.tick_params(axis="both", which="both", length=0)    
+        plt.subplots_adjust(top=0.93, right=0.8, hspace=0.1, wspace=0.2)
+        # plt.tight_layout()
+        cat = category.replace(" ", "_")
+        
+        if plt_type == "ifnb":
+            ax.set_yticklabels([])
+        if plt_type == "prob":
+            ax.set_xticklabels([])
+        
+
+        plt.savefig("%s/state_probabilities_heatmap_%s_%s.png" % (figures_dir, cat,plt_type), bbox_inches="tight")
+        plt.close()
 
 def make_state_probabilities_plots():
     figures_dir = "parameter_scan_dist_syn/nice_figures/"
