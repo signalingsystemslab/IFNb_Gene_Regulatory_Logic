@@ -350,7 +350,7 @@ def make_param_scan_plots():
         # plt.savefig("%s/NFkBko_IFNb_ratio_stripplot_frac.png" % figures_dir)
 
         # Make separate figure with legend
-        data = pd.DataFrame({"Group_name":["Exp.","Model"], "x":[0,1], "y":[0,0]})
+        data = pd.DataFrame({"Group_name":["Experimental","Simulated"], "x":[0,1], "y":[0,0]})
         fig, ax = plt.subplots(figsize=(2,1))
         sns.stripplot(data=data, x="x", y="y", hue="Group_name", palette=[data_color, model_color], ax=ax)
         sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
