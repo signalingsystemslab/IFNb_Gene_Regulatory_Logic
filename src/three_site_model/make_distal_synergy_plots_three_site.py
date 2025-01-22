@@ -327,6 +327,7 @@ def make_param_scan_plots():
         g.set_axis_labels("", r"$\frac{IFN\beta_{NF\kappa Bko}}{IFN\beta_{WT}}$")
         g.set_titles("{row_name}")
         plt.yscale('log', base=2)
+        plt.ylim(2**(-3)*0.9, 2**(0)*1.15)
         tick_positions = [2**(-3), 2**(-2), 2**(-1), 2**(0)]
         plt.yticks(tick_positions, ["%.3f" % tick for tick in tick_positions])
         g.despine()
