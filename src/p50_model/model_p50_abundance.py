@@ -58,6 +58,7 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir):
     best_20_pars_df = pd.read_csv("%s/%s_best_fits_pars.csv" % (best_fit_dir, model))
     best_20_pars_df["h1"] = 3
     best_20_pars_df["h2"] = 1
+    best_20_pars_df.reset_index(drop=False,inplace=True,names="par_number")
     # print(best_20_pars_df)
 
     num_pars_repeats = len(testing_data)
@@ -81,6 +82,19 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir):
     testing_data.to_csv("%s/p50_abundance_params_results.csv" % results_dir)
     return testing_data
 
+def make_figure(testing_data, figures_dir, more_info="",ylab=None):
+    if len(more_info) > 0:
+        more_info = "_" + more_info
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,1.2))
+        p = sns.lineplot(testing_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd")
+        if ylab is not None:
+            p.set_ylabel(r"IFN$\beta$ " + ylab)
+        sns.despine()
+        sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
+        plt.tight_layout()
+        plt.savefig("%s/predicted_ifnb_p50_abundance%s.png" % (figures_dir, more_info))
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c","--calculate", action="store_true")
@@ -88,7 +102,7 @@ def main():
 
     # Settings    
     num_threads = 40
-    num_p50_values = 100
+    num_p50_values = 101
     max_p50 = 2
 
     # Directories
@@ -105,13 +119,21 @@ def main():
         testing_data = pd.read_csv("%s/p50_abundance_params_results.csv" % results_dir)
 
     print("Making figure")
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2,1.2))
-        p = sns.lineplot(testing_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd")
-        sns.despine()
-        sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
-        plt.tight_layout()
-        plt.savefig("%s/predicted_ifnb_p50_abundance.png" % figures_dir)
+    make_figure(testing_data, figures_dir)
+
+    # Plot figure only from 0-1 for p50
+    testing_data_to1 = testing_data.loc[testing_data["p50"]<=1]
+    make_figure(testing_data_to1, figures_dir, more_info="0_to_1")
+
+    # Normalize IFNb to value at WT p50
+    testing_data_WT = testing_data.loc[testing_data["p50"]==1,["Stimulus","par_number",r"IFN$\beta$"]]
+    testing_data_WT.rename(columns={r"IFN$\beta$":"WT_p50_beta"}, inplace=True)
+    testing_data_norm = testing_data.merge(testing_data_WT,on=["Stimulus","par_number"])
+    testing_data_norm[r"IFN$\beta$"] = testing_data_norm[r"IFN$\beta$"]/testing_data_norm["WT_p50_beta"]
+    make_figure(testing_data_norm, figures_dir, more_info="norm",ylab="Normalized")
+
+    testing_data_norm_to1 = testing_data_norm.loc[testing_data_norm["p50"]<=1]
+    make_figure(testing_data_norm_to1, figures_dir, more_info="norm_0_to_1",ylab="Normalized")
 
     print("Done.")
 
