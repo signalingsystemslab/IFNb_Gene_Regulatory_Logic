@@ -37,13 +37,18 @@ def get_pars(testing_data, row_num):
     # print(pars)
     return pars
 
-def calculate_values(num_threads, max_p50,num_p50_values, results_dir):
+def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype="WT", more_info=""):
+    if len(more_info)>0:
+        more_info = "_" + more_info
+
     start = time.time()
     print("Starting calculation.")
     # Load training data
     training_data = pd.read_csv("../data/p50_training_data.csv")
     # Filter for WT and remove unnecessary columns
     training_data = training_data.loc[training_data["Genotype"] == "WT",["Stimulus","IRF","NFkB"]]
+    if genotype == "nfkbKO":
+        training_data["NFkB"] = 0
     training_data["Stimulus"] = training_data["Stimulus"].replace("polyIC", "PolyIC")
 
     # Add p50 values to test
@@ -79,7 +84,7 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir):
     print("Finished calculation after %.2f minutes" % ((end-start)/60))
 
     print("Saving results to %s" % results_dir, flush=True)
-    testing_data.to_csv("%s/p50_abundance_params_results.csv" % results_dir)
+    testing_data.to_csv("%s/p50_abundance_params_results%s.csv" % (results_dir, more_info))
     return testing_data
 
 def make_figure(testing_data, figures_dir, more_info="",ylab=None):
@@ -98,6 +103,7 @@ def make_figure(testing_data, figures_dir, more_info="",ylab=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c","--calculate", action="store_true")
+    parser.add_argument("-n","--nfkbKO", action="store_true")
     args = parser.parse_args()
 
     # Settings    
@@ -134,6 +140,14 @@ def main():
 
     testing_data_norm_to1 = testing_data_norm.loc[testing_data_norm["p50"]<=1]
     make_figure(testing_data_norm_to1, figures_dir, more_info="norm_0_to_1",ylab="Normalized")
+
+    if args.nfkbKO:
+        testing_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir, "nfkbKO", "nfkbKO")
+        make_figure(testing_data, figures_dir, more_info="nfkbKO")
+
+        testing_data_to1 = testing_data.loc[testing_data["p50"]<=1]
+        make_figure(testing_data_to1, figures_dir, more_info="nfkbKO_0_to_1")
+
 
     print("Done.")
 
