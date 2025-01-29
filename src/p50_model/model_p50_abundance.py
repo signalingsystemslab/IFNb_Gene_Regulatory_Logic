@@ -1,4 +1,4 @@
-from p50_model_distal_synergy import get_f
+from p50_model_distal_synergy import get_f, get_contribution
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -21,6 +21,7 @@ plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.l
                                             "legend.columnspacing": 0.5, "legend.handletextpad": 0.5, "legend.handlelength": 1.5}
 rc_pars={"xtick.major.pad": 1, "ytick.major.pad": 1, "legend.labelspacing": 0.2}
 mpl.rcParams.update(rc_pars)
+stim_pal=  ["#86BB87", "#5D9FB5", "#BA4961"]
 
 def get_pars(testing_data, row_num):
     row = testing_data.iloc[row_num]
@@ -36,6 +37,30 @@ def get_pars(testing_data, row_num):
     pars = (t_pars, k_pars, n, i, p, c_par, h_pars, scaling)
     # print(pars)
     return pars
+
+def get_renaming_dict(state_names_old_names):
+    state_names = pd.DataFrame(state_names_old_names, columns=["state_only"])
+    state_names["state_new"] = state_names["state_only"].replace("$IRF$", "$IRF_2$")
+    state_names["state_new"] = state_names["state_new"].replace("none", "Unbound")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF_G$", "$IRF_1$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G$", "$IRF_1& IRF_2$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B$", "$IRF_2& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF_G\cdot NF\kappa B$", "$IRF_1& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot NF\kappa B\cdot p50$", "$IRF_2& NF\kappa B& p50$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot IRF_G\cdot NF\kappa B$", "$IRF_1& IRF_2& NF\kappa B$")
+    state_names["state_new"] = state_names["state_new"].replace("$IRF\cdot p50$", "$IRF_2& p50$")
+    state_names["state_new"] = state_names["state_new"].replace("$NF\kappa B\cdot p50$", "$NF\kappa B& p50$")
+    state_name_order = ["Unbound", r"$IRF_1$", r"$IRF_2$", r"$IRF_2& p50$", r"$NF\kappa B$",
+                        r"$NF\kappa B& p50$", r"$p50$", r"$IRF_1& IRF_2$", r"$IRF_1& NF\kappa B$",
+                        r"$IRF_2& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", r"$IRF_1& IRF_2& NF\kappa B$"]
+    state_names["state_new"] = pd.Categorical(state_names["state_new"], categories=state_name_order, ordered=True)
+    state_names = state_names.sort_values("state_new")
+    state_names["state"] = state_names["state_new"].astype(str)
+    # Renaming the states
+    state_name_dict = state_names.set_index('state_only')["state"].to_dict()
+    # Make all values raw strings
+    state_name_dict = {k: r"%s" % v for k, v in state_name_dict.items()}
+    return state_name_dict
 
 def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype="WT", more_info=""):
     if len(more_info)>0:
@@ -72,8 +97,10 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
 
     testing_data = pd.concat([testing_data, pars_repeated], axis=1)
 
-    # print(len(testing_data))
+    # Set stimulus levels
+    testing_data["Stimulus"] = pd.Categorical(testing_data["Stimulus"], categories = ["CpG", "LPS", "PolyIC"], ordered=True)
 
+    # Get f values
     with Pool(num_threads) as p:
         results = p.starmap(get_f, [get_pars(testing_data, i) for i in range(len(testing_data))])
 
@@ -81,24 +108,79 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
     testing_data[r"IFN$\beta$"] = results
     # print(testing_data)
     end = time.time()
-    print("Finished calculation after %.2f minutes" % ((end-start)/60))
+    print("Finished calculation of f values after %.2f minutes" % ((end-start)/60))
 
     print("Saving results to %s" % results_dir, flush=True)
     testing_data.to_csv("%s/p50_abundance_params_results%s.csv" % (results_dir, more_info))
-    return testing_data
 
-def make_figure(testing_data, figures_dir, more_info="",ylab=None):
+    # Get contributions
+    with Pool(num_threads) as p:
+        results = p.starmap(get_contribution, [get_pars(testing_data, i)[:-1] for i in range(len(testing_data))])
+    # output is ([contributions], [state_names]), ... ([contributions], [state_names])
+    state_names = results[0][1]
+
+    end = time.time()
+    print("Finished calculation of contrib values after %.2f minutes" % ((end-start)/60))
+
+    # Reshape results
+    results = np.array([results[i][0] for i in range(len(results))])
+    results = pd.DataFrame(results, columns = state_names)
+
+    # Rename state names
+    state_name_dict = get_renaming_dict(state_names)
+    state_names = list(state_name_dict.values())
+    results.rename(columns=state_name_dict, inplace=True)
+    contrib_data = pd.concat([testing_data, results], axis=1)
+
+    contrib_data.to_csv("%s/p50_abundance_params_contributions%s.csv" % (results_dir, more_info))
+
+    return testing_data, contrib_data
+
+def make_f_figure(testing_data, figures_dir, more_info="",ylab=None):
     if len(more_info) > 0:
         more_info = "_" + more_info
     with sns.plotting_context("paper", rc=plot_rc_pars):
         fig, ax = plt.subplots(figsize=(2,1.2))
-        p = sns.lineplot(testing_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd")
+        p = sns.lineplot(testing_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd", palette=stim_pal)
         if ylab is not None:
             p.set_ylabel(r"IFN$\beta$ " + ylab)
         sns.despine()
         sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
         plt.tight_layout()
         plt.savefig("%s/predicted_ifnb_p50_abundance%s.png" % (figures_dir, more_info))
+
+def make_contrib_figure(contrib_data, figures_dir, more_info="",ylab=None):
+    if len(more_info) > 0:
+        more_info = "_" + more_info
+
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        ncols=3
+        # Note: height=1.2, aspect=0.65 gives pretty square plots
+        p = sns.FacetGrid(contrib_data, col="State", col_wrap=ncols, sharex=True, sharey=True, height=1, aspect=1)
+        p.map_dataframe(sns.lineplot, x="p50", y="contribution", hue="Stimulus", errorbar="sd", palette=stim_pal)
+        # p.add_legend()
+        p.set_titles("{col_name}")
+        # plt.subplots_adjust(top=0.93, hspace=0.5, wspace = 0.2)
+
+        if ylab is not None:
+            p.set_ylabel(r"IFN$\beta$ " + ylab)
+        else:
+            p.set_ylabels(r"IFN$\beta$")
+        p.set_xlabels("[p50:p50]")
+
+        sns.despine()
+        # sns.move_legend(p, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
+        plt.tight_layout()
+        plt.savefig("%s/predicted_ifnb_p50_contributions%s.png" % (figures_dir, more_info))
+
+    # Make separate figure with legend
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,1.2))
+        p = sns.lineplot(contrib_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd", palette=stim_pal)
+        sns.despine()
+        sns.move_legend(ax, bbox_to_anchor=(1,0.5), title=None, frameon=False, loc="center left", ncol=1)
+        plt.tight_layout()
+        plt.savefig("%s/predicted_contributions_legend_stimuli.png" % (figures_dir))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -109,7 +191,7 @@ def main():
     # Settings    
     num_threads = 40
     num_p50_values = 101
-    max_p50 = 2
+    max_p50 = 1
 
     # Directories
     figures_dir = "p50_abundance/figures/"
@@ -119,34 +201,51 @@ def main():
     
 
     if args.calculate:
-        testing_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir)
+        testing_data, contrib_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir)
     else:
         print("Loading results from %s/p50_abundance_params_results.csv" % results_dir)
         testing_data = pd.read_csv("%s/p50_abundance_params_results.csv" % results_dir)
+        contrib_data = pd.read_csv("%s/p50_abundance_params_contributions.csv" % (results_dir))
 
     print("Making figure")
-    make_figure(testing_data, figures_dir)
+    make_f_figure(testing_data, figures_dir, more_info="0_to_1")
 
-    # Plot figure only from 0-1 for p50
-    testing_data_to1 = testing_data.loc[testing_data["p50"]<=1]
-    make_figure(testing_data_to1, figures_dir, more_info="0_to_1")
+    state_names = ["Unbound", r"$IRF_1$", r"$IRF_2$", r"$IRF_2& p50$", r"$NF\kappa B$",
+                        r"$NF\kappa B& p50$", r"$p50$", r"$IRF_1& IRF_2$", r"$IRF_1& NF\kappa B$",
+                        r"$IRF_2& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", r"$IRF_1& IRF_2& NF\kappa B$"]
+    active_states = [r"$IRF_1& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", 
+                     r"$IRF_2& NF\kappa B$", r"$IRF_1& IRF_2$", r"$IRF_1& IRF_2& NF\kappa B$"]
+    inactive_states = list(set(state_names)-set(active_states))
+    contrib_data["Other"] = contrib_data[inactive_states].sum(axis=1)
+    contrib_data.drop(columns = inactive_states,inplace=True)
+    state_categories = active_states + ["Other"]
+    id_cols = list(set(contrib_data.columns) - set(state_categories))
+    contrib_data = contrib_data.melt(id_cols, var_name="State", value_name="contribution")
+    contrib_data["State"] = pd.Categorical(contrib_data["State"], categories = state_names + ["Other"], ordered=True).remove_unused_categories()
+    # print(contrib_data["State"].cat.categories)
+    make_contrib_figure(contrib_data, figures_dir, more_info="0_to_1")
 
-    # Normalize IFNb to value at WT p50
-    testing_data_WT = testing_data.loc[testing_data["p50"]==1,["Stimulus","par_number",r"IFN$\beta$"]]
-    testing_data_WT.rename(columns={r"IFN$\beta$":"WT_p50_beta"}, inplace=True)
-    testing_data_norm = testing_data.merge(testing_data_WT,on=["Stimulus","par_number"])
-    testing_data_norm[r"IFN$\beta$"] = testing_data_norm[r"IFN$\beta$"]/testing_data_norm["WT_p50_beta"]
-    make_figure(testing_data_norm, figures_dir, more_info="norm",ylab="Normalized")
 
-    testing_data_norm_to1 = testing_data_norm.loc[testing_data_norm["p50"]<=1]
-    make_figure(testing_data_norm_to1, figures_dir, more_info="norm_0_to_1",ylab="Normalized")
+    # # Plot figure only from 0-1 for p50
+    # testing_data_to1 = testing_data.loc[testing_data["p50"]<=1]
+    # make_f_figure(testing_data_to1, figures_dir, more_info="0_to_1")
+
+    # # Normalize IFNb to value at WT p50
+    # testing_data_WT = testing_data.loc[testing_data["p50"]==1,["Stimulus","par_number",r"IFN$\beta$"]]
+    # testing_data_WT.rename(columns={r"IFN$\beta$":"WT_p50_beta"}, inplace=True)
+    # testing_data_norm = testing_data.merge(testing_data_WT,on=["Stimulus","par_number"])
+    # testing_data_norm[r"IFN$\beta$"] = testing_data_norm[r"IFN$\beta$"]/testing_data_norm["WT_p50_beta"]
+    # make_f_figure(testing_data_norm, figures_dir, more_info="norm",ylab="Normalized")
+
+    # testing_data_norm_to1 = testing_data_norm.loc[testing_data_norm["p50"]<=1]
+    # make_f_figure(testing_data_norm_to1, figures_dir, more_info="norm_0_to_1",ylab="Normalized")
 
     if args.nfkbKO:
         testing_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir, "nfkbKO", "nfkbKO")
-        make_figure(testing_data, figures_dir, more_info="nfkbKO")
+        make_f_figure(testing_data, figures_dir, more_info="nfkbKO")
 
         testing_data_to1 = testing_data.loc[testing_data["p50"]<=1]
-        make_figure(testing_data_to1, figures_dir, more_info="nfkbKO_0_to_1")
+        make_f_figure(testing_data_to1, figures_dir, more_info="nfkbKO_0_to_1")
 
 
     print("Done.")
