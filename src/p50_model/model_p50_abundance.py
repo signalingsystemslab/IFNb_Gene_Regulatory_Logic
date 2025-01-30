@@ -1,3 +1,5 @@
+# Given different concentrations of p50 from differentcell types, predict IFNb transcription
+# And contributions of each state
 from p50_model_distal_synergy import get_f, get_contribution
 import numpy as np
 import matplotlib.pyplot as plt
