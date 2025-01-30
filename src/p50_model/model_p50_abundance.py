@@ -153,7 +153,7 @@ def make_contrib_figure(contrib_data, figures_dir, more_info="",ylab=None):
         p.set_titles("{col_name}")
 
         if ylab is not None:
-            p.set_ylabel(r"IFN$\beta$ " + ylab)
+            p.set_ylabels(r"IFN$\beta$ " + ylab)
         else:
             p.set_ylabels(r"IFN$\beta$")
         p.set_xlabels("[p50:p50]")
