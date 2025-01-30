@@ -1,4 +1,4 @@
-# Make nice version of the plots for the three site model
+# Make plots for the p50 site model WITHOUT distal synergy allowed
 from p50_model_force_t import get_f, get_contribution
 import numpy as np
 import matplotlib.pyplot as plt
@@ -206,7 +206,7 @@ def get_contribution_data(num_t_pars=4, num_k_pars=4, results_dir="p50_contrib/r
     contrib_df.to_csv("%s/%s_specific_conds_contributions.csv" % (results_dir, model), index=False)
 
 def make_contribution_plots():
-    figures_dir = "p50_final_figures"
+    figures_dir = "p50_no_dist_syn_figures"
     os.makedirs(figures_dir, exist_ok=True)
     results_dir = "p50_contrib/results"
     model = "p50_force_t"
