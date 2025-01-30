@@ -421,6 +421,8 @@ def make_heatmap(contrib_df, cmap, model, name, figures_dir, facet_type="state")
             p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar=None, vmin=0, vmax=1, 
                             cmap=cmap, square=True)
             p.set_titles("{col_name}")
+            p.set_xlabels(r"[NF$\kappa$B]")
+            p.set_ylabels("[IRF]")
             # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
             plt.tight_layout()
 
