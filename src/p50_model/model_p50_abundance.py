@@ -1,6 +1,4 @@
-# Given different concentrations of p50 from differentcell types, predict IFNb transcription
-# And contributions of each state
-from p50_model_distal_synergy import get_f, get_contribution
+from p50_model_distal_synergy import get_f, get_contribution, get_state_prob
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -96,7 +94,7 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
 
     testing_data = pd.concat([testing_data, pars_repeated], axis=1)
 
-    # Get f values
+    ## Get f values
     with Pool(num_threads) as p:
         results = p.starmap(get_f, [get_pars(testing_data, i) for i in range(len(testing_data))])
 
@@ -107,7 +105,7 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
     print("Saving results to %s" % results_dir, flush=True)
     testing_data.to_csv("%s/p50_abundance_params_results%s.csv" % (results_dir, more_info))
 
-    # Get contributions
+    ## Get contributions
     with Pool(num_threads) as p:
         results = p.starmap(get_contribution, [get_pars(testing_data, i)[:-1] for i in range(len(testing_data))])
     # output is ([contributions], [state_names]), ... ([contributions], [state_names])
@@ -128,7 +126,21 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
 
     contrib_data.to_csv("%s/p50_abundance_params_contributions%s.csv" % (results_dir, more_info))
 
-    return testing_data, contrib_data
+    ## Get state probabilities
+    with Pool(num_threads) as p:
+        results = p.starmap(get_state_prob, [get_pars(testing_data, i)[:-1] for i in range(len(testing_data))])
+
+    end = time.time()
+    print("Finished calculation of state probs after %.2f minutes" % ((end-start)/60))
+
+    # Reshape results
+    results = np.array([results[i][0] for i in range(len(results))])
+    results = pd.DataFrame(results, columns = state_names)
+    state_probs = pd.concat([testing_data, results], axis=1)
+
+    state_probs.to_csv("%s/p50_abundance_params_probabilities%s.csv" % (results_dir, more_info))
+
+    return testing_data, contrib_data, state_probs
 
 def make_f_figure(testing_data, figures_dir, more_info="",ylab=None):
     if len(more_info) > 0:
@@ -149,7 +161,6 @@ def make_contrib_figure(contrib_data, figures_dir, more_info="",ylab=None):
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
         ncols=3
-        # Note: height=1.2, aspect=0.65 gives pretty square plots
         p = sns.FacetGrid(contrib_data, col="State", col_wrap=ncols, sharex=True, sharey=True, height=1, aspect=1)
         p.map_dataframe(sns.lineplot, x="p50", y="contribution", hue="Stimulus", errorbar="sd", palette=stim_pal)
         p.set_titles("{col_name}")
@@ -163,6 +174,26 @@ def make_contrib_figure(contrib_data, figures_dir, more_info="",ylab=None):
         sns.despine()
         plt.tight_layout()
         plt.savefig("%s/predicted_ifnb_p50_contributions%s.png" % (figures_dir, more_info))
+
+def make_probs_figure(probs_data, figures_dir, more_info="",ylab=None):
+    if len(more_info) > 0:
+        more_info = "_" + more_info
+
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        ncols=4
+        p = sns.FacetGrid(probs_data, col="State", col_wrap=ncols, sharex=True, sharey=True, height=1, aspect=1)
+        p.map_dataframe(sns.lineplot, x="p50", y="probability", hue="Stimulus", errorbar="sd", palette=stim_pal)
+        p.set_titles("{col_name}")
+
+        if ylab is not None:
+            p.set_ylabels("Probability " + ylab)
+        else:
+            p.set_ylabels("Probability")
+        p.set_xlabels("[p50:p50]")
+
+        sns.despine()
+        plt.tight_layout()
+        plt.savefig("%s/predicted_ifnb_p50_probability%s.png" % (figures_dir, more_info))
 
 
 def main():
@@ -185,11 +216,12 @@ def main():
     
 
     if args.calculate:
-        testing_data, contrib_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir)
+        testing_data, contrib_data, state_prob_data = calculate_values(num_threads, max_p50,num_p50_values, results_dir)
     else:
         print("Loading results from %s/p50_abundance_params_results.csv" % results_dir)
         testing_data = pd.read_csv("%s/p50_abundance_params_results.csv" % results_dir)
         contrib_data = pd.read_csv("%s/p50_abundance_params_contributions.csv" % (results_dir))
+        state_prob_data = pd.read_csv("%s/p50_abundance_params_probabilities.csv" % (results_dir))
 
     print("Making figures")
     ## Making f value figure w/ legend
@@ -215,6 +247,11 @@ def main():
 
     make_contrib_figure(contrib_data, figures_dir, more_info="0_to_1")
 
+    ## Making probabilities figure
+    state_prob_data = state_prob_data.melt(id_cols, var_name="State", value_name="probability")
+    state_prob_data["State"] = pd.Categorical(state_prob_data["State"], categories = state_names, ordered=True)
+
+    make_probs_figure(state_prob_data, figures_dir, more_info="0_to_1")
 
     if max_p50 > 1:
         # Plot figure only from 0-1 for p50
