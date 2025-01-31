@@ -9,6 +9,7 @@ from multiprocessing import Pool
 import argparse
 import seaborn as sns
 
+pd.options.mode.copy_on_write = True
 mpl.rcParams["figure.dpi"] = 600
 mpl.rcParams["font.sans-serif"] = "Arial"
 
@@ -109,18 +110,18 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
     with Pool(num_threads) as p:
         results = p.starmap(get_contribution, [get_pars(testing_data, i)[:-1] for i in range(len(testing_data))])
     # output is ([contributions], [state_names]), ... ([contributions], [state_names])
-    state_names = results[0][1]
+    state_names_old = results[0][1]
 
     end = time.time()
     print("Finished calculation of contrib values after %.2f minutes" % ((end-start)/60))
 
     # Reshape results
     results = np.array([results[i][0] for i in range(len(results))])
-    results = pd.DataFrame(results, columns = state_names)
+    results = pd.DataFrame(results, columns = state_names_old)
 
     # Rename state names
-    state_name_dict = get_renaming_dict(state_names)
-    state_names = list(state_name_dict.values())
+    state_name_dict = get_renaming_dict(state_names_old)
+    # state_names = list(state_name_dict.values())
     results.rename(columns=state_name_dict, inplace=True)
     contrib_data = pd.concat([testing_data, results], axis=1)
 
@@ -129,13 +130,15 @@ def calculate_values(num_threads, max_p50,num_p50_values, results_dir, genotype=
     ## Get state probabilities
     with Pool(num_threads) as p:
         results = p.starmap(get_state_prob, [get_pars(testing_data, i)[:-1] for i in range(len(testing_data))])
+    state_names_old = results[0][1]
 
     end = time.time()
     print("Finished calculation of state probs after %.2f minutes" % ((end-start)/60))
 
     # Reshape results
     results = np.array([results[i][0] for i in range(len(results))])
-    results = pd.DataFrame(results, columns = state_names)
+    results = pd.DataFrame(results, columns = state_names_old)
+    results.rename(columns=state_name_dict, inplace=True)
     state_probs = pd.concat([testing_data, results], axis=1)
 
     state_probs.to_csv("%s/p50_abundance_params_probabilities%s.csv" % (results_dir, more_info))
@@ -195,6 +198,69 @@ def make_probs_figure(probs_data, figures_dir, more_info="",ylab=None):
         plt.tight_layout()
         plt.savefig("%s/predicted_ifnb_p50_probability%s.png" % (figures_dir, more_info))
 
+def make_select_figs(probs_data, contrib_data, figures_dir, more_info=""):
+    if len(more_info) > 0:
+        more_info = "_" + more_info
+
+    probs_states = [r"$IRF_1& NF\kappa B$", r"$NF\kappa B& p50$"]
+    probs_data = probs_data.loc[probs_data["State"].isin(probs_states)]
+    probs_data["State"] = probs_data["State"].cat.set_categories(probs_states)
+
+    contrib_states = [r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"]
+    contrib_data = contrib_data.loc[contrib_data["State"].isin(contrib_states)]
+    contrib_data["State"] = contrib_data["State"].cat.set_categories(contrib_states)
+
+    # Merge probabilityand contributions
+    col_merge = contrib_data.columns[:-1]
+    df = pd.merge(probs_data, contrib_data, on=list(col_merge), how="outer")
+    df = df.melt(col_merge, var_name="val_type", value_name="value")
+    state_nums = pd.DataFrame({"State": [r"$IRF_1& NF\kappa B$",r"$IRF_1& IRF_2& NF\kappa B$",r"$NF\kappa B& p50$"],
+                               "State_num":[0, 1, 1]}) # number states for faceting
+    df = pd.merge(df, state_nums, on="State", how="left")
+    df["val_type"] = pd.Categorical(df["val_type"], categories=["probability", "contribution"])
+
+    # Plot selected states
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        p = sns.FacetGrid(df, col="State_num", row="val_type", sharex=True, sharey=True, height=1, aspect=1)
+        p.map_dataframe(sns.lineplot, x="p50", y="value", hue="Stimulus", errorbar="sd", palette=stim_pal)
+        p.set_titles("{col_name}")
+        # p.set_ylabels("Probability")
+        p.set_xlabels("[p50:p50]")
+
+        ylab_list = ["Probability", r"IFN$\beta$"]
+        title = [r"$IRF_1& NF\kappa B$", r"$NF\kappa B& p50$", r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"]
+        for i, ax in enumerate(p.axes.flat):
+            if i%2 == 0:
+                ax.set_ylabel(ylab_list[i//2])
+            ax.set_title(title[i])
+
+        sns.despine()
+        plt.tight_layout()
+        plt.savefig("%s/select_p50_prob_contrib%s.png" % (figures_dir, more_info))
+    
+    # # Plot selected states individually
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     p = sns.FacetGrid(probs_data, col="State", col_wrap=2, sharex=True, sharey=True, height=1, aspect=1)
+    #     p.map_dataframe(sns.lineplot, x="p50", y="probability", hue="Stimulus", errorbar="sd", palette=stim_pal)
+    #     p.set_titles("{col_name}")
+    #     p.set_ylabels("Probability")
+    #     p.set_xlabels("[p50:p50]")
+
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/select_ifnb_p50_probability%s.png" % (figures_dir, more_info))
+
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     p = sns.FacetGrid(contrib_data, col="State", col_wrap=2, sharex=True, sharey=True, height=1, aspect=1)
+    #     p.map_dataframe(sns.lineplot, x="p50", y="contribution", hue="Stimulus", errorbar="sd", palette=stim_pal)
+    #     p.set_titles("{col_name}")
+    #     p.set_ylabels(r"IFN$\beta$")
+    #     p.set_xlabels("[p50:p50]")
+
+    #     sns.despine()
+    #     plt.tight_layout()
+    #     plt.savefig("%s/select_ifnb_p50_contribution%s.png" % (figures_dir, more_info))
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -245,13 +311,16 @@ def main():
     contrib_data = contrib_data.melt(id_cols, var_name="State", value_name="contribution")
     contrib_data["State"] = pd.Categorical(contrib_data["State"], categories = state_names + ["Other"], ordered=True).remove_unused_categories()
 
-    make_contrib_figure(contrib_data, figures_dir, more_info="0_to_1")
+    # make_contrib_figure(contrib_data, figures_dir, more_info="0_to_1")
 
     ## Making probabilities figure
     state_prob_data = state_prob_data.melt(id_cols, var_name="State", value_name="probability")
     state_prob_data["State"] = pd.Categorical(state_prob_data["State"], categories = state_names, ordered=True)
 
-    make_probs_figure(state_prob_data, figures_dir, more_info="0_to_1")
+    # make_probs_figure(state_prob_data, figures_dir, more_info="0_to_1")
+
+    ## Making figure of selected states
+    make_select_figs(state_prob_data, contrib_data, figures_dir, more_info="0_to_1")
 
     if max_p50 > 1:
         # Plot figure only from 0-1 for p50
