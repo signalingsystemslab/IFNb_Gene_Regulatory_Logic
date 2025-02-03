@@ -158,6 +158,17 @@ def make_f_figure(testing_data, figures_dir, more_info="",ylab=None):
         plt.tight_layout()
         plt.savefig("%s/predicted_ifnb_p50_abundance%s.png" % (figures_dir, more_info))
 
+    # Make another plot with horizontal legens
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,1.2))
+        p = sns.lineplot(testing_data,x="p50",y=r"IFN$\beta$",hue="Stimulus", ax=ax, errorbar="sd", palette=stim_pal)
+        if ylab is not None:
+            p.set_ylabel(r"IFN$\beta$ " + ylab)
+        sns.despine()
+        sns.move_legend(ax, bbox_to_anchor=(0.5,1), title=None, frameon=False, loc="lower center", ncol=3)
+        plt.tight_layout()
+        plt.savefig("%s/predicted_ifnb_p50_abundance%s_horizontal_legend.png" % (figures_dir, more_info))
+
 def make_contrib_figure(contrib_data, figures_dir, more_info="",ylab=None):
     if len(more_info) > 0:
         more_info = "_" + more_info
@@ -221,11 +232,14 @@ def make_select_figs(probs_data, contrib_data, figures_dir, more_info=""):
 
     # Plot selected states
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        p = sns.FacetGrid(df, col="State_num", row="val_type", sharex=True, sharey=True, height=1, aspect=1)
+        p = sns.FacetGrid(df, col="State_num", row="val_type", sharex=True, sharey=True, height=0.8, aspect=1.05*0.9/0.8)
         p.map_dataframe(sns.lineplot, x="p50", y="value", hue="Stimulus", errorbar="sd", palette=stim_pal)
         p.set_titles("{col_name}")
         # p.set_ylabels("Probability")
         p.set_xlabels("[p50:p50]")
+        p.set(xticks=[0,0.5,1],yticks=[0,0.5,1])
+        p.set_xticklabels([0,0.5,1])
+        p.set_yticklabels([0,0.5,1])
 
         ylab_list = ["Probability", r"IFN$\beta$"]
         title = [r"$IRF_1& NF\kappa B$", r"$NF\kappa B& p50$", r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"]
