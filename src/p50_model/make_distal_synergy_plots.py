@@ -370,7 +370,7 @@ def helper_contrib_heatmap(*args, **kwargs):
     ax.yaxis.set_major_locator(ticker.FixedLocator(y_ticks))
 
     # Format x and y tick labels
-    ax.set_xticklabels(["%.1f" % i for i in x_ticks_labels])
+    ax.set_xticklabels(["%.1f" % i for i in x_ticks_labels], rotation=0)
     ax.set_yticklabels(["%.1f" % i for i in y_ticks_labels])
 
     if False:
@@ -407,16 +407,16 @@ def make_heatmap(contrib_df, cmap, model, name, figures_dir, facet_type="state")
                     ax.set_ylabel("")
         else:
             ncols = 3 if num_states > 4 else 2
-            p = sns.FacetGrid(contrib_df, col=facet_type, col_wrap=ncols, sharex=True, sharey=True, height=1.3)
-            # cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
-            p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, vmin=0, vmax=1, 
-                            cmap=cmap, square=True, norm=mcolors.LogNorm())
-            p.set_titles("{col_name}")
-            # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
-            plt.tight_layout()
-            plt.savefig("%s/%s_%s_heatmap_log.png" % (figures_dir, model, name))
+            # p = sns.FacetGrid(contrib_df, col=facet_type, col_wrap=ncols, sharex=True, sharey=True, height=1)
+            # # cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
+            # p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, vmin=0, vmax=1, 
+            #                 cmap=cmap, square=True, norm=mcolors.LogNorm())
+            # p.set_titles("{col_name}")
+            # # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
+            # plt.tight_layout()
+            # plt.savefig("%s/%s_%s_heatmap_log.png" % (figures_dir, model, name))
 
-            p = sns.FacetGrid(contrib_df, col=facet_type, col_wrap=ncols, sharex=True, sharey=True, height=1.3)
+            p = sns.FacetGrid(contrib_df, col=facet_type, col_wrap=ncols, sharex=True, sharey=True, height=1)
             # cbar_ax = p.figure.add_axes([.90, .2, .03, .6])
             p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=contrib_df, cbar=None, vmin=0, vmax=1, 
                             cmap=cmap, square=True)
@@ -481,7 +481,6 @@ def make_contribution_plots():
 
     make_heatmap(contrib_df_state_type, cmap, model, "contrib_state_type", figures_dir, facet_type="state_type")
 
-    # raise ValueError
     make_heatmap(contrib_df, cmap, model, "contrib_sweep_WT", figures_dir)
 
     # Filter for four states: IRF1IRF2, IRF1NFkB, IRF1IRF2NFkB, IRF1NFkBp50
