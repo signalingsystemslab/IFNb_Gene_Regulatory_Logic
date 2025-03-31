@@ -1,5 +1,5 @@
 # Make nice version of the plots
-from p50_model import *
+from p50_model_distal_synergy import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
