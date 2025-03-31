@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Modelp50:
-    def __init__(self, t_pars, k_pars=None, c_par=None, h_pars=None):
+    def __init__(self, t_pars, k_pars=None, c_par=None, h_pars=None, c_type=""):
         self.parsT = t_pars
         
         if len(t_pars) != 5:
@@ -35,10 +35,17 @@ class Modelp50:
             self.kp = 1
 
         if c_par is not None:
-            # functional cooperativity between IRF and NFkB
-            self.c = c_par
+            if c_type == "NFkB":
+                # binding cooperativity between either IRF and NFkB
+                self.cN = c_par
+            elif c_type == "IRF":
+                # binding cooperativity between two IRFs
+                self.cI = c_par
+            else:
+                raise ValueError("If c parameter is given, type must be either 'NFkB' or 'IRF', not %s" % c_type)
         else:
-            self.c = 1
+            self.cI = 1
+            self.cN = 1
 
         if h_pars is not None:
             # Hill coefficient for each IRF binding event
@@ -81,11 +88,11 @@ class Modelp50:
         self.beta[4] = self.kn
         self.beta[5] = self.kn * self.kp
         self.beta[6] = self.kp
-        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.c
-        self.beta[8] = self.k1 * (I ** self.h1) * self.kn
-        self.beta[9] = self.k2 * (I ** self.h2) * self.kn
-        self.beta[10] = self.k1 * (I ** self.h1) * self.kn * self.kp
-        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * self.c
+        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.cI
+        self.beta[8] = self.k1 * (I ** self.h1) * self.kn * self.cN
+        self.beta[9] = self.k2 * (I ** self.h2) * self.kn * self.cN
+        self.beta[10] = self.k1 * (I ** self.h1) * self.kn * self.kp * self.cN
+        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * self.cI * self.cN
 
     def calculateState(self, N, I, P=1):
         if not hasattr(self, 'beta'):
@@ -101,21 +108,15 @@ class Modelp50:
     def calculateF(self):
         self.f = np.dot(np.transpose(self.prob), self.t)
 
-def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, scaling=False):
-   model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
-   model.calculateState(N, I, P)
-   model.calculateProb()
-   model.calculateF()
-   if scaling:
-       m2 = Modelp50(t_pars, k_pars)
-       m2.calculateState(0.75, 0.5, 1) # Normalize to WT pIC value
-       m2.calculateF()
-       return model.f / m2.f
-   else:
-       return model.f
+def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, c_type=""):
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars, c_type=c_type)
+    model.calculateState(N, I, P)
+    model.calculateProb()
+    model.calculateF()
+    return model.f
 
-def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
-    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
+def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, c_type=""):
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars, c_type=c_type)
     model.calculateState(N, I, P)
     model.calculateProb()
     probabilities = model.prob
@@ -128,10 +129,10 @@ def get_state_prob(t_pars, k_pars, N, I, P, c_par=None, h_pars=None):
 
     return probabilities, state_names
 
-def get_contribution(t_pars, k_pars, N, I, P=1, c_par=None, h_pars=None):
+def get_contribution(t_pars, k_pars, N, I, P=1, c_par=None, h_pars=None, c_type=""):
     # Returns relative contribution of each state to f
-    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars)
-    probabilties, state_names = get_state_prob(t_pars, k_pars, N, I, P, c_par=c_par, h_pars=h_pars)
+    model = Modelp50(t_pars, k_pars, c_par=c_par, h_pars=h_pars, c_type=c_type)
+    probabilties, state_names = get_state_prob(t_pars, k_pars, N, I, P, c_par=c_par, h_pars=h_pars, c_type=c_type)
     f_contributions = model.t * probabilties
     return f_contributions, state_names
 

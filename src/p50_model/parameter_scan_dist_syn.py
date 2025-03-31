@@ -71,7 +71,7 @@ def calculate_rmsd(ifnb_predicted, beta):
     rmsd = np.sqrt(np.mean(residuals**2))
     return rmsd
 
-def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False):
+def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=""):
     min_k_order = np.log10(k_bounds[0])
     max_k_order = np.log10(k_bounds[1])
     min_c_order = np.log10(10**-3)
@@ -85,7 +85,7 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
     u_bounds = np.concatenate([np.zeros(num_t_pars)+max_t, np.ones(num_k_pars)*max_k_order])
 
     print("Calculating grid with %d samples using Latin Hypercube sampling" % num_samples, flush=True)
-    if not c_par:
+    if len(c_par) == 0:
         sampler=qmc.LatinHypercube(d=num_t_pars+num_k_pars, seed=seed)
         grid_tk = sampler.random(n=num_samples)
         grid_tk = qmc.scale(grid_tk, l_bounds, u_bounds) # rows are parameter sets
@@ -93,6 +93,8 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
         kgrid = grid_tk[:,num_t_pars:]
         kgrid = 10**kgrid
         grid_tk[:,num_t_pars:] = kgrid
+    elif c_par not in ("NFkB", "IRF"):
+        raise ValueError("If c parameter is given, type must be either 'NFkB' or 'IRF', not %s" % c_par)
     else:
         l_bounds = np.append(l_bounds, min_c_order)
         u_bounds = np.append(u_bounds, max_c_order)
@@ -121,10 +123,10 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
         with Pool(num_threads) as p:
             # def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, scaling=False):
 
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], c_par) for i in range(len(grid)) for j in range(len(N))])
     else:
         with Pool(num_threads) as p:
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], False) for i in range(len(grid)) for j in range(len(N))])
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], c_par) for i in range(len(grid)) for j in range(len(N))])
 
     num_param_sets = len(grid)
     num_data_points = len(N)
@@ -151,25 +153,25 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
     return best_fits_pars, best_fits_results, best_fits_rmsd
 
 def objective_function(pars, *args):
-    N, I, P, beta, h_pars, c_par = args
+    N, I, P, beta, h_pars, c_bool, c_type = args
     t_pars = pars[0:5]
     k_pars = pars[5:9]
-    if c_par:
+    if c_bool:
         c = pars[9]
     else:
         c = None
 
     num_pts = len(N)
     
-    ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c) for i in range(num_pts)]   
+    ifnb_predicted = [get_f(t_pars, k_pars, N[i], I[i], P[i], h_pars=h_pars, c_par=c, c_type=c_type) for i in range(num_pts)]   
     rmsd = calculate_rmsd(ifnb_predicted, beta)
 
     return rmsd
 
-def minimize_objective(pars, N, I, P, beta, h_pars, c_par, bounds):
-    return opt.minimize(objective_function, pars, args=(N, I, P, beta, h_pars, c_par), method="Nelder-Mead", bounds=bounds)
+def minimize_objective(pars, N, I, P, beta, h_pars, c_bool, c_type, bounds):
+    return opt.minimize(objective_function, pars, args=(N, I, P, beta, h_pars, c_bool, c_type), method="Nelder-Mead", bounds=bounds)
 
-def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_t_pars=5, num_k_pars=3):
+def optimize_model(N, I, P, beta, initial_pars, h, c=False, c_type ="", num_threads=40, num_t_pars=5, num_k_pars=3):
     start = time.time()    
     min_k_order = -3
     max_k_order = 3
@@ -184,17 +186,17 @@ def optimize_model(N, I, P, beta, initial_pars, h, c=False, num_threads=40, num_
 
     # Optimize
     with Pool(num_threads) as p:
-        results = p.starmap(minimize_objective, [(pars, N, I, P, beta, h, c, bnds) for pars in initial_pars])
+        results = p.starmap(minimize_objective, [(pars, N, I, P, beta, h, c, c_type, bnds) for pars in initial_pars])
 
     final_pars = np.array([result.x for result in results]) # each row is a set of optimized parameters
     rmsd = np.array([result.fun for result in results])
 
     if c:
         with Pool(num_threads) as p:
-            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:-1], N[j], I[j], P[j], final_pars[i,-1], h, False) for i in range(len(final_pars)) for j in range(len(N))])
+            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:-1], N[j], I[j], P[j], final_pars[i,-1], h, c_type) for i in range(len(final_pars)) for j in range(len(N))])
     else:
         with Pool(num_threads) as p:
-            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:], N[j], I[j], P[j], None, h, False) for i in range(len(final_pars)) for j in range(len(N))])
+            ifnb_predicted = p.starmap(get_f, [(final_pars[i,0:num_t_pars], final_pars[i,num_t_pars:], N[j], I[j], P[j], None, h, c_type) for i in range(len(final_pars)) for j in range(len(N))])
 
     ifnb_predicted = np.array(ifnb_predicted).reshape(len(final_pars), len(N))
 
@@ -217,7 +219,7 @@ def main():
     # parser.add_argument("-k","--optimize_kp", action="store_true")
     parser.add_argument("-p","--param_scan", action="store_true")
     parser.add_argument("-s","--state_probabilities", action="store_true")
-    parser.add_argument("-c","--c_parameter", action="store_true")
+    parser.add_argument("-c","--c_parameter", type=str, default="")
     parser.add_argument("-1","--h1", type=int, default=3)
     parser.add_argument("-2","--h2", type=int, default=1)
     args = parser.parse_args()
@@ -230,18 +232,15 @@ def main():
     # Settings    
     num_threads = 40
     model = "p50_dist_syn"
-    par_type = "k"
     h1, h2 = args.h1, args.h2
     h3 = 1
     h_val = "%d_%d_%d" % (h1, h2, h3)
     print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
-    c_par= args.c_parameter
+    c_type = args.c_parameter
 
     # Model details
     num_t_pars = 5
     num_k_pars = 4
-    # num_c_pars = 1
-    # num_h_pars = 2
 
     # Directories
     figures_dir = "parameter_scan_dist_syn/figures/"
@@ -249,12 +248,11 @@ def main():
     if h_val != "3_1_1":
         figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
         results_dir = results_dir[:-1] + "_h_%s/" % h_val
-    if c_par:
-        figures_dir = figures_dir[:-1] + "_c_scan/"
-        results_dir = results_dir[:-1] + "_c_scan/"
+    if len(c_type) > 0:
+        figures_dir = figures_dir[:-1] + "_c_%s/" % c_type
+        results_dir = results_dir[:-1] +  "_c_%s/" % c_type
     os.makedirs(figures_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
-    # pars_dir = "../three_site_model/optimization/results/seed_0/"
     print("Saving results to %s" % results_dir, flush=True)
     
     # Load training data
@@ -265,23 +263,19 @@ def main():
     P = training_data["p50"]
     beta = training_data["IFNb"]
     conditions = training_data["Stimulus"] + "_" + training_data["Genotype"]
-    num_pts = len(N)
-    len_training = len(N)
-    # stimuli = training_data["Stimulus"].unique()
-    # genotypes = training_data["Genotype"].unique()
     
-    if c_par:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn", "c"]
+    if len(c_type) > 0:
+        c_bool = True
         result_par_names = ["t_1","t_3","t_4","t_5","t_6", "k1", "k2", "kn", "kp", "c"]
     else:
-        # result_par_names = [r"$t_I$",r"$t_N$",r"$t_{I\cdotIg}$", r"$t_{I\cdotN}$", "k1", "k2", "kn"]
+        c_bool = False
         result_par_names = ["t_1","t_3","t_4","t_5","t_6", "k1", "k2", "kn", "kp"]
 
     # Optimize
     if args.param_scan:
         # Perform parameter scan
         print("Performing parameter scan...", flush=True)
-        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h1=h1, h2=h2, c_par=c_par,num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h1=h1, h2=h2, c_par=c_type,num_t_pars=num_t_pars, num_k_pars=num_k_pars)
         print("Finished parameter scan.", flush=True)
 
         
@@ -313,7 +307,7 @@ def main():
         print("Optimizing model...", flush=True)
         initial_pars = pd.read_csv("%s/%s_scanned_parameters.csv" % (results_dir, model)).values
 
-        final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_bool, c_type=c_type, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
         print("Finished optimization.", flush=True)
 
         print("Plotting results...", flush=True)
@@ -321,7 +315,7 @@ def main():
         plot_parameters(final_pars_df, name="optimized_parameters", figures_dir=figures_dir)
         final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
 
-        # Plot state probabilities
+        # Calculate for state probabilities
         if args.state_probabilities:
             print("Calculating and plotting state probabilities...", flush=True)
             all_k_pars = final_pars[:, num_t_pars:num_t_pars+num_k_pars]
@@ -354,7 +348,6 @@ def main():
         sns.despine()
         plt.savefig("%s/rmsd_comparison_optimized.png" % figures_dir)
         plt.close()
-
 
         # Best 20 optimized parameters
         best_fits = np.argsort(rmsd)[:20]
