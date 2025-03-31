@@ -1048,14 +1048,13 @@ def main():
 
     # Directories
     insert_dir = "" if restrict_t else "no_restrict/"
+    if h_val != "3_1_1":
+        insert_dir = insert_dir + "h_%s/" % h_val
+    if c_par:
+        insert_dir = insert_dir + "c_scan/"
+
     figures_dir = "parameter_scan_dist_syn/%sfigures_%.1f/" % (insert_dir, args.error_val)
     results_dir = "parameter_scan_dist_syn/%sresults_%.1f/" % (insert_dir, args.error_val)
-    if h_val != "3_1_1":
-        figures_dir = figures_dir[:-1] + "_h_%s/" % h_val
-        results_dir = results_dir[:-1] + "_h_%s/" % h_val
-    if c_par:
-        figures_dir = figures_dir[:-1] + "_c_scan/"
-        results_dir = results_dir[:-1] + "_c_scan/"
     os.makedirs(figures_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
     # pars_dir = "../three_site_model/optimization/results/seed_0/"
