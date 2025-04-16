@@ -112,7 +112,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
         g.map(sns.lineplot, "IRF", r"$K_I$", zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set", data=df_ki_pars)
         g.set_axis_labels(r"$[IRF]$ (MNU)", r"$k [IRF]^{h_I-1}$ (MNU$^{-1}$)")
         g.set_titles(r"$k=$" +"{col_name}")
-        g.add_legend(title="", ncol=4,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
+        g.add_legend(title="", ncol=2,loc="lower center", bbox_to_anchor=(0.5, 1), frameon=False)
         g.despine()
         g.set(yscale="log")
         g.set(xscale="log")
@@ -138,21 +138,21 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
         hn = [str(h) for h in hn]
         # t pars (Hills given)
         df_all_t_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_t_pars_1_1)), np.repeat(hi2[1], len(df_t_pars_1_3)),
-                                                np.repeat(hi2[0], len(df_t_pars_3_1)), np.repeat(hi2[1], len(df_t_pars_3_3))])
+                                                np.repeat(hi2[2], len(df_t_pars_3_1)), np.repeat(hi2[3], len(df_t_pars_3_3))])
         df_all_t_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_t_pars_1_1)), np.repeat(hi1[1], len(df_t_pars_1_3)),
-                                                np.repeat(hi1[0], len(df_t_pars_3_1)), np.repeat(hi1[1], len(df_t_pars_3_3))])
+                                                np.repeat(hi1[2], len(df_t_pars_3_1)), np.repeat(hi1[3], len(df_t_pars_3_3))])
         # k pars (Hills given)
         df_all_k_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_k_pars_1_1)), np.repeat(hi2[1], len(df_k_pars_1_3)),
-                                                np.repeat(hi2[0], len(df_k_pars_3_1)), np.repeat(hi2[1], len(df_k_pars_3_3))])
+                                                np.repeat(hi2[2], len(df_k_pars_3_1)), np.repeat(hi2[3], len(df_k_pars_3_3))])
         df_all_k_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_k_pars_1_1)), np.repeat(hi1[1], len(df_k_pars_1_3)),
-                                                np.repeat(hi1[0], len(df_k_pars_3_1)), np.repeat(hi1[1], len(df_k_pars_3_3))])
+                                                np.repeat(hi1[2], len(df_k_pars_3_1)), np.repeat(hi1[3], len(df_k_pars_3_3))])
         if len(hn) > 0:
             # t pars (NFkB Hill given)
             df_all_t_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_t_pars_1_1)), np.repeat(hn[1], len(df_t_pars_1_3)),
-                                                np.repeat(hn[0], len(df_t_pars_3_1)), np.repeat(hn[1], len(df_t_pars_3_3))])
+                                                np.repeat(hn[2], len(df_t_pars_3_1)), np.repeat(hn[3], len(df_t_pars_3_3))])
             # k pars (NFkB Hill given)
             df_all_k_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_k_pars_1_1)), np.repeat(hn[1], len(df_k_pars_1_3)),
-                                                np.repeat(hn[0], len(df_k_pars_3_1)), np.repeat(hn[1], len(df_k_pars_3_3))])
+                                                np.repeat(hn[2], len(df_k_pars_3_1)), np.repeat(hn[3], len(df_k_pars_3_3))])
             # Model names (with NFkB Hill)
             df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars["H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars["H_{I_2}"] + r", $h_N$=" + df_all_t_pars["H_{N}"]
             df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars["H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars["H_{I_2}"] + r", $h_N$=" + df_all_k_pars["H_{N}"]
@@ -1140,6 +1140,22 @@ def make_supplemental_plots():
     best_20_pars_1_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_3/" % scan_dir, model))
     plot_parameters_one_plot(best_20_pars_1_1_1, best_20_pars_1_3_1, best_20_pars_3_1_1, best_20_pars_1_1_3, "best_20_pars_one_hill", figures_dir,
                                 [1,1,3,1], [1,3,1,1], [1,1,1,3])
+
+    # Plot predictions of all_models (111, 131, 311, 113) with cooperativity
+    predictions_1_1_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_scan/" % scan_dir, model), delimiter=",")
+    predictions_1_3_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_scan/" % scan_dir, model), delimiter=",")
+    predictions_3_1_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_scan/" % scan_dir, model), delimiter=",")
+    predictions_3_3_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_scan/" % scan_dir, model), delimiter=",")
+    plot_predictions_supplemental(predictions_1_1_1_c, predictions_1_3_1_c, predictions_3_1_1_c, predictions_3_3_1_c, beta, conditions, "best_20_ifnb_cooperativity", figures_dir,
+                                    [1,1,3,3], [1,3,1,3])
+    
+    # Plot parameters for all models with cooperativity
+    best_20_pars_1_1_1_c = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_scan/" % scan_dir, model))
+    best_20_pars_1_3_1_c = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_scan/" % scan_dir, model))
+    best_20_pars_3_1_1_c = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_scan/" % scan_dir, model))
+    best_20_pars_3_3_1_c = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_scan/" % scan_dir, model))
+    plot_parameters_one_plot(best_20_pars_1_1_1_c, best_20_pars_1_3_1_c, best_20_pars_3_1_1_c, best_20_pars_3_3_1_c, "best_20_pars_cooperativity", figures_dir,
+                                [1,1,3,3], [1,3,1,3])
 
 def main():
     parser = argparse.ArgumentParser()
