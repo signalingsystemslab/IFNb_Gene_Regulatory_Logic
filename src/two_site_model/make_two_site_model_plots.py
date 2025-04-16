@@ -251,7 +251,7 @@ def make_predictions_plot(df_all, name, figures_dir):
             plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
             plt.close()
 
-def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_predicted_3, h3, ifnb_predicted_4, h4, beta, conditions, name, figures_dir):
+def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_predicted_3, h3, ifnb_predicted_4, h4, beta, conditions, name, figures_dir, hn=None):
     # Plot predictions for all conditions in one plot. Average of best 20 models for each hill combination with error bars.
     df_ifnb_predicted_1 = make_predictions_data_frame(ifnb_predicted_1, beta, conditions)
     df_ifnb_predicted_2 = make_predictions_data_frame(ifnb_predicted_2, beta, conditions)
@@ -267,7 +267,15 @@ def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_p
     df_sym = pd.concat([df_ifnb_predicted_1, df_ifnb_predicted_2, df_ifnb_predicted_3, df_ifnb_predicted_4], ignore_index=True)
     df_sym[r"H_I"] = np.concatenate([np.repeat(h1, len(df_ifnb_predicted_1)), np.repeat(h2, len(df_ifnb_predicted_2)),
                                         np.repeat(h3, len(df_ifnb_predicted_3)), np.repeat(h4, len(df_ifnb_predicted_4))])
-    df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"]
+    
+    if hn is not None:
+        hn_1, hn_2, hn_3, hn_4 = [str(h) for h in hn]
+
+        df_sym[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_ifnb_predicted_1)), np.repeat(hn_2, len(df_ifnb_predicted_2)),
+                                        np.repeat(hn_3, len(df_ifnb_predicted_3)), np.repeat(hn_4, len(df_ifnb_predicted_4))])
+        df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"] + r", h$_{N}$=" + df_sym[r"H_N"]
+    else:
+        df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"]
     
     # data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
     # data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
@@ -819,33 +827,21 @@ def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, h
     df_all_t_pars = pd.concat([df_t_pars_1, df_t_pars_2, df_t_pars_3, df_t_pars_4], ignore_index=True)
     df_all_k_pars = pd.concat([df_k_pars_1, df_k_pars_2, df_k_pars_3, df_k_pars_4], ignore_index=True)
 
-    # df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("1", len(df_t_pars_2)),
-    #                                     np.repeat("3", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
-    # df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_1)), np.repeat("3", len(df_t_pars_2)),
-    #                                     np.repeat("1", len(df_t_pars_3)), np.repeat("3", len(df_t_pars_4))])
-    # df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
-
-    # df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("1", len(df_k_pars_2)),
-    #                                     np.repeat("3", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
-    # df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1)), np.repeat("3", len(df_k_pars_2)),
-    #                                     np.repeat("1", len(df_k_pars_3)), np.repeat("3", len(df_k_pars_4))])
-    # df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
-
     df_all_t_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_t_pars_1)), np.repeat(hi_2, len(df_t_pars_2)),
                                         np.repeat(hi_3, len(df_t_pars_3)), np.repeat(hi_4, len(df_t_pars_4))])
     df_all_k_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_k_pars_1)), np.repeat(hi_2, len(df_k_pars_2)),
                                         np.repeat(hi_3, len(df_k_pars_3)), np.repeat(hi_4, len(df_k_pars_4))])
     
     if hn is not None:
-        hn_1, hn_2, hn_3, hn_4 = hn
+        hn_1, hn_2, hn_3, hn_4 = [str(h) for h in hn]
 
         df_all_t_pars[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_t_pars_1)), np.repeat(hn_2, len(df_t_pars_2)),
                                         np.repeat(hn_3, len(df_t_pars_3)), np.repeat(hn_4, len(df_t_pars_4))])
-        df_all_k_pars[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_t_pars_1)), np.repeat(hn_2, len(df_t_pars_2)),
-                                        np.repeat(hn_3, len(df_t_pars_3)), np.repeat(hn_4, len(df_t_pars_4))])
+        df_all_k_pars[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_k_pars_1)), np.repeat(hn_2, len(df_k_pars_2)),
+                                        np.repeat(hn_3, len(df_k_pars_3)), np.repeat(hn_4, len(df_k_pars_4))])
         
-        df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"] + r"$h_{N}$=" + df_all_t_pars[r"H_N"]
-        df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"] + r"$h_{N}$=" + df_all_k_pars[r"H_N"] 
+        df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"] + r", $h_{N}$=" + df_all_t_pars[r"H_N"]
+        df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"] + r", $h_{N}$=" + df_all_k_pars[r"H_N"] 
     else:
         df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"]
         df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"]
@@ -942,10 +938,17 @@ def make_supplemental_plots():
     # Load best parameters with c-scan (I&N hills)
     best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
     best_20_pars_df_3_3 = pd.read_csv("%s/results_h_3_3_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
-    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_2_1, "2", best_20_pars_df_3_1, "3", best_20_pars_df_4_1, "4", "best_20_pars_c_scan", figures_dir)
+    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_1_3, "1", best_20_pars_df_3_1, "3", best_20_pars_df_3_3, "3", 
+                             "best_20_pars_c_scan_I_N_hill", figures_dir, [1,3,1,3])
 
 
     # Calculate predictions with c-scan (I&N hills)
+    predictions_1_1 = np.loadtxt("%s/results_h_1_1_c_scan/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_1_3 = np.loadtxt("%s/results_h_1_3_c_scan/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_1 = np.loadtxt("%s/results_h_3_1_c_scan/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_3 = np.loadtxt("%s/results_h_3_3_c_scan/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    plot_predictions_one_plot(predictions_1_1, "1", predictions_1_3, "1", predictions_3_1, "3", predictions_3_3, "3", beta, conditions, 
+                              "best_20_predictions_c_scan_I_N_hill", figures_dir, [1,3,1,3])
 
 
     # Load best parameters with NFkB scan
