@@ -810,7 +810,7 @@ def make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, 
         make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir)
 
 # Plot parameters one plot
-def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, hi_4, name, figures_dir):
+def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, hi_4, name, figures_dir, hn=None):
     df_t_pars_1, df_k_pars_1, _, _ = make_parameters_data_frame(pars_1)
     df_t_pars_2, df_k_pars_2, _, _ = make_parameters_data_frame(pars_2)
     df_t_pars_3, df_k_pars_3, _, _ = make_parameters_data_frame(pars_3)
@@ -835,8 +835,21 @@ def plot_parameters_one_plot(pars_1, hi_1, pars_2, hi_2, pars_3, hi_3, pars_4, h
                                         np.repeat(hi_3, len(df_t_pars_3)), np.repeat(hi_4, len(df_t_pars_4))])
     df_all_k_pars[r"H_I"] = np.concatenate([np.repeat(hi_1, len(df_k_pars_1)), np.repeat(hi_2, len(df_k_pars_2)),
                                         np.repeat(hi_3, len(df_k_pars_3)), np.repeat(hi_4, len(df_k_pars_4))])
-    df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"]
-    df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"]
+    
+    if hn is not None:
+        hn_1, hn_2, hn_3, hn_4 = hn
+
+        df_all_t_pars[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_t_pars_1)), np.repeat(hn_2, len(df_t_pars_2)),
+                                        np.repeat(hn_3, len(df_t_pars_3)), np.repeat(hn_4, len(df_t_pars_4))])
+        df_all_k_pars[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_t_pars_1)), np.repeat(hn_2, len(df_t_pars_2)),
+                                        np.repeat(hn_3, len(df_t_pars_3)), np.repeat(hn_4, len(df_t_pars_4))])
+        
+        df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"] + r"$h_{N}$=" + df_all_t_pars[r"H_N"]
+        df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"] + r"$h_{N}$=" + df_all_k_pars[r"H_N"] 
+    else:
+        df_all_t_pars["Model"] = r"$h_{I}$=" + df_all_t_pars[r"H_I"]
+        df_all_k_pars["Model"] = r"$h_{I}$=" + df_all_k_pars[r"H_I"]
+
 
     make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, name, figures_dir)
     
@@ -926,6 +939,15 @@ def make_supplemental_plots():
     plot_predictions_one_plot(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4", beta, conditions, 
                               "best_20_predictions_c_scan", figures_dir)
     
+    # Load best parameters with c-scan (I&N hills)
+    best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_3_3 = pd.read_csv("%s/results_h_3_3_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
+    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_2_1, "2", best_20_pars_df_3_1, "3", best_20_pars_df_4_1, "4", "best_20_pars_c_scan", figures_dir)
+
+
+    # Calculate predictions with c-scan (I&N hills)
+
+
     # Load best parameters with NFkB scan
     best_20_pars_df_1_1 = pd.read_csv("%s/results_h_1_1/%s_best_fits_pars.csv" % (results_dir, model))
     best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3/%s_best_fits_pars.csv" % (results_dir, model))
