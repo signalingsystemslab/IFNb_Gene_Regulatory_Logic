@@ -1,5 +1,5 @@
 # Make nice version of the plots for the three site model
-from three_site_model_force_t import get_f
+# from three_site_model_force_t import get_f
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -908,8 +908,8 @@ def make_state_probabilities_plots():
     t_pars = best_fit_parameters.iloc[:4].values
     k_pars = best_fit_parameters.iloc[4:7].values
     h_pars = [3,1]
-    ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
-    ifnb_df.loc["basal_WT"] = ifnb_basal_wt
+    # ifnb_basal_wt = get_f(t_pars, k_pars, 0.01, 0.01, 1, h_pars=h_pars)
+    # ifnb_df.loc["basal_WT"] = ifnb_basal_wt
     ifnb_df = ifnb_df.rename(condition_renaming_dict)
     ifnb_df = ifnb_df.rename(r"")
 
