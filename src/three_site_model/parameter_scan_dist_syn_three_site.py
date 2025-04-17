@@ -3,7 +3,7 @@
 # Synergy is not restricted to neighboring sites
 
 from three_site_model_distal_synergy import *
-from three_site_model_figures import plot_parameters, plot_predictions, plot_parameter_distributions
+# from three_site_model_figures import plot_parameters, plot_predictions, plot_parameter_distributions
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -285,14 +285,14 @@ def main():
         
         print("Plotting results...", flush=True)
         final_pars_df = pd.DataFrame(final_pars, columns=result_par_names)
-        plot_parameters(final_pars_df, name="scanned_parameters", figures_dir=figures_dir)
+        # plot_parameters(final_pars_df, name="scanned_parameters", figures_dir=figures_dir)
         final_pars_df.to_csv("%s/%s_scanned_parameters.csv" % (results_dir, model), index=False)
 
 
         # Plot predictions
         print("Plotting predictions...", flush=True)
 
-        plot_predictions(ifnb_predicted, beta, conditions, name="scanned_predictions", figures_dir=figures_dir)
+        # plot_predictions(ifnb_predicted, beta, conditions, name="scanned_predictions", figures_dir=figures_dir)
         np.savetxt("%s/%s_ifnb_predicted_scanned.csv" % (results_dir, model), ifnb_predicted, delimiter=",")
 
         # Calculate rmsd
@@ -316,7 +316,7 @@ def main():
 
         print("Plotting results...", flush=True)
         final_pars_df = pd.DataFrame(final_pars, columns=result_par_names)
-        plot_parameters(final_pars_df, name="optimized_parameters", figures_dir=figures_dir)
+        # plot_parameters(final_pars_df, name="optimized_parameters", figures_dir=figures_dir)
         final_pars_df.to_csv("%s/%s_optimized_parameters.csv" % (results_dir, model), index=False)
 
         # Plot state probabilities
@@ -337,7 +337,7 @@ def main():
 
 
         print("Plotting predictions...", flush=True)
-        plot_predictions(ifnb_predicted, beta, conditions, name="optimized_predictions", figures_dir=figures_dir)
+        # plot_predictions(ifnb_predicted, beta, conditions, name="optimized_predictions", figures_dir=figures_dir)
         np.savetxt("%s/%s_ifnb_predicted_optimized.csv" % (results_dir, model), ifnb_predicted, delimiter=",")
 
         # Calculate rmsd
@@ -365,8 +365,8 @@ def main():
         np.savetxt("%s/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), best_fits_results, delimiter=",")
 
         # Plot best fits
-        plot_predictions(best_fits_results, beta, conditions, name="best_fits_predictions", figures_dir=figures_dir)
-        plot_parameters(best_fits_df, name="best_fits_parameters", figures_dir=figures_dir)
+        # plot_predictions(best_fits_results, beta, conditions, name="best_fits_predictions", figures_dir=figures_dir)
+        # plot_parameters(best_fits_df, name="best_fits_parameters", figures_dir=figures_dir)
 
     # Plot state probabilities
     if args.state_probabilities:
