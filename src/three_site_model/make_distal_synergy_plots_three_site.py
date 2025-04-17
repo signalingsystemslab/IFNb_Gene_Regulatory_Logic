@@ -1,6 +1,6 @@
 # Make nice version of the plots for the three site model
 from three_site_model_distal_synergy import get_f, get_contribution
-from make_three_site_model_plots import plot_predictions_one_plot, get_renaming_dict, make_ki_plot, make_predictions_data_frame, fix_ax_labels
+from make_three_site_model_plots import get_renaming_dict, make_ki_plot, make_predictions_data_frame, fix_ax_labels
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -123,36 +123,37 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
         plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
-def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir, hi2=[], hi1=[], hn=[]):
-    df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
-    df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
-    df_t_pars_3_1, df_k_pars_3_1, _, _ = make_parameters_data_frame(pars_3_1)
-    df_t_pars_3_3, df_k_pars_3_3, num_t_pars, num_k_pars = make_parameters_data_frame(pars_3_3)
+def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, hi2=[], hi1=[], hn=[]):
+    df_t_pars_0, df_k_pars_0, _, _ = make_parameters_data_frame(pars_0)
+    df_t_pars_1, df_k_pars_1, _, _ = make_parameters_data_frame(pars_1)
+    df_t_pars_2, df_k_pars_2, _, _ = make_parameters_data_frame(pars_2)
+    df_t_pars_3, df_k_pars_3, num_t_pars, num_k_pars = make_parameters_data_frame(pars_3)
 
-    df_all_t_pars = pd.concat([df_t_pars_1_1, df_t_pars_1_3, df_t_pars_3_1, df_t_pars_3_3], ignore_index=True)
-    df_all_k_pars = pd.concat([df_k_pars_1_1, df_k_pars_1_3, df_k_pars_3_1, df_k_pars_3_3], ignore_index=True)
+    df_all_t_pars = pd.concat([df_t_pars_0, df_t_pars_1, df_t_pars_2, df_t_pars_3], ignore_index=True)
+    df_all_k_pars = pd.concat([df_k_pars_0, df_k_pars_1, df_k_pars_2, df_k_pars_3], ignore_index=True)
 
     if len(hi2) > 0:
         hi2 = [str(h) for h in hi2]
         hi1 = [str(h) for h in hi1]
-        hn = [str(h) for h in hn]
+        
         # t pars (Hills given)
-        df_all_t_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_t_pars_1_1)), np.repeat(hi2[1], len(df_t_pars_1_3)),
-                                                np.repeat(hi2[2], len(df_t_pars_3_1)), np.repeat(hi2[3], len(df_t_pars_3_3))])
-        df_all_t_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_t_pars_1_1)), np.repeat(hi1[1], len(df_t_pars_1_3)),
-                                                np.repeat(hi1[2], len(df_t_pars_3_1)), np.repeat(hi1[3], len(df_t_pars_3_3))])
+        df_all_t_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_t_pars_0)), np.repeat(hi2[1], len(df_t_pars_1)),
+                                                np.repeat(hi2[2], len(df_t_pars_2)), np.repeat(hi2[3], len(df_t_pars_3))])
+        df_all_t_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_t_pars_0)), np.repeat(hi1[1], len(df_t_pars_1)),
+                                                np.repeat(hi1[2], len(df_t_pars_2)), np.repeat(hi1[3], len(df_t_pars_3))])
         # k pars (Hills given)
-        df_all_k_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_k_pars_1_1)), np.repeat(hi2[1], len(df_k_pars_1_3)),
-                                                np.repeat(hi2[2], len(df_k_pars_3_1)), np.repeat(hi2[3], len(df_k_pars_3_3))])
-        df_all_k_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_k_pars_1_1)), np.repeat(hi1[1], len(df_k_pars_1_3)),
-                                                np.repeat(hi1[2], len(df_k_pars_3_1)), np.repeat(hi1[3], len(df_k_pars_3_3))])
+        df_all_k_pars["H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_k_pars_0)), np.repeat(hi2[1], len(df_k_pars_1)),
+                                                np.repeat(hi2[2], len(df_k_pars_2)), np.repeat(hi2[3], len(df_k_pars_3))])
+        df_all_k_pars["H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_k_pars_0)), np.repeat(hi1[1], len(df_k_pars_1)),
+                                                np.repeat(hi1[2], len(df_k_pars_2)), np.repeat(hi1[3], len(df_k_pars_3))])
         if len(hn) > 0:
+            hn = [str(h) for h in hn]
             # t pars (NFkB Hill given)
-            df_all_t_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_t_pars_1_1)), np.repeat(hn[1], len(df_t_pars_1_3)),
-                                                np.repeat(hn[2], len(df_t_pars_3_1)), np.repeat(hn[3], len(df_t_pars_3_3))])
+            df_all_t_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_t_pars_0)), np.repeat(hn[1], len(df_t_pars_1)),
+                                                np.repeat(hn[2], len(df_t_pars_2)), np.repeat(hn[3], len(df_t_pars_3))])
             # k pars (NFkB Hill given)
-            df_all_k_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_k_pars_1_1)), np.repeat(hn[1], len(df_k_pars_1_3)),
-                                                np.repeat(hn[2], len(df_k_pars_3_1)), np.repeat(hn[3], len(df_k_pars_3_3))])
+            df_all_k_pars["H_{N}"] = np.concatenate([np.repeat(hn[0], len(df_k_pars_0)), np.repeat(hn[1], len(df_k_pars_1)),
+                                                np.repeat(hn[2], len(df_k_pars_2)), np.repeat(hn[3], len(df_k_pars_3))])
             # Model names (with NFkB Hill)
             df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars["H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars["H_{I_2}"] + r", $h_N$=" + df_all_t_pars["H_{N}"]
             df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars["H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars["H_{I_2}"] + r", $h_N$=" + df_all_k_pars["H_{N}"]
@@ -162,15 +163,15 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
             df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars["H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars["H_{I_2}"]
     else:
         # t pars (Hills assumed)
-        df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)), np.repeat("1", len(df_t_pars_1_3)),
-                                            np.repeat("3", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
-        df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_1_1)), np.repeat("3", len(df_t_pars_1_3)),
-                                            np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
+        df_all_t_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_t_pars_0)), np.repeat("1", len(df_t_pars_1)),
+                                            np.repeat("3", len(df_t_pars_2)), np.repeat("3", len(df_t_pars_3))])
+        df_all_t_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_t_pars_0)), np.repeat("3", len(df_t_pars_1)),
+                                            np.repeat("1", len(df_t_pars_2)), np.repeat("3", len(df_t_pars_3))])
         # k pars (Hills assumed)
-        df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
-                                            np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
-        df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("3", len(df_k_pars_1_3)),
-                                            np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
+        df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_0)), np.repeat("1", len(df_k_pars_1)),
+                                            np.repeat("3", len(df_k_pars_2)), np.repeat("3", len(df_k_pars_3))])
+        df_all_k_pars[r"H_{I_1}"] = np.concatenate([np.repeat("1", len(df_k_pars_0)), np.repeat("3", len(df_k_pars_1)),
+                                            np.repeat("1", len(df_k_pars_2)), np.repeat("3", len(df_k_pars_3))])
         # Model names (Hills assumed)
         df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
         df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
@@ -255,6 +256,93 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
 
         make_ki_plot(df_all_k_pars, name + "_k_i", figures_dir)
 
+def plot_predictions(ifnb_predicted_0, ifnb_predicted_1, ifnb_predicted_2, ifnb_predicted_3, beta, conditions, name, figures_dir, hi2=[], hi1=[], hn = []):
+    df_ifnb_predicted_0 = make_predictions_data_frame(ifnb_predicted_0, beta, conditions)
+    df_ifnb_predicted_1 = make_predictions_data_frame(ifnb_predicted_1, beta, conditions)
+    df_ifnb_predicted_2 = make_predictions_data_frame(ifnb_predicted_2, beta, conditions)
+    df_ifnb_predicted_3 = make_predictions_data_frame(ifnb_predicted_3, beta, conditions)
+
+    data_df = df_ifnb_predicted_0.loc[df_ifnb_predicted_0["par_set"] == "Data"].copy()
+
+    df_sym = pd.concat([df_ifnb_predicted_0,
+                        df_ifnb_predicted_2,
+                        df_ifnb_predicted_1,
+                        df_ifnb_predicted_3], ignore_index=True) 
+    
+    hi1 = [str(h) for h in hi1]
+    hi2 = [str(h) for h in hi2]
+    
+    # hi1[0] -> df_ifnb_predicted_0, hi1[1] -> df_ifnb_predicted_1, hi1[2] -> df_ifnb_predicted_2, hi1[3] -> df_ifnb_predicted_3
+    # current order: 0, 2, 1, 3
+    df_sym[r"H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_ifnb_predicted_0)), np.repeat(hi1[2], len(df_ifnb_predicted_2)),
+                                        np.repeat(hi1[1], len(df_ifnb_predicted_1)), np.repeat(hi1[3], len(df_ifnb_predicted_3))])
+    df_sym[r"H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_ifnb_predicted_0)), np.repeat(hi2[2], len(df_ifnb_predicted_2)),
+                                        np.repeat(hi2[1], len(df_ifnb_predicted_1)), np.repeat(hi2[3], len(df_ifnb_predicted_3))])
+    if len(hn) > 0:
+        hn = [str(h) for h in hn]
+        df_sym[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_0)), np.repeat(hn[2], len(df_ifnb_predicted_2)),
+                                        np.repeat(hn[1], len(df_ifnb_predicted_1)), np.repeat(hn[3], len(df_ifnb_predicted_3))])
+        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r", $h_N$=" + df_sym[r"H_N"] + r""
+    else:
+        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r""
+    
+    data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
+    data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
+    data_df["Hill"] = "Exp."
+
+    df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
+    df_all = pd.concat([df_sym, data_df], ignore_index=True)
+
+    hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
+
+    df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
+    # print(df_all)
+    # print(df_all["Data point"].unique())
+
+    # Plot separately
+    for category in df_all["Category"].unique():
+        print("Plotting %s" % category)
+        with sns.plotting_context("paper", rc=plot_rc_pars):
+            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+            width  = 3.1*num_bars/3/2.1
+            height = 1.3/1.7
+            fig, ax = plt.subplots(figsize=(width, height))
+            cols = [data_color] + models_colors
+            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=0.9, 
+                        linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
+            ax.set_xlabel("")
+            ax.set_ylabel(r"IFNβ $f$")
+            # ax.set_title(category)
+            sns.despine()
+            ax, _ = fix_ax_labels(ax)
+            plt.tight_layout(pad=0)
+            plt.ylim(0,1)
+            category_nospace = category.replace(" ", "-")
+            plt.savefig("%s/%s_%s.png" % (figures_dir, name, category_nospace), bbox_inches="tight")
+            plt.close()
+
+    # Make one plot with legend
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        category = "NFκB dependence"
+        # print(df_all[df_all["Category"]==category])
+        num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
+        width  = 3.1*num_bars/3/2.1 + 0.5
+        height = 1.3/1.7
+        fig, ax = plt.subplots(figsize=(width, height))
+        cols = [data_color] + models_colors
+        sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
+                    palette=cols, ax=ax, width=0.8, errorbar=None, saturation=0.9, linewidth=0.5, edgecolor="black")
+        ax.set_xlabel("")
+        ax.set_ylabel(r"IFN$\beta$")
+        # ax.set_title(category)
+        sns.despine()
+        ax, _ = fix_ax_labels(ax)
+        plt.tight_layout(pad=0)
+        plt.ylim(0,1)
+        sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
+        plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
 
 
 def make_param_scan_plots():
@@ -272,7 +360,8 @@ def make_param_scan_plots():
     predictions_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1/" % scan_dir, model_t), delimiter=",")
     predictions_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results/" % scan_dir, model_t), delimiter=",")
     predictions_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1/" % scan_dir, model_t), delimiter=",")
-    plot_predictions_one_plot(predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3, beta, conditions, "best_20_ifnb", figures_dir)         
+    plot_predictions(predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3, beta, conditions, "best_20_ifnb", figures_dir,
+                    hi2=[1,1,3,3], hi1=[1,3,1,3])    
 
     # Compare predictions for NFkBko in two-site vs three-site model
     two_site_results_dir = "../two_site_model/parameter_scan/"
@@ -394,7 +483,8 @@ def make_param_scan_plots():
     best_20_pars_df_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1/" % scan_dir, model_t))
     best_20_pars_df_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results/" % scan_dir, model_t))
     best_20_pars_df_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1/" % scan_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3, "best_20_pars_all", figures_dir)
+    plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3, "best_20_pars_all", figures_dir,
+                             hi2=[1,1,3,3], hi1=[1,3,1,3])
     del best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3
 
     # Add RMSD density plot of two models: h1=1,h2=1 and h1=1,h2=3
@@ -997,90 +1087,7 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, name="rmsd_boxplot"):
         plt.savefig("%s/%s_%s.png" % (figures_dir, name, model), bbox_inches="tight")
         plt.close()
 
-def plot_predictions_supplemental(ifnb_predicted_1_1, ifnb_predicted_1_3, ifnb_predicted_3_1, ifnb_predicted_3_3, beta, conditions, name, figures_dir, hi2=[], hi1=[], hn = []):
-    df_ifnb_predicted_1_1 = make_predictions_data_frame(ifnb_predicted_1_1, beta, conditions)
-    df_ifnb_predicted_1_3 = make_predictions_data_frame(ifnb_predicted_1_3, beta, conditions)
-    df_ifnb_predicted_3_1 = make_predictions_data_frame(ifnb_predicted_3_1, beta, conditions)
-    df_ifnb_predicted_3_3 = make_predictions_data_frame(ifnb_predicted_3_3, beta, conditions)
 
-    data_df = df_ifnb_predicted_1_1.loc[df_ifnb_predicted_1_1["par_set"] == "Data"].copy()
-
-    df_sym = pd.concat([df_ifnb_predicted_1_1, 
-                        df_ifnb_predicted_3_1,
-                        df_ifnb_predicted_1_3,
-                        df_ifnb_predicted_3_3], ignore_index=True)
-    
-    hi1 = [str(h) for h in hi1]
-    hi2 = [str(h) for h in hi2]
-    hn = [str(h) for h in hn]
-    df_sym[r"H_{I_1}"] = np.concatenate([np.repeat(hi1[0], len(df_ifnb_predicted_1_1)), np.repeat(hi1[1], len(df_ifnb_predicted_1_3)),
-                                        np.repeat(hi1[2], len(df_ifnb_predicted_3_1)), np.repeat(hi1[3], len(df_ifnb_predicted_3_3))])
-    df_sym[r"H_{I_2}"] = np.concatenate([np.repeat(hi2[0], len(df_ifnb_predicted_1_1)), np.repeat(hi2[1], len(df_ifnb_predicted_1_3)),
-                                        np.repeat(hi2[2], len(df_ifnb_predicted_3_1)), np.repeat(hi2[3], len(df_ifnb_predicted_3_3))])
-    if len(hn) > 0:
-        df_sym[r"H_N"] = np.concatenate([np.repeat(hn[0], len(df_ifnb_predicted_1_1)), np.repeat(hn[1], len(df_ifnb_predicted_1_3)),
-                                        np.repeat(hn[2], len(df_ifnb_predicted_3_1)), np.repeat(hn[3], len(df_ifnb_predicted_3_3))])
-        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r", $h_N$=" + df_sym[r"H_N"] + r""
-    else:
-        df_sym["Hill"] = r"$h_{I_1}$=" + df_sym[r"H_{I_1}"] + r", $h_{I_2}$=" + df_sym[r"H_{I_2}"] + r""
-    
-    data_df[r"H_{I_2}"] = np.repeat("Data", len(data_df))
-    data_df[r"H_{I_1}"] = np.repeat("", len(data_df))
-    data_df["Hill"] = "Exp."
-
-    df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
-    df_all = pd.concat([df_sym, data_df], ignore_index=True)
-
-    hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
-
-    df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
-    # print(df_all)
-    # print(df_all["Data point"].unique())
-
-    # Plot separately
-    for category in df_all["Category"].unique():
-        print("Plotting %s" % category)
-        with sns.plotting_context("paper", rc=plot_rc_pars):
-            num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
-            width  = 3.1*num_bars/3/2.1
-            height = 1.3/1.7
-            fig, ax = plt.subplots(figsize=(width, height))
-            cols = [data_color] + models_colors
-            sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=0.9, 
-                        linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
-            ax.set_xlabel("")
-            ax.set_ylabel(r"IFNβ $f$")
-            # ax.set_title(category)
-            sns.despine()
-            ax, _ = fix_ax_labels(ax)
-            plt.tight_layout(pad=0)
-            plt.ylim(0,1)
-            category_nospace = category.replace(" ", "-")
-            plt.savefig("%s/%s_%s.png" % (figures_dir, name, category_nospace), bbox_inches="tight")
-            plt.close()
-
-    # Make one plot with legend
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        category = "NFκB dependence"
-        # print(df_all[df_all["Category"]==category])
-        num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
-        width  = 3.1*num_bars/3/2.1 + 0.5
-        height = 1.3/1.7
-        fig, ax = plt.subplots(figsize=(width, height))
-        cols = [data_color] + models_colors
-        sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                    palette=cols, ax=ax, width=0.8, errorbar=None, saturation=0.9, linewidth=0.5, edgecolor="black")
-        ax.set_xlabel("")
-        ax.set_ylabel(r"IFN$\beta$")
-        # ax.set_title(category)
-        sns.despine()
-        ax, _ = fix_ax_labels(ax)
-        plt.tight_layout(pad=0)
-        plt.ylim(0,1)
-        sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
-        plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
-        plt.close()
 
 def make_supplemental_plots():
     figures_dir = "parameter_scan_dist_syn/nice_figures/"
@@ -1129,8 +1136,8 @@ def make_supplemental_plots():
     predictions_1_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1/" % scan_dir, model), delimiter=",")
     predictions_3_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results/" % scan_dir, model), delimiter=",")
     predictions_1_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_3/" % scan_dir, model), delimiter=",")
-    plot_predictions_supplemental(predictions_1_1_1, predictions_1_3_1, predictions_3_1_1, predictions_1_1_3, beta, conditions, "best_20_ifnb_one_hill", figures_dir,
-                                  [1,1,3,1], [1,3,1,1], [1,1,1,3])
+    plot_predictions(predictions_1_1_1,predictions_3_1_1,  predictions_1_3_1, predictions_1_1_3, beta, conditions, "best_20_ifnb_one_hill", figures_dir,
+                                  hi2=[1,3,1,1], hi1= [1,1,3,1], hn =[1,1,1,3])
 
     # Plot parameters for all models with only one Hill coefficient
     print("Plotting parameters for all hill combinations", flush=True)
@@ -1146,7 +1153,7 @@ def make_supplemental_plots():
     predictions_1_3_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_scan/" % scan_dir, model), delimiter=",")
     predictions_3_1_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_scan/" % scan_dir, model), delimiter=",")
     predictions_3_3_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_scan/" % scan_dir, model), delimiter=",")
-    plot_predictions_supplemental(predictions_1_1_1_c, predictions_1_3_1_c, predictions_3_1_1_c, predictions_3_3_1_c, beta, conditions, "best_20_ifnb_cooperativity", figures_dir,
+    plot_predictions(predictions_1_1_1_c, predictions_1_3_1_c, predictions_3_1_1_c, predictions_3_3_1_c, beta, conditions, "best_20_ifnb_cooperativity", figures_dir,
                                     [1,1,3,3], [1,3,1,3])
     
     # Plot parameters for all models with cooperativity
