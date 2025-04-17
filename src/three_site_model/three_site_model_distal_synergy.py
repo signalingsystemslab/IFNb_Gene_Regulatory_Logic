@@ -79,9 +79,9 @@ class three_site:
         self.beta[2] = self.k2 * (I ** self.h2)
         self.beta[3] = self.kn * (N ** self.hn)
         self.beta[4] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2)
-        self.beta[5] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn)
-        self.beta[6] = self.k2 * (I ** self.h2) * self.kn * (N ** self.hn)
-        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn)
+        self.beta[5] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn) * self.c
+        self.beta[6] = self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.c
+        self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.c * self.c
 
     def calculateState(self, N, I):
         if not hasattr(self, 'beta'):
