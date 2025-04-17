@@ -123,7 +123,7 @@ def make_ki_plot(df_ki_pars, name, figures_dir):
         plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
-def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, hi2=[], hi1=[], hn=[]):
+def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, hi2=[], hi1=[], hn=[], ordered = False):
     df_t_pars_0, df_k_pars_0, _, _ = make_parameters_data_frame(pars_0)
     df_t_pars_1, df_k_pars_1, _, _ = make_parameters_data_frame(pars_1)
     df_t_pars_2, df_k_pars_2, _, _ = make_parameters_data_frame(pars_2)
@@ -176,10 +176,17 @@ def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, 
         df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
         df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
-    # df_all_t_pars = df_all_t_pars.loc[df_all_t_pars[r"H_{I_1}"]  == "1"] # acceptable models only
-
-    # df_all_k_pars = df_all_k_pars.loc[df_all_k_pars[r"H_{I_1}"]  == "1"] # acceptable models only
-
+    if ordered:
+        # Sort by order of appearance
+        unique_models = df_all_t_pars["Model"].unique()
+        df_all_t_pars["Model"] = pd.Categorical(df_all_t_pars["Model"], categories=unique_models, ordered=True)
+        df_all_k_pars["Model"] = pd.Categorical(df_all_k_pars["Model"], categories=unique_models, ordered=True)
+    else:
+        # Sort by alphabetical order
+        unique_models = np.unique(df_all_t_pars["Model"])
+        df_all_t_pars["Model"] = pd.Categorical(df_all_t_pars["Model"], categories=unique_models, ordered=False)
+        df_all_k_pars["Model"] = pd.Categorical(df_all_k_pars["Model"], categories=unique_models, ordered=False)
+    
     colors = models_colors
 
     k_parameters = [r"$K_N$",r"$K_P$"]
@@ -200,8 +207,7 @@ def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, 
         else:
             fig, ax = plt.subplots(1,2, figsize=(width, height), 
                                 gridspec_kw={"width_ratios":[num_t_pars, len(k_parameters)-0.5]})
-       
-        unique_models = np.unique(df_all_t_pars["Model"])
+
         legend_handles = []
 
         s = sns.stripplot(data=df_all_t_pars, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[0], zorder = 0, linewidth=0,
@@ -212,6 +218,12 @@ def plot_parameters_one_plot(pars_0, pars_1, pars_2, pars_3, name, figures_dir, 
 
         df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(k_parameters))]
         df2 = df2.copy()
+
+        # if ordered:
+        #     df2["Model"] = pd.Categorical(df2["Model"], categories=unique_models, ordered=True)
+        # else:
+        #     unique_models = np.unique(df_all_t_pars["Model"])
+
         df2["Parameter"] = df2["Parameter"].cat.remove_unused_categories()
         s = sns.stripplot(data=df2, x="Parameter", y="Value", hue = "Model", palette=colors, ax=ax[1], zorder = 0, linewidth=0, 
                           alpha=0.2, jitter=0, dodge=True, legend=False)        
@@ -1146,7 +1158,7 @@ def make_supplemental_plots():
     best_20_pars_3_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results/" % scan_dir, model))
     best_20_pars_1_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_3/" % scan_dir, model))
     plot_parameters_one_plot(best_20_pars_1_1_1, best_20_pars_1_3_1, best_20_pars_3_1_1, best_20_pars_1_1_3, "best_20_pars_one_hill", figures_dir,
-                                [1,1,3,1], [1,3,1,1], [1,1,1,3])
+                                [1,1,3,1], [1,3,1,1], [1,1,1,3], ordered=True)
 
     # Plot predictions of all_models (111, 131, 311, 113) with cooperativity
     predictions_1_1_1_c = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_scan/" % scan_dir, model), delimiter=",")
