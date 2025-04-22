@@ -883,14 +883,16 @@ def get_max_residual(ifnb_predictions, beta, conditions):
 
 def plot_max_resid(df, figures_dir, name=""):
     # Mark a box plot of the min residual for each model form
-
+    n = len(df["Data point"].unique())
+    pal = sns.cubehelix_palette(n_colors=n, light=0.8, dark=0.2, reverse=True, rot=1, start=1, hue=0.6)
     with sns.plotting_context("paper", rc=plot_rc_pars):
         fig, ax = plt.subplots(figsize=(2,1.5))
         col = sns.color_palette("rocket", n_colors=2)[1]
-        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3)
+        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=pal)
 
         ax.set_ylabel("Max Absolute Residual")
         plt.xticks(rotation=90)
+        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
 
         # # Remove x-axis labels
         # ax.set_xticklabels([])
@@ -900,7 +902,7 @@ def plot_max_resid(df, figures_dir, name=""):
         # # ax.set_xticks([])
 
         # # Create a table of h values
-        # table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"]].drop_duplicates().values.tolist()
+        # table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Cooperativity"]].drop_duplicates().values.tolist()
         # # print(table_data)
         # table_data = np.array(table_data).T
         # table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
