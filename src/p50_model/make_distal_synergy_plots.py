@@ -1065,8 +1065,6 @@ def make_supplemental_plots():
 
     plot_max_resid(max_residuals_df, figures_dir, "all_non_cooperative_models")
 
-    raise ValueError("Stop here")
-
 
     # Pairwise plot of parameters
     pars_df_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1/" % force_t_dir, model_t))
