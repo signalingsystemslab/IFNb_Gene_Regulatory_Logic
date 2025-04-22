@@ -71,7 +71,7 @@ def calculate_rmsd(ifnb_predicted, beta):
     rmsd = np.sqrt(np.mean(residuals**2))
     return rmsd
 
-def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=""):
+def calculate_grid(training_data, h_pars=[3,1], t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=""):
     min_k_order = np.log10(k_bounds[0])
     max_k_order = np.log10(k_bounds[1])
     min_c_order = np.log10(10**-3)
@@ -123,10 +123,10 @@ def calculate_grid(training_data, h1=3, h2=1, t_bounds=(0,1), k_bounds=(10**-3,1
         with Pool(num_threads) as p:
             # def get_f(t_pars, k_pars, N, I, P, c_par=None, h_pars=None, scaling=False):
 
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], c_par) for i in range(len(grid)) for j in range(len(N))])
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], h_pars, c_par) for i in range(len(grid)) for j in range(len(N))])
     else:
         with Pool(num_threads) as p:
-            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], c_par) for i in range(len(grid)) for j in range(len(N))])
+            results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, h_pars, c_par) for i in range(len(grid)) for j in range(len(N))])
 
     num_param_sets = len(grid)
     num_data_points = len(N)
@@ -222,6 +222,7 @@ def main():
     parser.add_argument("-c","--c_parameter", type=str, default="")
     parser.add_argument("-1","--h1", type=int, default=3)
     parser.add_argument("-2","--h2", type=int, default=1)
+    parser.add_argument("-n","--hN", type=int, default=1)
     args = parser.parse_args()
 
     start_start = time.time()
@@ -233,9 +234,10 @@ def main():
     num_threads = 40
     model = "p50_dist_syn"
     h1, h2 = args.h1, args.h2
-    h3 = 1
-    h_val = "%d_%d_%d" % (h1, h2, h3)
-    print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
+    hn = args.hN
+    h_pars = [h1, h2, hn]
+    h_val = "%d_%d_%d" % (h1, h2, hn)
+    print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, hn), flush=True)
     c_type = args.c_parameter
 
     # Model details
@@ -275,7 +277,7 @@ def main():
     if args.param_scan:
         # Perform parameter scan
         print("Performing parameter scan...", flush=True)
-        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h1=h1, h2=h2, c_par=c_type,num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        final_pars, ifnb_predicted, rmsd = calculate_grid(training_data, seed=0, num_threads=num_threads, h_pars=h_pars, c_par=c_type,num_t_pars=num_t_pars, num_k_pars=num_k_pars)
         print("Finished parameter scan.", flush=True)
 
         
@@ -307,7 +309,7 @@ def main():
         print("Optimizing model...", flush=True)
         initial_pars = pd.read_csv("%s/%s_scanned_parameters.csv" % (results_dir, model)).values
 
-        final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_bool, c_type=c_type, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
+        final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, h_pars, c=c_bool, c_type=c_type, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars)
         print("Finished optimization.", flush=True)
 
         print("Plotting results...", flush=True)
@@ -368,7 +370,6 @@ def main():
         final_pars = pd.read_csv("%s/%s_best_fits_pars.csv" % (results_dir, model)).values
         print("Calculating and plotting state probabilities...", flush=True)
         all_k_pars = final_pars[:, num_t_pars:num_t_pars+num_k_pars]
-        h_pars = [h1, h2]
 
         extra_training_data = pd.DataFrame({"Stimulus":"basal", "Genotype":"WT", "IRF":0.01, "NFkB":0.01, "p50":1}, index=[0])
         training_data_extended = pd.concat([training_data, extra_training_data], ignore_index=True)

@@ -34,6 +34,9 @@ class Modelp50:
             self.kn = 1
             self.kp = 1
 
+        # Default: No C
+        self.cI = 1
+        self.cN = 1
         if c_par is not None:
             if c_type == "NFkB":
                 # binding cooperativity between either IRF and NFkB
@@ -43,9 +46,11 @@ class Modelp50:
                 self.cI = c_par
             else:
                 raise ValueError("If c parameter is given, type must be either 'NFkB' or 'IRF', not %s" % c_type)
-        else:
-            self.cI = 1
-            self.cN = 1
+
+        # Default: No Hill coefficient (self.h is equal to h-1)
+        self.h1 = 0
+        self.h2 = 0
+        self.hn = 0
 
         if h_pars is not None:
             # Hill coefficient for each IRF binding event
@@ -53,12 +58,17 @@ class Modelp50:
                 self.h1 = h_pars - 1
                 self.h2 = h_pars - 1
             else:
-                if len(h_pars) != 2:
+                if len(h_pars) == 2:
+                    self.h1 = h_pars[0] - 1
+                    self.h2 = h_pars[1] - 1
+                elif len(h_pars) == 3:
+                    self.h1 = h_pars[0] - 1
+                    self.h2 = h_pars[1] - 1
+                    self.hn = h_pars[2] - 1
+                else:
                     print("Got %d pars when expected %d" % (len(h_pars), 2))
                     print("pars = " + str(h_pars))
                     raise ValueError("Incorrect number of h parameters in input")
-                self.h1 = h_pars[0] - 1
-                self.h2 = h_pars[1] - 1
 
 
         # States
@@ -79,24 +89,24 @@ class Modelp50:
         self.t[11] = 1
 
 
-    def calculateBeta(self, I):
+    def calculateBeta(self, I, N=None):
         self.beta = np.array([1.0 for i in range(12)])
         
         self.beta[1] = self.k1 * (I ** self.h1)
         self.beta[2] = self.k2 * (I ** self.h2)
         self.beta[3] = self.k1 * (I ** self.h1) * self.kp
-        self.beta[4] = self.kn
-        self.beta[5] = self.kn * self.kp
+        self.beta[4] = self.kn * (N ** self.hn)
+        self.beta[5] = self.kn * (N ** self.hn) * self.kp
         self.beta[6] = self.kp
         self.beta[7] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.cI
-        self.beta[8] = self.k1 * (I ** self.h1) * self.kn * self.cN
-        self.beta[9] = self.k2 * (I ** self.h2) * self.kn * self.cN
-        self.beta[10] = self.k1 * (I ** self.h1) * self.kn * self.kp * self.cN
-        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * self.cI * self.cN
+        self.beta[8] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn) * self.cN
+        self.beta[9] = self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.cN
+        self.beta[10] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn) * self.kp * self.cN
+        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.cI * self.cN
 
     def calculateState(self, N, I, P=1):
         if not hasattr(self, 'beta'):
-            self.calculateBeta(I)
+            self.calculateBeta(I, N)
         self.state = np.array([1, I, I, I*P, N, N*P, P, I**2, I*N, I*N, I*N*P, I**2*N])
 
     def calculateProb(self):
