@@ -1099,7 +1099,81 @@ def plot_rmsd_boxplot(all_opt_rmsd, model, figures_dir, name="rmsd_boxplot"):
         plt.savefig("%s/%s_%s.png" % (figures_dir, name, model), bbox_inches="tight")
         plt.close()
 
+def get_max_residual(ifnb_predictions, beta, conditions):
+    # Returns df with maximum residual for each par set
+    df = make_predictions_data_frame(ifnb_predictions, beta, conditions)
+    df_data_only = df.loc[df["par_set"] == "Data",["Data point", r"IFN$\beta$"]]
+    df_predictions_only = df.loc[~(df["par_set"] == "Data"),["par_set", "Data point", r"IFN$\beta$"]]
+    df_combine = pd.merge(df_data_only, df_predictions_only, on="Data point", suffixes=(" data", " predictions"))
+    df_combine["abs_residual"] = np.abs(df_combine[r"IFN$\beta$ predictions"] - df_combine[r"IFN$\beta$ data"])
+    df_max = df_combine.loc[df_combine.groupby("par_set")["abs_residual"].idxmax()]
+    # columns: Data point, IFN$\beta$ data, par_set, IFN$\beta$ predictions, abs_residual
+    return df_max
 
+def plot_max_resid(df, figures_dir, name=""):
+    # Mark a box plot of the min residual for each model form
+    n = len(df["Data point"].unique())
+    pal = sns.cubehelix_palette(n_colors=n, light=0.8, dark=0.2, reverse=True, rot=1, start=1, hue=0.6)
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2.5,2))
+        col = sns.color_palette("rocket", n_colors=2)[1]
+        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=pal)
+
+        ax.set_ylabel("Max Absolute Residual")
+        plt.xticks(rotation=90)
+        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+
+        # Remove x-axis labels
+        ax.set_xticklabels([])
+        # Remove x-axis title
+        ax.set_xlabel("")
+        # # Remove x-axis ticks
+        # ax.set_xticks([])
+
+        # Create a table of h values
+        df["Cooperativity"] = df["Cooperativity"].replace({"None": "-"})
+        df["Cooperativity"] = df["Cooperativity"].replace({"c": "+"})
+
+        # df["Cooperativity"] = df["Cooperativity"].replace({"NFkB": r"NF$\kappa$B"})
+
+        table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Cooperativity"]].drop_duplicates().values.tolist()
+
+        # print(table_data)
+        table_data = np.array(table_data).T
+        table = plt.table(cellText=table_data, 
+                          cellLoc='center', 
+                          loc='bottom', 
+                          rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Coop."], 
+                          bbox=[0, -0.7, 1, 0.6])
+
+        colors = sns.color_palette("rocket", n_colors=4)
+        alpha = 0.5
+        colors = [(color[0], color[1], color[2], alpha) for color in colors]
+
+        for key, cell in table.get_celld().items():
+            cell.set_linewidth(0.5)
+
+        # # Loop through the cells and change their color based on their text
+        # for i in range(len(table_data)):
+        #     for j in range(len(table_data[i])):
+        #         cell = table[i, j]
+        #         if table_data[i][j] in [5,"5","N"]:
+        #             cell.set_facecolor(colors[0])
+        #         elif table_data[i][j] in [3,"3",""]:
+        #             cell.set_facecolor(colors[1])
+        #         elif table_data[i][j] in [1,"1"]:
+        #             cell.set_facecolor(colors[2])
+        #         elif table_data[i][j] == "I":
+        #             cell.set_facecolor(colors[3])
+
+        # Adjust layout to make room for the table:
+        plt.subplots_adjust(left=0.2, bottom=0.6)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
+        plt.savefig("%s/max_resid_%s.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
 
 def make_supplemental_plots():
     figures_dir = "parameter_scan_dist_syn/nice_figures/"
@@ -1114,6 +1188,40 @@ def make_supplemental_plots():
     scan_dir = "parameter_scan_dist_syn"
 
     force_t_dir = "parameter_scan_dist_syn/"
+
+    # Make maximum residuals plot
+    # Plot max residual for each model
+    h1, h2, h3 = np.meshgrid([1,3],[1,3],[1,3])
+    models = ["h_%d_%d_%d" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
+    c_scan_models = ["h_%d_%d_%d_c_scan" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
+    models += c_scan_models
+    print(models)
+    max_residuals_df = pd.DataFrame()
+    for m in models:
+        if "3_1_1" in m:
+            coop = ("_" + "_".join(m.split("_")[4:])) if len(m.split("_")) > 4 else ""
+            predictions = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results%s" % (force_t_dir, coop), model), delimiter=",")
+        else:
+            fname = "%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_%s" % (force_t_dir, m), model)
+            if not os.path.exists(fname):
+                print("File %s does not exist, skipping" % fname)
+                continue
+            predictions = np.loadtxt(fname, delimiter=",")
+        df = get_max_residual(predictions, beta, conditions)
+        # print(df)
+        df[r"$h_{I_1}$"] = m.split("_")[2]
+        df[r"$h_{I_2}$"] = m.split("_")[1]
+        df[r"$h_N$"] = m.split("_")[3]
+        df["Cooperativity"] = m.split("_")[4] if len(m.split("_")) > 4 else "None"
+        df["model"] = m
+        # df["model"] = r"$h_{I_1}=$%s, $h_{I_2}=$%s, $h_{N}=$%s" % (df[r"h_{I_1}"].values[0], df[r"h_{I_2}"].values[0], df[r"h_{N}"].values[0])
+        max_residuals_df = pd.concat([max_residuals_df, df], ignore_index=True)
+
+    print(max_residuals_df)
+
+    plot_max_resid(max_residuals_df, figures_dir, "all_hill_and_coop_models")
+
+    raise ValueError("Stop here")
 
     # Load RMSD for all hill combinations
     all_best_rmsd = pd.DataFrame()
