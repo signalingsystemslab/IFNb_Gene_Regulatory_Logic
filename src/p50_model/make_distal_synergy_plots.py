@@ -1063,7 +1063,7 @@ def make_supplemental_plots():
 
     print(max_residuals_df)
 
-    plot_max_resid(max_residuals_df, figures_dir, "all_non_cooperative_models")
+    plot_max_resid(max_residuals_df, figures_dir, "all_hill_and_coop_models")
 
 
     # Pairwise plot of parameters
