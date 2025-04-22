@@ -886,7 +886,7 @@ def plot_max_resid(df, figures_dir, name=""):
     n = len(df["Data point"].unique())
     pal = sns.cubehelix_palette(n_colors=n, light=0.8, dark=0.2, reverse=True, rot=1, start=1, hue=0.6)
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2,1.5))
+        fig, ax = plt.subplots(figsize=(3,2))
         col = sns.color_palette("rocket", n_colors=2)[1]
         sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=pal)
 
@@ -894,40 +894,48 @@ def plot_max_resid(df, figures_dir, name=""):
         plt.xticks(rotation=90)
         sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
 
-        # # Remove x-axis labels
-        # ax.set_xticklabels([])
-        # # Remove x-axis title
-        # ax.set_xlabel("")
-        # # # Remove x-axis ticks
-        # # ax.set_xticks([])
+        # Remove x-axis labels
+        ax.set_xticklabels([])
+        # Remove x-axis title
+        ax.set_xlabel("")
+        # # Remove x-axis ticks
+        # ax.set_xticks([])
 
-        # # Create a table of h values
-        # table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Cooperativity"]].drop_duplicates().values.tolist()
-        # # print(table_data)
-        # table_data = np.array(table_data).T
-        # table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+        # Create a table of h values
+        # In df, replace NFkB with NF$\kappa$B
+        df["Cooperativity"] = df["Cooperativity"].replace({"NFkB": r"NF$\kappa$B"})
 
-        # colors = sns.color_palette("rocket", n_colors=4)
-        # alpha = 0.5
-        # colors = [(color[0], color[1], color[2], alpha) for color in colors]
-        # # Loop through the cells and change their color based on their text
-        # for i in range(len(table_data)):
-        #     for j in range(len(table_data[i])):
-        #         cell = table[i, j] 
-        #         if table_data[i][j] in [5,"5"]:
-        #             cell.set_facecolor(colors[0])
-        #         elif table_data[i][j] in [3,"3"]:
-        #             cell.set_facecolor(colors[1])
-        #         elif table_data[i][j] in [1,"1"]:
-        #             cell.set_facecolor(colors[2])
-        #         else:
-        #             cell.set_facecolor(colors[3])
+        table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Cooperativity"]].drop_duplicates().values.tolist()
 
-        # # Adjust layout to make room for the table:
-        # plt.subplots_adjust(left=0.2, bottom=0.18)
-        # sns.despine()
-        # plt.xticks(rotation=90)
-        # plt.tight_layout()
+        # print(table_data)
+        table_data = np.array(table_data).T
+        table = plt.table(cellText=table_data, 
+                          cellLoc='center', 
+                          loc='bottom', 
+                          rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Coop."], 
+                          bbox=[0, -0.7, 1, 0.6])
+
+        colors = sns.color_palette("rocket", n_colors=4)
+        alpha = 0.5
+        colors = [(color[0], color[1], color[2], alpha) for color in colors]
+        # Loop through the cells and change their color based on their text
+        for i in range(len(table_data)):
+            for j in range(len(table_data[i])):
+                cell = table[i, j]
+                if table_data[i][j] in [5,"5",r"NF$\kappa$B"]:
+                    cell.set_facecolor(colors[0])
+                elif table_data[i][j] in [3,"3",""]:
+                    cell.set_facecolor(colors[1])
+                elif table_data[i][j] in [1,"1"]:
+                    cell.set_facecolor(colors[2])
+                elif table_data[i][j] == "IRF":
+                    cell.set_facecolor(colors[3])
+
+        # Adjust layout to make room for the table:
+        plt.subplots_adjust(left=0.2, bottom=0.6)
+        sns.despine()
+        plt.xticks(rotation=90)
+        plt.tight_layout()
 
         plt.savefig("%s/max_resid_%s.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
@@ -1046,8 +1054,8 @@ def make_supplemental_plots():
         # print(df)
         df[r"$h_{I_1}$"] = m.split("_")[2]
         df[r"$h_{I_2}$"] = m.split("_")[1]
-        df[r"$h_{N}$"] = m.split("_")[3]
-        df["Cooperativity"] = m.split("_")[4] if len(m.split("_")) > 4 else "None"
+        df[r"$h_N$"] = m.split("_")[3]
+        df["Cooperativity"] = m.split("_")[5] if len(m.split("_")) > 4 else "None"
         df["model"] = m
         # df["model"] = r"$h_{I_1}=$%s, $h_{I_2}=$%s, $h_{N}=$%s" % (df[r"h_{I_1}"].values[0], df[r"h_{I_2}"].values[0], df[r"h_{N}"].values[0])
         max_residuals_df = pd.concat([max_residuals_df, df], ignore_index=True)
