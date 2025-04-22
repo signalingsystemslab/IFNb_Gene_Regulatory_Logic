@@ -870,6 +870,66 @@ def modify_supp_contrib_dfs(df,state_name_dict):
     df = df.groupby([r"NF$\kappa$B", "IRF"])["contribution"].sum().reset_index()
     return df
 
+def get_max_residual(ifnb_predictions, beta, conditions):
+    # Returns df with maximum residual for each par set
+    df = make_predictions_data_frame(ifnb_predictions, beta, conditions)
+    df_data_only = df.loc[df["par_set"] == "Data",["Data point", r"IFN$\beta$"]]
+    df_predictions_only = df.loc[~(df["par_set"] == "Data"),["par_set", "Data point", r"IFN$\beta$"]]
+    df_combine = pd.merge(df_data_only, df_predictions_only, on="Data point", suffixes=(" data", " predictions"))
+    df_combine["abs_residual"] = np.abs(df_combine[r"IFN$\beta$ predictions"] - df_combine[r"IFN$\beta$ data"])
+    df_max = df_combine.loc[df_combine.groupby("par_set")["abs_residual"].idxmax()]
+    # columns: Data point, IFN$\beta$ data, par_set, IFN$\beta$ predictions, abs_residual
+    return df_max
+
+def plot_max_resid(df, figures_dir, name=""):
+    # Mark a box plot of the min residual for each model form
+
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,1.5))
+        col = sns.color_palette("rocket", n_colors=2)[1]
+        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3)
+
+        ax.set_ylabel("Max Absolute Residual")
+        plt.xticks(rotation=90)
+
+        # # Remove x-axis labels
+        # ax.set_xticklabels([])
+        # # Remove x-axis title
+        # ax.set_xlabel("")
+        # # # Remove x-axis ticks
+        # # ax.set_xticks([])
+
+        # # Create a table of h values
+        # table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"]].drop_duplicates().values.tolist()
+        # # print(table_data)
+        # table_data = np.array(table_data).T
+        # table = plt.table(cellText=table_data, cellLoc='center', loc='bottom', rowLabels=[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$"], bbox=[0, -0.25, 1, 0.2])
+
+        # colors = sns.color_palette("rocket", n_colors=4)
+        # alpha = 0.5
+        # colors = [(color[0], color[1], color[2], alpha) for color in colors]
+        # # Loop through the cells and change their color based on their text
+        # for i in range(len(table_data)):
+        #     for j in range(len(table_data[i])):
+        #         cell = table[i, j] 
+        #         if table_data[i][j] in [5,"5"]:
+        #             cell.set_facecolor(colors[0])
+        #         elif table_data[i][j] in [3,"3"]:
+        #             cell.set_facecolor(colors[1])
+        #         elif table_data[i][j] in [1,"1"]:
+        #             cell.set_facecolor(colors[2])
+        #         else:
+        #             cell.set_facecolor(colors[3])
+
+        # # Adjust layout to make room for the table:
+        # plt.subplots_adjust(left=0.2, bottom=0.18)
+        # sns.despine()
+        # plt.xticks(rotation=90)
+        # plt.tight_layout()
+
+        plt.savefig("%s/max_resid_%s.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
 def make_supplemental_plots():
     # Param scan
     figures_dir = "parameter_scan_dist_syn/nice_figures/"
@@ -892,70 +952,111 @@ def make_supplemental_plots():
     t = time.time()
     print("Making supplemental contribution plots, starting at %s" % time.ctime(), flush=True)
 
-    ## Make heatmaps for all states, WT p50 ##
-    contrib_df_WT = pd.read_csv("%s/%s_best_params_contributions_sweep_p1.csv" % (contrib_results_dir, model))
-    contrib_df_p50ko = pd.read_csv("%s/%s_best_params_contributions_sweep_p0.csv" % (contrib_results_dir, model))
+    # #### testing
+    # h1, h2, h3 = np.meshgrid([1,3],[1,3],[1,3])
+    # print(h1.ravel())
+    # print(h2.ravel())
+    # raise ValueError("Stop here")
 
-    # Rename the columns in contrib_df
-    state_name_dict = get_renaming_dict(contrib_results_dir)
-    contrib_df_WT = modify_supp_contrib_dfs(contrib_df_WT, state_name_dict)
-    contrib_df_p50ko = modify_supp_contrib_dfs(contrib_df_p50ko, state_name_dict)
+    # ## Make heatmaps for all states, WT p50 ##
+    # contrib_df_WT = pd.read_csv("%s/%s_best_params_contributions_sweep_p1.csv" % (contrib_results_dir, model))
+    # contrib_df_p50ko = pd.read_csv("%s/%s_best_params_contributions_sweep_p0.csv" % (contrib_results_dir, model))
+
+    # # Rename the columns in contrib_df
+    # state_name_dict = get_renaming_dict(contrib_results_dir)
+    # contrib_df_WT = modify_supp_contrib_dfs(contrib_df_WT, state_name_dict)
+    # contrib_df_p50ko = modify_supp_contrib_dfs(contrib_df_p50ko, state_name_dict)
        
-    # df_combined = contrib_df_WT.join(contrib_df_p50ko, lsuffix="_WT", rsuffix="_p50ko", how="outer", on=["NF$\kappa$B", "IRF"])
-    df_combined = contrib_df_WT.merge(contrib_df_p50ko, on=["NF$\kappa$B", "IRF"], suffixes=("_WT", "_p50ko"), how="outer")
-    df_combined.rename(columns={"contribution_WT":"WT", "contribution_p50ko":"p50ko"}, inplace=True)
-    df_combined["Difference"] = df_combined["p50ko"] - df_combined["WT"]
-    # df_combined["contribution_diff"] = df_combined["contribution_p50ko"] - df_combined["contribution_WT"]
-    df_combined = df_combined.melt(id_vars=["NF$\kappa$B", "IRF"], value_vars=["WT", "p50ko", "Difference"], var_name="genotype", value_name="contribution")
+    # # df_combined = contrib_df_WT.join(contrib_df_p50ko, lsuffix="_WT", rsuffix="_p50ko", how="outer", on=["NF$\kappa$B", "IRF"])
+    # df_combined = contrib_df_WT.merge(contrib_df_p50ko, on=["NF$\kappa$B", "IRF"], suffixes=("_WT", "_p50ko"), how="outer")
+    # df_combined.rename(columns={"contribution_WT":"WT", "contribution_p50ko":"p50ko"}, inplace=True)
+    # df_combined["Difference"] = df_combined["p50ko"] - df_combined["WT"]
+    # # df_combined["contribution_diff"] = df_combined["contribution_p50ko"] - df_combined["contribution_WT"]
+    # df_combined = df_combined.melt(id_vars=["NF$\kappa$B", "IRF"], value_vars=["WT", "p50ko", "Difference"], var_name="genotype", value_name="contribution")
 
-    # Make heatmap for WT, p50ko, and difference
-    with sns.plotting_context("paper", rc=plot_rc_pars):
-        ncols = 3 
-        p = sns.FacetGrid(df_combined, col="genotype", col_wrap=ncols, sharex=True, sharey=True, height=1.3)
-        p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=df_combined, cbar=False, vmin=0, vmax=1,
-                        square=True, cmap = heatmap_cmap)
-        p.set_titles("{col_name}")
-        # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
-        plt.tight_layout()
-        plt.savefig("%s/transcription_difference_heatmap.png" % (figures_dir))
-        plt.close()
+    # # Make heatmap for WT, p50ko, and difference
+    # with sns.plotting_context("paper", rc=plot_rc_pars):
+    #     ncols = 3 
+    #     p = sns.FacetGrid(df_combined, col="genotype", col_wrap=ncols, sharex=True, sharey=True, height=1.3)
+    #     p.map_dataframe(helper_contrib_heatmap, r"NF$\kappa$B", "IRF", "contribution", data=df_combined, cbar=False, vmin=0, vmax=1,
+    #                     square=True, cmap = heatmap_cmap)
+    #     p.set_titles("{col_name}")
+    #     # plt.subplots_adjust(top=0.8, hspace=0.5, wspace = 0.05)
+    #     plt.tight_layout()
+    #     plt.savefig("%s/transcription_difference_heatmap.png" % (figures_dir))
+    #     plt.close()
 
-    # best fit NFkB cooperativity model with different Hill combinations
-    predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
-    predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
-    predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
-    predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_NFkB" % force_t_dir, model_t), delimiter=",")
-    plot_predictions(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
-                              "best_20_ifnb_c_NFkB", figures_dir, hi2=[1,1,3,3], hi1=[1,3,1,3])
+    # # best fit NFkB cooperativity model with different Hill combinations
+    # predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_NFkB" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_NFkB" % force_t_dir, model_t), delimiter=",")
+    # plot_predictions(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
+    #                           "best_20_ifnb_c_NFkB", figures_dir, hi2=[1,1,3,3], hi1=[1,3,1,3])
     
-    del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
+    # del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
 
-    best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_NFkB" % force_t_dir, model_t))
-    best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_NFkB" % force_t_dir, model_t))
-    best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_NFkB" % force_t_dir, model_t))
-    best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_NFkB" % force_t_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_NFkB", figures_dir)
+    # best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_NFkB" % force_t_dir, model_t))
+    # best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_NFkB" % force_t_dir, model_t))
+    # best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_NFkB" % force_t_dir, model_t))
+    # best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_NFkB" % force_t_dir, model_t))
+    # plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_NFkB", figures_dir)
 
-    del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
+    # del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
 
-    # best fit IRF cooperativity model with different Hill combinations
-    predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_IRF" % force_t_dir, model_t), delimiter=",")
-    predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_IRF" % force_t_dir, model_t), delimiter=",")
-    predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_IRF" % force_t_dir, model_t), delimiter=",")
-    predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_IRF" % force_t_dir, model_t), delimiter=",")
-    plot_predictions(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
-                              "best_20_ifnb_c_IRF", figures_dir, hi2=[1,1,3,3], hi1=[1,3,1,3])
+    # # best fit IRF cooperativity model with different Hill combinations
+    # predictions_c_1_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_1_1_c_IRF" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_1_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_1_3_1_c_IRF" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_3_3 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_h_3_3_1_c_IRF" % force_t_dir, model_t), delimiter=",")
+    # predictions_c_3_1 = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_c_IRF" % force_t_dir, model_t), delimiter=",")
+    # plot_predictions(predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3, beta, conditions, 
+    #                           "best_20_ifnb_c_IRF", figures_dir, hi2=[1,1,3,3], hi1=[1,3,1,3])
     
-    del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
+    # del predictions_c_1_1, predictions_c_1_3, predictions_c_3_1, predictions_c_3_3
 
-    best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_IRF" % force_t_dir, model_t))
-    best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_IRF" % force_t_dir, model_t))
-    best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_IRF" % force_t_dir, model_t))
-    best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_IRF" % force_t_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_IRF", figures_dir)
+    # best_20_pars_df_c_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1_c_IRF" % force_t_dir, model_t))
+    # best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_IRF" % force_t_dir, model_t))
+    # best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_IRF" % force_t_dir, model_t))
+    # best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_IRF" % force_t_dir, model_t))
+    # plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_IRF", figures_dir)
 
-    del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
+    # del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
     
+    # Plot max residual for each model
+    h1, h2, h3 = np.meshgrid([1,3],[1,3],[1,3])
+    models = ["h_%d_%d_%d" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
+    c_IRF_models = ["h_%d_%d_%d_c_IRF" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
+    c_NFkB_models = ["h_%d_%d_%d_c_NFkB" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
+    models += c_IRF_models + c_NFkB_models
+    print(models)
+    max_residuals_df = pd.DataFrame()
+    for m in models:
+        if "3_1_1" in m:
+            coop = ("_" + "_".join(m.split("_")[4:])) if len(m.split("_")) > 4 else ""
+            predictions = np.loadtxt("%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results%s" % (force_t_dir, coop), model_t), delimiter=",")
+        else:
+            fname = "%s/%s_best_fits_ifnb_predicted.csv" % ("%s/results_%s" % (force_t_dir, m), model_t)
+            if not os.path.exists(fname):
+                print("File %s does not exist, skipping" % fname)
+                continue
+            predictions = np.loadtxt(fname, delimiter=",")
+        df = get_max_residual(predictions, beta, conditions)
+        # print(df)
+        df[r"$h_{I_1}$"] = m.split("_")[2]
+        df[r"$h_{I_2}$"] = m.split("_")[1]
+        df[r"$h_{N}$"] = m.split("_")[3]
+        df["Cooperativity"] = m.split("_")[4] if len(m.split("_")) > 4 else "None"
+        df["model"] = m
+        # df["model"] = r"$h_{I_1}=$%s, $h_{I_2}=$%s, $h_{N}=$%s" % (df[r"h_{I_1}"].values[0], df[r"h_{I_2}"].values[0], df[r"h_{N}"].values[0])
+        max_residuals_df = pd.concat([max_residuals_df, df], ignore_index=True)
+
+    print(max_residuals_df)
+
+    plot_max_resid(max_residuals_df, figures_dir, "all_non_cooperative_models")
+
+    raise ValueError("Stop here")
+
+
     # Pairwise plot of parameters
     pars_df_1_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_1_1/" % force_t_dir, model_t))
     pars_df_1_1["Model"] = r"$h_{I_1}$=1, $h_{I_2}$=1"
