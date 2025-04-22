@@ -886,7 +886,7 @@ def plot_max_resid(df, figures_dir, name=""):
     n = len(df["Data point"].unique())
     pal = sns.cubehelix_palette(n_colors=n, light=0.8, dark=0.2, reverse=True, rot=1, start=1, hue=0.6)
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(3,2))
+        fig, ax = plt.subplots(figsize=(2.5,2))
         col = sns.color_palette("rocket", n_colors=2)[1]
         sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=pal)
 
@@ -902,8 +902,11 @@ def plot_max_resid(df, figures_dir, name=""):
         # ax.set_xticks([])
 
         # Create a table of h values
-        # In df, replace NFkB with NF$\kappa$B
-        df["Cooperativity"] = df["Cooperativity"].replace({"NFkB": r"NF$\kappa$B"})
+        df["Cooperativity"] = df["Cooperativity"].replace({"None": "-"})
+        df["Cooperativity"] = df["Cooperativity"].replace({"NFkB": "N"})
+        df["Cooperativity"] = df["Cooperativity"].replace({"IRF": "I"})
+
+        # df["Cooperativity"] = df["Cooperativity"].replace({"NFkB": r"NF$\kappa$B"})
 
         table_data = df[[r"$h_{I_1}$", r"$h_{I_2}$", r"$h_N$", "Cooperativity"]].drop_duplicates().values.tolist()
 
@@ -918,18 +921,22 @@ def plot_max_resid(df, figures_dir, name=""):
         colors = sns.color_palette("rocket", n_colors=4)
         alpha = 0.5
         colors = [(color[0], color[1], color[2], alpha) for color in colors]
-        # Loop through the cells and change their color based on their text
-        for i in range(len(table_data)):
-            for j in range(len(table_data[i])):
-                cell = table[i, j]
-                if table_data[i][j] in [5,"5",r"NF$\kappa$B"]:
-                    cell.set_facecolor(colors[0])
-                elif table_data[i][j] in [3,"3",""]:
-                    cell.set_facecolor(colors[1])
-                elif table_data[i][j] in [1,"1"]:
-                    cell.set_facecolor(colors[2])
-                elif table_data[i][j] == "IRF":
-                    cell.set_facecolor(colors[3])
+
+        for key, cell in table.get_celld().items():
+            cell.set_linewidth(0.5)
+
+        # # Loop through the cells and change their color based on their text
+        # for i in range(len(table_data)):
+        #     for j in range(len(table_data[i])):
+        #         cell = table[i, j]
+        #         if table_data[i][j] in [5,"5","N"]:
+        #             cell.set_facecolor(colors[0])
+        #         elif table_data[i][j] in [3,"3",""]:
+        #             cell.set_facecolor(colors[1])
+        #         elif table_data[i][j] in [1,"1"]:
+        #             cell.set_facecolor(colors[2])
+        #         elif table_data[i][j] == "I":
+        #             cell.set_facecolor(colors[3])
 
         # Adjust layout to make room for the table:
         plt.subplots_adjust(left=0.2, bottom=0.6)
