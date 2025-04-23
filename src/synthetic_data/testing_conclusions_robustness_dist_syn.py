@@ -1048,8 +1048,8 @@ def main():
 
     # Directories
     insert_dir = "" if restrict_t else "no_restrict/"
-    if h_val != "3_1_1":
-        insert_dir = insert_dir + "h_%s/" % h_val
+    # Add model name
+    insert_dir = insert_dir + "h_%s/" % h_val
     if c_par:
         insert_dir = insert_dir + "c_scan/"
 
