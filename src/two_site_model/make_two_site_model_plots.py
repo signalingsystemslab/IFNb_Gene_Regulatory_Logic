@@ -50,27 +50,6 @@ plot_rc_pars = {"axes.labelsize":7, "font.size":6, "legend.fontsize":6, "xtick.l
 rc_pars={"xtick.major.pad": 1, "ytick.major.pad": 1, "legend.labelspacing": 0.2}
 mpl.rcParams.update(rc_pars)
 
-def make_predictions_data_frame(ifnb_predicted, beta, conditions):
-    df_ifnb_predicted = pd.DataFrame(ifnb_predicted, columns=conditions)
-    df_ifnb_predicted["par_set"] = np.arange(len(df_ifnb_predicted))
-    df_ifnb_predicted = df_ifnb_predicted.melt(var_name="Data point", value_name=r"IFN$\beta$", id_vars="par_set")
-
-    df_ifnb_predicted_data = pd.DataFrame({"Data point":conditions, r"IFN$\beta$":beta, "par_set":"Data"})
-    df_ifnb_predicted = pd.concat([df_ifnb_predicted, df_ifnb_predicted_data], ignore_index=True)
-    df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[0]
-    df_ifnb_predicted["Stimulus"] = df_ifnb_predicted["Stimulus"].replace("polyIC", "PolyIC")
-    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Data point"].str.split("_", expand=True)[1]
-    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("relacrelKO", r"$rela^{-/-}crel^{-/-}$")
-    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf7KO", r"$irf3^{-/-}irf7^{-/-}$")
-    df_ifnb_predicted["Genotype"] = df_ifnb_predicted["Genotype"].replace("irf3irf5irf7KO", r"$irf3^{-/-}irf5^{-/-}irf7^{-/-}$")
-    df_ifnb_predicted["Data point"] = df_ifnb_predicted["Stimulus"] + " " + df_ifnb_predicted["Genotype"]    
-    stimuli_levels = ["basal", "CpG", "LPS", "polyIC"]
-    genotypes_levels = ["WT", "irf3irf7KO", "irf3irf5irf7KO", "relacrelKO"]
-    df_ifnb_predicted["Stimulus"] = pd.Categorical(df_ifnb_predicted["Stimulus"], categories=stimuli_levels, ordered=True)
-    df_ifnb_predicted["Genotype"] = pd.Categorical(df_ifnb_predicted["Genotype"], categories=genotypes_levels, ordered=True)
-    df_ifnb_predicted = df_ifnb_predicted.sort_values(["Stimulus", "Genotype"])
-    return df_ifnb_predicted
-
 def plot_predictions(ifnb_predicted, beta, conditions, name, figures_dir, lines = True):
     df_ifnb_predicted = make_predictions_data_frame(ifnb_predicted, beta, conditions)
     col = sns.color_palette("rocket", n_colors=7)[4]
@@ -678,6 +657,7 @@ def get_max_residual(ifnb_predictions, beta, conditions):
     # Returns df with maximum residual for each par set
     df = make_predictions_data_frame(ifnb_predictions, beta, conditions)
     df_data_only = df.loc[df["par_set"] == "Data",["Data point", r"IFN$\beta$"]]
+    df_data_only["Data point"] = pd.Categorical(df_data_only["Data point"], ordered=True)
     df_predictions_only = df.loc[~(df["par_set"] == "Data"),["par_set", "Data point", r"IFN$\beta$"]]
     df_combine = pd.merge(df_data_only, df_predictions_only, on="Data point", suffixes=(" data", " predictions"))
     df_combine["abs_residual"] = np.abs(df_combine[r"IFN$\beta$ predictions"] - df_combine[r"IFN$\beta$ data"])
@@ -686,9 +666,26 @@ def get_max_residual(ifnb_predictions, beta, conditions):
     return df_max
 
 def plot_max_resid(df, figures_dir, name=""):
-    # Mark a box plot of the min residual for each model form
-    n = len(df["Data point"].unique())
-    pal = sns.cubehelix_palette(n_colors=n, light=0.8, dark=0.2, reverse=True, rot=1, start=1, hue=0.6)
+    data_point_list= "../max_resid_data_points.csv"
+    if os.path.exists(data_point_list):
+        print("Loading existing data point list")
+        data_points = pd.read_csv(data_point_list)
+        new_data_points = [dp for dp in df["Data point"].unique() if dp not in data_points["Data point"].values]
+        if len(new_data_points) > 0:
+            data_points = pd.concat([data_points, pd.DataFrame({"Data point": new_data_points,
+                                                               "Color": [None] * len(new_data_points)})], ignore_index=True)
+    else:
+        print("Creating new data point list")
+        data_points = df.loc[:,["Data point"]]
+        print(data_points)
+        data_points = data_points.drop_duplicates()
+        data_points.sort_values(by="Data point", inplace=True)
+
+    pal = sns.cubehelix_palette(n_colors=len(data_points), light=0.8, dark=0.2, reverse=True, rot=1.4, start=1, hue=0.6)
+    data_points["Color"] = pal
+    data_points.to_csv(data_point_list, index=False)
+
+    colors_dict = dict(data_points.values)
 
     # Sort by Cooperativity, then hI, then hN
     sort_order = ["Cooperativity", r"$h_I$", r"$h_N$"]
@@ -697,8 +694,7 @@ def plot_max_resid(df, figures_dir, name=""):
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
         fig, ax = plt.subplots(figsize=(2.5,2))
-        col = sns.color_palette("rocket", n_colors=2)[1]
-        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=pal)
+        sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=colors_dict)
 
         ax.set_ylabel("Max Absolute Residual")
         plt.xticks(rotation=90)
