@@ -92,7 +92,7 @@ def get_t_pars(l_bounds, u_bounds):
             print("Number of attempts to fix this parameter set: %d" % j, flush=True)
     return new_t_pars
 
-def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, num_h_pars=2, c_par=False, restrict_t=False):
+def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=10**6, num_threads=60, num_t_pars=5, num_k_pars=4, c_par=False, restrict_t=False):
     start = time.time()
 
     min_k_order = np.log10(k_bounds[0])
@@ -172,7 +172,7 @@ def calculate_grid(t_bounds=(0,1), k_bounds=(10**-3,10**3), seed=0, num_samples=
     return grid_tk
 
 
-def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False, num_to_keep=100):
+def parameter_scan(training_data, grid, results_dir, h_pars=[3,1,1], num_threads=40, num_t_pars=5, num_k_pars=4, c_par=False, num_to_keep=100):
     print("\n\nBeginning parameter scan", flush=True)
     # Load data points
     datasets = training_data["Dataset"].unique()
@@ -213,10 +213,10 @@ def parameter_scan(training_data, grid, results_dir, h1=3, h2=1, num_threads=40,
         start = time.time()
         if c_par:
             with Pool(num_threads) as p:
-                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], [h1, h2], False) for i in range(num_param_sets) for j in range(num_pts_times_num_datasets)])
+                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:-1], N[j], I[j], P[j], grid[i,-1], h_pars, False) for i in range(num_param_sets) for j in range(num_pts_times_num_datasets)])
         else:
             with Pool(num_threads) as p:
-                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, [h1, h2], False) for i in range(num_param_sets) for j in range(num_pts_times_num_datasets)])
+                results = p.starmap(get_f, [(grid[i,0:num_t_pars], grid[i,num_t_pars:], N[j], I[j], P[j], None, h_pars, False) for i in range(num_param_sets) for j in range(num_pts_times_num_datasets)])
 
 
         ifnb_predicted = np.array(results).reshape(num_param_sets, num_pts_times_num_datasets)
@@ -1016,9 +1016,10 @@ def main():
     parser.add_argument("-c","--c_parameter", action="store_true")
     parser.add_argument("-1","--h1", type=int, default=3)
     parser.add_argument("-2","--h2", type=int, default=1)
+    parser.add_argument("-n","--hN", type=int, default=1)
     parser.add_argument("-e","--error_val", type=float, default=0.1)
     parser.add_argument("-t","--test", action="store_true")
-    parser.add_argument("-n","--num_threads", type=int, default=60)
+    parser.add_argument("-q","--num_threads", type=int, default=60)
     parser.add_argument("-s","--num_samples_power", type=int, default=6)
     args = parser.parse_args()
 
@@ -1031,8 +1032,9 @@ def main():
     num_threads = args.num_threads
     model = "p50_dist_syn"
     h1, h2 = args.h1, args.h2
-    h3 = 1
+    h3 = args.hN
     h_val = "%d_%d_%d" % (h1, h2, h3)
+    h_pars = [h1, h2, h3]
     print("h_I1: %d, h_I2: %d, h3_N: %d" % (h1, h2, h3), flush=True)
     print("Error value: %.1f" % args.error_val, flush=True)
     c_par= args.c_parameter
@@ -1099,7 +1101,7 @@ def main():
 
         training_data = synthetic_data.loc[synthetic_data["Dataset"].isin(datasets)]
         
-        datasets = parameter_scan(training_data, grid, results_dir, h1=h1, h2=h2, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par,num_to_keep=num_to_keep)
+        datasets = parameter_scan(training_data, grid, results_dir, h_pars=h_pars, num_threads=num_threads, num_t_pars=num_t_pars, num_k_pars=num_k_pars, c_par=c_par,num_to_keep=num_to_keep)
         np.savetxt("%s/dataset_names.csv" % (results_dir), datasets, delimiter=",", fmt="%s")
 
         end = time.time()
@@ -1143,7 +1145,7 @@ def main():
             print("Optimizing model...", flush=True)
             initial_pars = np.loadtxt("%s/initial_pars_%s.csv" % (results_dir, dataset), delimiter=",")
             
-            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, [h1, h2], c=c_par, num_threads=num_threads, 
+            final_pars, ifnb_predicted, rmsd = optimize_model(N, I, P, beta, initial_pars, h_pars, c=c_par, num_threads=num_threads, 
                                                               num_t_pars=num_t_pars, num_k_pars=num_k_pars, restrict_t=restrict_t)
             # print("Size of final_pars: %s" % str(final_pars.shape), flush=True)
 
