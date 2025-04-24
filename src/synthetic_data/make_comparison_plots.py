@@ -106,9 +106,9 @@ def plot_predictions(df_all, name, figures_dir):
     os.makedirs(figures_dir, exist_ok=True)
     # Plot separately
     for category in df_all["Category"].unique():
-        print("Plotting %s" % category)
+        print("Plotting %s for %s" % (category, name), flush=True)
         df = df_all[df_all["Category"]==category].copy()
-        print(df)
+        # print(df)
         df["Data point"] = df["Data point"].cat.remove_unused_categories()
 
         exp_only_df = df[df["beta_type"] == "Data"].copy()
@@ -174,21 +174,22 @@ def make_predictions_comparisons_plots(error, model_list, beta, conditions, name
         df_ifnb_predicted = make_predictions_data_frame(df_ifnb_predicted, beta, conditions)
         df_ifnb_predicted["Hill"] = model
         df_ifnb_predicted.loc[df_ifnb_predicted["beta_type"] == "Data", "Hill"] = "Data"
-        df_ifnb_predicted[r"$H_{I_2}$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[1]
-        df_ifnb_predicted[r"$H_{I_1}$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[2]
-        df_ifnb_predicted[r"$H_N$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[3]
-        number_n_models = len(df_ifnb_predicted[r"$H_N$"].unique()) - 1
-        if number_n_models > 1:
-            df_ifnb_predicted.loc[~(df_ifnb_predicted["beta_type"] == "Data"),"Hill"] = r"$H_{I_1}$=" + df_ifnb_predicted[r"$H_{I_1}$"] + r", $H_{I_2}$=" + df_ifnb_predicted[r"$H_{I_2}$"] + r", $H_N$=" + df_ifnb_predicted[r"$H_N$"]
+        df_ifnb_predicted[r"$h_{I_2}$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[1]
+        df_ifnb_predicted[r"$h_{I_1}$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[2]
+        df_ifnb_predicted[r"$h_N$"] = df_ifnb_predicted["Hill"].str.split("_", expand=True)[3]
+        n_models = df_ifnb_predicted[r"$h_N$"].unique()
+        print(n_models, flush=True)
+        if any(m not in ["1", None] for m in n_models):
+            df_ifnb_predicted.loc[~(df_ifnb_predicted["beta_type"] == "Data"),"Hill"] = r"$h_{I_1}$=" + df_ifnb_predicted[r"$h_{I_1}$"] + r", $h_{I_2}$=" + df_ifnb_predicted[r"$h_{I_2}$"] + r", $h_N$=" + df_ifnb_predicted[r"$h_N$"]
         else:
-            df_ifnb_predicted.loc[~(df_ifnb_predicted["beta_type"] == "Data"),"Hill"] = r"$H_{I_1}$=" + df_ifnb_predicted[r"$H_{I_1}$"] + r", $H_{I_2}$=" + df_ifnb_predicted[r"$H_{I_2}$"]
+            df_ifnb_predicted.loc[~(df_ifnb_predicted["beta_type"] == "Data"),"Hill"] = r"$h_{I_1}$=" + df_ifnb_predicted[r"$h_{I_1}$"] + r", $h_{I_2}$=" + df_ifnb_predicted[r"$h_{I_2}$"]
         df_ifnb = pd.concat([df_ifnb, df_ifnb_predicted], ignore_index=True)
 
     # remove any duplicate rows
     df_ifnb = df_ifnb.loc[~df_ifnb.duplicated(subset=["Data point", r"IFN$\beta$"], keep="first")]
     
     # Make models have correct order
-    df_ifnb = df_ifnb.sort_values(["$H_{I_1}$", "$H_{I_2}$", "$H_N$", "Stimulus", "Genotype"])
+    df_ifnb = df_ifnb.sort_values(["$h_{I_1}$", "$h_{I_2}$", "$h_N$", "Stimulus", "Genotype"])
     model_order = df_ifnb["Hill"].unique()
     model_order = np.insert(model_order[:-1], 0, model_order[-1])
     df_ifnb["Hill"] = pd.Categorical(df_ifnb["Hill"], categories=model_order, ordered=True)
