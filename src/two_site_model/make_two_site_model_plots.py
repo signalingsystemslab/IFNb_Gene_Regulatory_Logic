@@ -198,7 +198,7 @@ def make_predictions_plot(df_all, name, figures_dir):
                         palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=.9, 
                         linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
             ax.set_xlabel("")
-            ax.set_ylabel(r"IFNβ $f$")
+            ax.set_ylabel(r"$IFN\beta\ f$")
             # ax.set_title(category)
             sns.despine()
             ax, _ = fix_ax_labels(ax)
@@ -252,7 +252,7 @@ def plot_predictions_one_plot(ifnb_predicted_1, h1, ifnb_predicted_2, h2, ifnb_p
 
         df_sym[r"H_N"] = np.concatenate([np.repeat(hn_1, len(df_ifnb_predicted_1)), np.repeat(hn_2, len(df_ifnb_predicted_2)),
                                         np.repeat(hn_3, len(df_ifnb_predicted_3)), np.repeat(hn_4, len(df_ifnb_predicted_4))])
-        df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"] + r", h$_{N}$=" + df_sym[r"H_N"]
+        df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"] + r", $h_{N}$=" + df_sym[r"H_N"]
     else:
         df_sym["Hill"] = r"$h_{I}$=" + df_sym[r"H_I"]
     
@@ -623,32 +623,40 @@ def make_param_scan_plots():
     best_20_pars_df_2_1 = pd.read_csv("%s/results_h_2_1/%s_best_fits_pars.csv" % (results_dir, model))
     best_20_pars_df_3_1 = pd.read_csv("%s/results_h_3_1/%s_best_fits_pars.csv" % (results_dir, model))
     best_20_pars_df_4_1 = pd.read_csv("%s/results_h_4_1/%s_best_fits_pars.csv" % (results_dir, model))
-    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_2_1, "2", best_20_pars_df_3_1, "3", best_20_pars_df_4_1, "4", "best_20_pars", figures_dir)
+    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_2_1, "2", best_20_pars_df_3_1, "3", best_20_pars_df_4_1, "4",
+                              "best_20_pars_IRF_hill", figures_dir)
     del best_20_pars_df_1_1, best_20_pars_df_2_1, best_20_pars_df_3_1, best_20_pars_df_4_1
     
     # Calculate ifnb predictions
     print("Plotting best-fit predictions for all hill combinations on one plot", flush=True)
-    # with Pool(40) as p:
-    #     predictions_1_1 = p.starmap(calculate_ifnb, [(pars, training_data) for pars in best_20_pars_df_1_1.values])
-    #     predictions_2_1 = p.starmap(calculate_ifnb, [(pars, training_data) for pars in best_20_pars_df_2_1.values])
-    #     predictions_3_1 = p.starmap(calculate_ifnb, [(pars, training_data) for pars in best_20_pars_df_3_1.values])
-    #     predictions_4_1 = p.starmap(calculate_ifnb, [(pars, training_data) for pars in best_20_pars_df_4_1.values])
-
     predictions_1_1 = np.loadtxt("%s/results_h_1_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
     predictions_2_1 = np.loadtxt("%s/results_h_2_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
     predictions_3_1 = np.loadtxt("%s/results_h_3_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
     predictions_4_1 = np.loadtxt("%s/results_h_4_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
 
     plot_predictions_one_plot(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4", beta, conditions, 
-                              "best_20_predictions", figures_dir)
-    # plot_predictions_barplots_onefig(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4", beta, conditions, 
-    #                           "best_predictions_barplot", figures_dir)
-    # plot_predictions_one_plot_with_data(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4",
-    #                                     training_data, "best_20_predictions_with_data", figures_dir)
-    # # Plot data only
-    # plot_predictions_one_plot_with_data(predictions_1_1, "1", predictions_2_1, "2", predictions_3_1, "3", predictions_4_1, "4",
-    #                                     training_data, "scatter_heatmap_data_only", figures_dir, data_only=True)
-    del predictions_1_1, predictions_2_1, predictions_3_1, predictions_4_1   
+                              "best_20_predictions_IRF_hill", figures_dir)
+    del predictions_1_1, predictions_2_1, predictions_3_1, predictions_4_1  
+
+    # Load best parameters with NFkB scan
+    print("Plotting best-fit parameters for all hill combinations on one plot", flush=True)
+    best_20_pars_df_1_1 = pd.read_csv("%s/results_h_1_1/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_3_1 = pd.read_csv("%s/results_h_3_1/%s_best_fits_pars.csv" % (results_dir, model))
+    best_20_pars_df_3_3 = pd.read_csv("%s/results_h_3_3/%s_best_fits_pars.csv" % (results_dir, model))
+    plot_parameters_one_plot(best_20_pars_df_1_1, "1", best_20_pars_df_1_3, "1", best_20_pars_df_3_1, "3", best_20_pars_df_3_3, "3",
+                              "best_20_pars_I_N_hill", figures_dir, [1,3,1,3])
+    del best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3
+
+
+    # Calculate ifnb predictions with NFkB scan
+    predictions_1_1 = np.loadtxt("%s/results_h_1_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_1_3 = np.loadtxt("%s/results_h_1_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_1 = np.loadtxt("%s/results_h_3_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    predictions_3_3 = np.loadtxt("%s/results_h_3_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
+    plot_predictions_one_plot(predictions_1_1, "1", predictions_1_3, "1", predictions_3_1, "3", predictions_3_3, "3", beta, conditions, 
+                              "best_20_predictions_I_N_hill", figures_dir, [1,3,1,3])
+    del predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3   
 
    
     print("Finished making param scan plots")
@@ -791,8 +799,6 @@ def make_supplemental_plots():
 
     plot_max_resid(max_residuals_df, figures_dir, "all_hill_and_coop_models")
 
-    raise ValueError("Stop here")
-
     # Load best parameters with c-scan
     best_20_pars_df_1_1 = pd.read_csv("%s/results_h_1_1_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
     best_20_pars_df_2_1 = pd.read_csv("%s/results_h_2_1_c_scan/%s_best_fits_pars.csv" % (results_dir, model))
@@ -846,36 +852,6 @@ def make_supplemental_plots():
     df_all_t_pars["Model"] = r"$h_I=$" + df_all_t_pars[r"H_I"] + r", $h_N=$" + df_all_t_pars[r"H_N"]
     df_all_k_pars["Model"] = r"$h_I=$" + df_all_k_pars[r"H_I"] + r", $h_N=$" + df_all_k_pars[r"H_N"]
     make_pars_plots(num_t_pars, num_k_pars, df_all_t_pars, df_all_k_pars, "best_20_pars_NFkB_scan", figures_dir)
-
-    # Calculate ifnb predictions with NFkB scan
-    predictions_1_1 = np.loadtxt("%s/results_h_1_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
-    predictions_1_3 = np.loadtxt("%s/results_h_1_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
-    predictions_3_1 = np.loadtxt("%s/results_h_3_1/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
-    predictions_3_3 = np.loadtxt("%s/results_h_3_3/%s_best_fits_ifnb_predicted.csv" % (results_dir, model), delimiter=",")
-    df_ifnb_predicted_1_1 = make_predictions_data_frame(predictions_1_1, beta, conditions)
-    df_ifnb_predicted_1_3 = make_predictions_data_frame(predictions_1_3, beta, conditions)
-    df_ifnb_predicted_3_1 = make_predictions_data_frame(predictions_3_1, beta, conditions)
-    df_ifnb_predicted_3_3 = make_predictions_data_frame(predictions_3_3, beta, conditions)
-    
-    data_df = df_ifnb_predicted_1_3.loc[df_ifnb_predicted_1_3["par_set"] == "Data"].copy()
-
-    df_sym = pd.concat([df_ifnb_predicted_1_1, df_ifnb_predicted_1_3, df_ifnb_predicted_3_1, df_ifnb_predicted_3_3], ignore_index=True)
-    df_sym[r"H_I"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1) + len(df_ifnb_predicted_1_3)),
-                                        np.repeat("3", len(df_ifnb_predicted_3_1) + len(df_ifnb_predicted_3_3))])
-    df_sym[r"H_N"] = np.concatenate([np.repeat("1", len(df_ifnb_predicted_1_1)), np.repeat("3", len(df_ifnb_predicted_1_3)),
-                                        np.repeat("1", len(df_ifnb_predicted_3_1)), np.repeat("3", len(df_ifnb_predicted_3_3))])
-    df_sym["Hill"] = r"$h_I=$" + df_sym[r"H_I"] + r", $h_N=$" + df_sym[r"H_N"]
-
-    data_df[r"H_I"] = np.repeat("Data", len(data_df))
-    data_df["Hill"] = "Exp."
-
-    df_sym = df_sym.loc[df_sym["par_set"] != "Data"] # contains duplicate data points
-    df_all = pd.concat([df_sym, data_df], ignore_index=True)
-
-    hill_categories = np.concatenate([data_df["Hill"].unique(), df_sym["Hill"].unique()])
-
-    df_all["Hill"] = pd.Categorical(df_all["Hill"], categories=hill_categories, ordered=True)
-    make_predictions_plot(df_all, "best_20_predictions_NFkB_scan", figures_dir)
 
 
 
