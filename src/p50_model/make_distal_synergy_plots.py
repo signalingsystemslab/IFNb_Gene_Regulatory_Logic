@@ -143,8 +143,10 @@ def plot_predictions(ifnb_predicted_0, ifnb_predicted_1, ifnb_predicted_2, ifnb_
             fig, ax = plt.subplots(figsize=(width, height))
             cols = [data_color] + models_colors
             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=0.9, 
+                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=.9, 
                         linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
+            sns.stripplot(data=df_all[(df_all["Category"]==category)&(~(df_all["par_set"] == "Data"))], x="Data point", y=r"IFN$\beta$", 
+                          hue="Hill", alpha=0.5, ax=ax, size=0.9, jitter=True, dodge=True, palette="dark:black", legend=False)
             ax.set_xlabel("")
             ax.set_ylabel(r"IFNβ $f$")
             # ax.set_title(category)

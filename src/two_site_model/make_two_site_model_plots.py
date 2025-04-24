@@ -185,9 +185,7 @@ def fix_ax_labels(ax, is_heatmap=False):
 def make_predictions_plot(df_all, name, figures_dir):
     # Plot separately
     for category in df_all["Category"].unique():
-        # new_rc_pars = plot_rc_pars.copy()
-        # new_rc_pars.update({"axes.labelsize":12, "xtick.labelsize":12, "legend.fontsize":12, "legend.title_fontsize":12,
-        #                                 "ytick.labelsize":12, "axes.titlesize":12})
+        
         with sns.plotting_context("paper", rc=plot_rc_pars):
             num_bars = len(df_all[df_all["Category"]==category]["Data point"].unique())
             width  = 3.1*num_bars/3/2.1
@@ -195,8 +193,10 @@ def make_predictions_plot(df_all, name, figures_dir):
             fig, ax = plt.subplots(figsize=(width, height))
             cols = [data_color] + models_colors
             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=.9, 
+                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=.9, 
                         linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
+            sns.stripplot(data=df_all[(df_all["Category"]==category)&(~(df_all["par_set"] == "Data"))], x="Data point", y=r"IFN$\beta$", 
+                          hue="Hill", alpha=0.5, ax=ax, size=0.9, jitter=True, dodge=True, palette="dark:black", legend=False)
             ax.set_xlabel("")
             ax.set_ylabel(r"$IFN\beta\ f$")
             # ax.set_title(category)
