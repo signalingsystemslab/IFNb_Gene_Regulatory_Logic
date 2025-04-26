@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 class Modelp50:
     def __init__(self, t_pars, k_pars=None, c_par=None, h_pars=None):
-        self.parsT = t_pars
+        t_pars = t_pars
         
         if len(t_pars) != 4:
             # print("Got %d pars when expected %d" % (len(t_pars), 5))
@@ -58,16 +58,16 @@ class Modelp50:
         # I*N is sum of I and N
 
         self.t = np.array([0.0 for i in range(12)])
-        self.t[1] = self.parsT[0] # IRF - t1
-        self.t[2] = self.parsT[0] # IRF_G - t1
-        self.t[3] = self.parsT[0] # IRF + p50 - t1
-        self.t[4] = self.parsT[1] # NFkB - t3
-        self.t[5] = self.parsT[1] # NFkB + p50 - t3
+        self.t[1] = t_pars[0] # IRF - t1
+        self.t[2] = t_pars[0] # IRF_G - t1
+        self.t[3] = t_pars[0] # IRF + p50 - t1
+        self.t[4] = t_pars[1] # NFkB - t3
+        self.t[5] = t_pars[1] # NFkB + p50 - t3
         # 6 is zero
-        self.t[7] = self.parsT[2] # IRF + IRF_G - t4
-        self.t[8] = self.parsT[0] + self.parsT[1] # IRF + NFkB - t1 + t2
-        self.t[9] = self.parsT[3] # IRF_G + NFkB - t5
-        self.t[10] = self.parsT[0] + self.parsT[1] # IRF + NFkB + p50 - t1 + t2
+        self.t[7] = t_pars[2] # IRF + IRF_G - t4
+        self.t[8] = t_pars[0] + t_pars[1] # IRF + NFkB - t1 + t3
+        self.t[9] = t_pars[3] # IRF_G + NFkB - t5
+        self.t[10] = t_pars[0] + t_pars[1] # IRF + NFkB + p50 - t1 + t3
         self.t[11] = 1
 
 
