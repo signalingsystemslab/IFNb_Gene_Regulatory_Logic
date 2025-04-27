@@ -102,7 +102,8 @@ class Modelp50:
         self.beta[8] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn) * self.cN
         self.beta[9] = self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.cN
         self.beta[10] = self.k1 * (I ** self.h1) * self.kn * (N ** self.hn) * self.kp * self.cN
-        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.cI * self.cN
+        self.beta[11] = self.k1 * (I ** self.h1) * self.k2 * (I ** self.h2) * self.kn * (N ** self.hn) * self.cI * self.cN * self.cN
+
 
     def calculateState(self, N, I, P=1):
         if not hasattr(self, 'beta'):
