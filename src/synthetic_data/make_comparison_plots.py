@@ -105,7 +105,9 @@ def make_predictions_data_frame(ifnb_predicted, beta, conditions):
 def plot_predictions(df_all, name, figures_dir):
     os.makedirs(figures_dir, exist_ok=True)
     # Plot separately
-    for category in df_all["Category"].unique():
+    categories = df_all["Category"].unique()
+    categories = np.insert(categories[[0,1,3]], 0, categories[2])
+    for category in categories:
         print("Plotting %s for %s" % (category, name), flush=True)
         df = df_all[df_all["Category"]==category].copy()
         # print(df)
@@ -118,7 +120,7 @@ def plot_predictions(df_all, name, figures_dir):
             num_bars = len(df["Data point"].unique())
 
             width  = 3.1*num_bars/3/2.1
-            height = 0.8
+            height = 0.9
             fig, ax = plt.subplots(figsize=(width, height))
             cols = [data_color] + models_colors
             # Barplot of mean ifnb vs data point
@@ -149,7 +151,7 @@ def plot_predictions(df_all, name, figures_dir):
         num_bars = len(df["Data point"].unique())
         
         width  = 3.1*num_bars/3/2.1 + 0.5
-        height = 0.8
+        height = 0.9
         fig, ax = plt.subplots(figsize=(width, height))
         cols = [data_color] + models_colors
         sns.barplot(data=df, x="Data point", y=r"IFN$\beta$", hue="Hill", 
@@ -195,7 +197,6 @@ def make_predictions_comparisons_plots(error, model_list, beta, conditions, name
     df_ifnb["Hill"] = pd.Categorical(df_ifnb["Hill"], categories=model_order, ordered=True)
 
     plot_predictions(df_ifnb, "%s_%.1f" % (name,error), "parameter_scan_dist_syn/no_restrict/comparison_figures/")
-
 
 def main():
     parser = argparse.ArgumentParser()
