@@ -321,8 +321,10 @@ def plot_predictions(ifnb_predicted_0, ifnb_predicted_1, ifnb_predicted_2, ifnb_
             fig, ax = plt.subplots(figsize=(width, height))
             cols = [data_color] + models_colors
             sns.barplot(data=df_all[df_all["Category"]==category], x="Data point", y=r"IFN$\beta$", hue="Hill", 
-                        palette=cols, ax=ax, width=0.8, errorbar="sd", legend=False, saturation=0.9, 
+                        palette=cols, ax=ax, width=0.8, errorbar=None, legend=False, saturation=.9, 
                         linewidth=0.5, edgecolor="black", err_kws={'linewidth': 0.75, "color":"black"})
+            sns.stripplot(data=df_all[(df_all["Category"]==category)&(~(df_all["par_set"] == "Data"))], x="Data point", y=r"IFN$\beta$", 
+                          hue="Hill", alpha=0.5, ax=ax, size=1.5, jitter=True, dodge=True, palette="dark:black", legend=False)
             ax.set_xlabel("")
             ax.set_ylabel(r"IFNβ $f$")
             # ax.set_title(category)
@@ -1136,13 +1138,14 @@ def plot_max_resid(df, figures_dir, name=""):
     colors_dict = dict(data_points.values)
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.5,2))
+        fig, ax = plt.subplots(figsize=(3.8,1.8))
         col = sns.color_palette("rocket", n_colors=2)[1]
         sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=colors_dict)
 
         ax.set_ylabel("Max Absolute Residual")
         plt.xticks(rotation=90)
-        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        # sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title="Worst-fit condition", frameon=False, loc="center left", ncol=1)
 
         # Remove x-axis labels
         ax.set_xticklabels([])
@@ -1241,8 +1244,6 @@ def make_supplemental_plots():
     print(max_residuals_df)
 
     plot_max_resid(max_residuals_df, figures_dir, "all_hill_and_coop_models")
-
-    raise ValueError("Stop here")
 
     # Load RMSD for all hill combinations
     all_best_rmsd = pd.DataFrame()
