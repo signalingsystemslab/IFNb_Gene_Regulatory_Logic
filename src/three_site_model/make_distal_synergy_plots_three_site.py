@@ -1138,13 +1138,14 @@ def plot_max_resid(df, figures_dir, name=""):
     colors_dict = dict(data_points.values)
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.5,2))
+        fig, ax = plt.subplots(figsize=(3.8,1.8))
         col = sns.color_palette("rocket", n_colors=2)[1]
         sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=colors_dict)
 
         ax.set_ylabel("Max Absolute Residual")
         plt.xticks(rotation=90)
-        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        # sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title="Worst-fit condition", frameon=False, loc="center left", ncol=1)
 
         # Remove x-axis labels
         ax.set_xticklabels([])

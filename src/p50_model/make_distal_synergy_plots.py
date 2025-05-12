@@ -180,7 +180,7 @@ def plot_predictions(ifnb_predicted_0, ifnb_predicted_1, ifnb_predicted_2, ifnb_
         plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
 
-def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir):
+def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir, acceptable_models_only=True):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
     df_t_pars_1_3, df_k_pars_1_3, _, _ = make_parameters_data_frame(pars_1_3)
     df_t_pars_3_1, df_k_pars_3_1, _, _ = make_parameters_data_frame(pars_3_1)
@@ -195,8 +195,6 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_t_pars_3_1)), np.repeat("3", len(df_t_pars_3_3))])
     df_all_t_pars["Model"] = r"$h_{I_1}$=" + df_all_t_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_t_pars[r"H_{I_2}"]
 
-    df_all_t_pars = df_all_t_pars.loc[(df_all_t_pars[r"H_{I_1}"]  == "1") & (df_all_t_pars[r"H_{I_2}"]  == "3")] # acceptable models only
-
 
     df_all_k_pars[r"H_{I_2}"] = np.concatenate([np.repeat("1", len(df_k_pars_1_1)), np.repeat("1", len(df_k_pars_1_3)),
                                         np.repeat("3", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
@@ -204,9 +202,12 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                                         np.repeat("1", len(df_k_pars_3_1)), np.repeat("3", len(df_k_pars_3_3))])
     df_all_k_pars["Model"] = r"$h_{I_1}$=" + df_all_k_pars[r"H_{I_1}"] + r", $h_{I_2}$=" + df_all_k_pars[r"H_{I_2}"]
 
-    df_all_k_pars = df_all_k_pars.loc[(df_all_k_pars[r"H_{I_1}"]  == "1") & (df_all_k_pars[r"H_{I_2}"]  == "3")] # acceptable models only
-
-    colors = models_colors[1:]
+    if acceptable_models_only:
+        df_all_t_pars = df_all_t_pars.loc[(df_all_t_pars[r"H_{I_1}"]  == "1") & (df_all_t_pars[r"H_{I_2}"]  == "3")]
+        df_all_k_pars = df_all_k_pars.loc[(df_all_k_pars[r"H_{I_1}"]  == "1") & (df_all_k_pars[r"H_{I_2}"]  == "3")]
+        colors = models_colors[1:]
+    else:
+        colors = models_colors
 
     k_parameters = [r"$k_{I_1}$",r"$K_N$",r"$K_P$"]
 
@@ -219,6 +220,8 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
 
     with sns.plotting_context("paper",rc=plot_rc_pars):
         width = 3
+        if acceptable_models_only == False:
+            width += 1
         height = 1
         if has_c:
             fig, ax = plt.subplots(1,3, figsize=(width+1, height), 
@@ -909,13 +912,14 @@ def plot_max_resid(df, figures_dir, name=""):
     colors_dict = dict(data_points.values)
 
     with sns.plotting_context("paper", rc=plot_rc_pars):
-        fig, ax = plt.subplots(figsize=(2.5,2))
+        fig, ax = plt.subplots(figsize=(3.8,1.8))
         col = sns.color_palette("rocket", n_colors=2)[1]
         sns.stripplot(data=df, x="model", y="abs_residual", hue="Data point", size=3, palette=colors_dict)
 
         ax.set_ylabel("Max Absolute Residual")
         plt.xticks(rotation=90)
-        sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        # sns.move_legend(ax, bbox_to_anchor=(0.5, 1), title="Worst-fit condition", frameon=False, loc="lower center", ncol=2)
+        sns.move_legend(ax, bbox_to_anchor=(1, 0.5), title="Worst-fit condition", frameon=False, loc="center left", ncol=1)
 
         # Remove x-axis labels
         ax.set_xticklabels([])
@@ -1034,7 +1038,8 @@ def make_supplemental_plots():
     best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_NFkB" % force_t_dir, model_t))
     best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_NFkB" % force_t_dir, model_t))
     best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_NFkB" % force_t_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_NFkB", figures_dir)
+    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, 
+                             "best_20_pars_c_NFkB", figures_dir, False)
 
     del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
 
@@ -1052,10 +1057,35 @@ def make_supplemental_plots():
     best_20_pars_df_c_1_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_1_3_1_c_IRF" % force_t_dir, model_t))
     best_20_pars_df_c_3_1 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_c_IRF" % force_t_dir, model_t))
     best_20_pars_df_c_3_3 = pd.read_csv("%s/%s_best_fits_pars.csv" % ("%s/results_h_3_3_1_c_IRF" % force_t_dir, model_t))
-    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, "best_20_pars_c_IRF", figures_dir)
-
+    plot_parameters_one_plot(best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3, 
+                             "best_20_pars_c_IRF", figures_dir, False)
     del best_20_pars_df_c_1_1, best_20_pars_df_c_1_3, best_20_pars_df_c_3_1, best_20_pars_df_c_3_3
     
+    # No distal synergy model
+    no_dist_syn_dir = "parameter_scan_force_t/"
+    predictions_1_1 = np.loadtxt("%s/results_h_1_1_1/p50_force_t_best_fits_ifnb_predicted.csv" % no_dist_syn_dir, delimiter=",")
+    predictions_1_3 = np.loadtxt("%s/results_h_1_3_1/p50_force_t_best_fits_ifnb_predicted.csv" % no_dist_syn_dir, delimiter=",")
+    predictions_3_1 = np.loadtxt("%s/results/p50_force_t_best_fits_ifnb_predicted.csv" % no_dist_syn_dir, delimiter=",")
+    predictions_3_3 = np.loadtxt("%s/results_h_3_3_1/p50_force_t_best_fits_ifnb_predicted.csv" % no_dist_syn_dir, delimiter=",")
+    plot_predictions(predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3, beta, conditions, 
+                              "best_20_ifnb_no_dist_syn", figures_dir, hi2=[1,1,3,3], hi1=[1,3,1,3])
+    del predictions_1_1, predictions_1_3, predictions_3_1, predictions_3_3
+
+    best_20_pars_df_1_1 = pd.read_csv("%s/results_h_1_1_1/p50_force_t_best_fits_pars.csv" % no_dist_syn_dir)
+    best_20_pars_df_1_3 = pd.read_csv("%s/results_h_1_3_1/p50_force_t_best_fits_pars.csv" % no_dist_syn_dir)
+    best_20_pars_df_3_1 = pd.read_csv("%s/results/p50_force_t_best_fits_pars.csv" % no_dist_syn_dir)
+    best_20_pars_df_3_3 = pd.read_csv("%s/results_h_3_3_1/p50_force_t_best_fits_pars.csv" % no_dist_syn_dir)
+
+    # Make t_6 = t_1+t_3 (because t_IRF2&NFkB = t_IRF2 + t_NFkB)
+    for df in [best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3]:
+        print(df)
+        df["t_6"] = df["t_1"] + df["t_3"]
+        print(df)
+
+    plot_parameters_one_plot(best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3,
+                             "best_20_pars_no_dist_syn", figures_dir, True)
+    del best_20_pars_df_1_1, best_20_pars_df_1_3, best_20_pars_df_3_1, best_20_pars_df_3_3
+
     # Plot max residual for each model
     h1, h2, h3 = np.meshgrid([1,3],[1,3],[1,3])
     models = ["h_%d_%d_%d" % (h1.ravel()[i], h2.ravel()[i], h3.ravel()[i]) for i in range(len(h1.ravel()))]
@@ -1087,6 +1117,7 @@ def make_supplemental_plots():
     print(max_residuals_df)
 
     plot_max_resid(max_residuals_df, figures_dir, "all_hill_and_coop_models")
+
 
 
     # Pairwise plot of parameters
