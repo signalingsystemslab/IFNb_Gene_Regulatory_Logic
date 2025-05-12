@@ -1,6 +1,6 @@
 # Make nice version of the plots for the three site model
 from p50_model_distal_synergy import get_f, get_contribution
-from make_p50_model_plots import make_predictions_data_frame, get_renaming_dict, make_ki_plot, make_cbars, fix_ax_labels
+from make_p50_model_plots import make_predictions_data_frame, get_renaming_dict, make_cbars, fix_ax_labels
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -179,6 +179,48 @@ def plot_predictions(ifnb_predicted_0, ifnb_predicted_1, ifnb_predicted_2, ifnb_
         sns.move_legend(ax, bbox_to_anchor=(1,1), title=None, frameon=False, loc="upper left", ncol=1)
         plt.savefig("%s/%s_legend.png" % (figures_dir, name), bbox_inches="tight")
         plt.close()
+
+def make_ki_plot(df_ki_pars, name, figures_dir, colors = models_colors):
+    # Filter for parameter containing "I"
+    df_ki_pars = df_ki_pars.loc[df_ki_pars["Parameter"].str.contains("I_2")]
+
+    IRF_array = np.arange(0, 1.1, 0.05)
+    # Duplicate the dataframe for each value of IRF
+    df_ki_pars = pd.concat([df_ki_pars]*len(IRF_array), ignore_index=True)
+    df_ki_pars["IRF"] = np.repeat(IRF_array, len(df_ki_pars)/len(IRF_array))
+
+    df_ki_pars[r"$H_{I_1}$"] = df_ki_pars["H_{I_1}"].astype(int)
+    df_ki_pars[r"$H_{I_2}$"] = df_ki_pars["H_{I_2}"].astype(int)
+    # H_I is equal to value of HI1 when parameter is k_I1 and HI2 when parameter is k_I2
+    df_ki_pars[r"$h_I$"] = np.where(df_ki_pars["Parameter"] == r"$k_{I_1}$", df_ki_pars[r"$H_{I_1}$"], 
+                                    np.where(df_ki_pars["Parameter"] == r"$k_{I_2}$",
+                                             df_ki_pars[r"$H_{I_2}$"], None))
+    df_ki_pars[r"$K_I$"] = df_ki_pars["Value"]*df_ki_pars["IRF"]**(df_ki_pars[r"$h_I$"]-1)
+
+    df_ki_pars["Parameter"] = df_ki_pars["Parameter"].cat.remove_unused_categories()
+
+    # log-log scale
+    with sns.plotting_context("paper", rc=plot_rc_pars):
+        fig, ax = plt.subplots(figsize=(2,1.25))
+        sns.lineplot(data=df_ki_pars, x="IRF", y=r"$K_I$", hue="Model", palette=colors, ax=ax, zorder = 0,  errorbar=None, estimator=None, alpha=0.2, units="par_set")
+        # sns.scatterplot(data=df_ki_pars,x="IRF", y=r"$K_I$", hue=r"$h_I$", palette=colors, ax=ax, legend=False, zorder = 1, linewidth=0, alpha=0.2)
+        ax.set_xlabel(r"$[IRF]$ (MNU)")
+        ax.set_ylabel(r"$k_{I_2} [IRF]^{h_{I_2}-1}$ (MNU$^{-1}$)")
+        ax.set_yscale("log")
+        ax.set_xscale("log")
+        sns.despine()
+        sns.move_legend(ax, loc='center left', bbox_to_anchor=(1, 0.5), frameon=False,
+                        columnspacing=1, handletextpad=0.5, handlelength=1.5)
+        plt.tight_layout()
+
+        # Change alpha of legend
+        leg = ax.get_legend()
+        for line in leg.get_lines():
+            line.set_alpha(1)
+
+        plt.savefig("%s/%s_log_log.png" % (figures_dir, name), bbox_inches="tight")
+        plt.close()
+
 
 def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figures_dir, acceptable_models_only=True):
     df_t_pars_1_1, df_k_pars_1_1, _, _ = make_parameters_data_frame(pars_1_1)
