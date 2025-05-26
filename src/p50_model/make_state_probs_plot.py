@@ -100,7 +100,7 @@ with sns.plotting_context("paper", font_scale=1.5):
     p = sns.FacetGrid(state_summary_active_only, col="Stimulus", col_wrap=1, height=1.75, sharey=True, sharex=True, aspect=2.5)
     p.map_dataframe(sns.barplot, y="State", x="Percentage", hue="Stimulus", palette=stim_colors,
                     linewidth=1.5, edgecolor="black", saturation=0.8)
-    p.set_axis_labels("Probability", "")
+    p.set_axis_labels("Percentage", "")
     p.set_titles(col_template="{col_name}")
     p.set(xlim=(0, 50)) 
     sns.despine()
