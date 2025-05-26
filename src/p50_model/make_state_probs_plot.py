@@ -11,7 +11,7 @@ color_palette = sns.blend_palette(["white", "#77A5A4","#5A8A8A","#182828"], n_co
 cmap = sns.blend_palette(["white", "#77A5A4","#5A8A8A","#182828"], as_cmap=True)
 prob_color = color_palette[4]
 
-state_summary = pd.read_csv("p50_dist_syn_state_probabilities_summary.csv", index_col=0)
+state_summary = pd.read_csv("parameter_scan_dist_syn/results/p50_dist_syn_state_probabilities_summary.csv", index_col=0)
 state_summary = state_summary.reset_index(names="State")
 state_order = state_summary["State"].unique()
 state_summary["State"] = pd.Categorical(state_summary["State"], categories=state_order, ordered=True)
