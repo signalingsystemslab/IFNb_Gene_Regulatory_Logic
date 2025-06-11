@@ -32,11 +32,13 @@ def main():
     # Load synthetic data
     errors_tested = np.loadtxt("error_percentages_tested.txt")
 
-    pal = sns.cubehelix_palette(as_cmap=True, start=.6, rot=-.4, dark=0.2, light=0.9, hue=0.6)
-    
+    pal = sns.cubehelix_palette(as_cmap=True, start=.6, rot=-.4, dark=0.2, light=0.9, hue=0.6)    
+    norm = plt.Normalize(vmin=0, vmax=1)
+
     for e in errors_tested:
         synthetic_data = pd.read_csv("../data/p50_training_data_plus_synthetic_e%.1fpct.csv" % e)
         # print(synthetic_data.loc[synthetic_data["Dataset"]=="original"], "IFNb")
+        # print(synthetic_data)
 
         # raise ValueError("Stop here")
 
@@ -45,7 +47,7 @@ def main():
             # Plot all data where Genotype != p50KO, x axis is IRF, y axis is NFkB, color is IFNb
             fig, ax = plt.subplots(figsize=(1,1))
             p = sns.scatterplot(data=synthetic_data[synthetic_data["Genotype"]!="p50KO"], x="NFkB", y="IRF", hue="IFNb", ax=ax,
-                palette = pal, linewidth=0, sizes=1, legend="brief")
+                palette = pal, linewidth=0, sizes=1, legend="brief", hue_norm=norm)
             p.set_xlim(0, 1)
             p.set_ylim(0, 1)
             p.set_xlabel(r"NF$\kappa$B")
@@ -55,7 +57,7 @@ def main():
 
             fig, ax = plt.subplots(figsize=(1,1))
             p = sns.scatterplot(data=synthetic_data[synthetic_data["Genotype"]=="p50KO"], x="NFkB", y="IRF", hue="IFNb", ax=ax,
-                palette = pal, linewidth=0, sizes=1, legend="brief")
+                palette = pal, linewidth=0, sizes=1, legend="brief", hue_norm=norm)
             p.set_xlim(0, 1)
             p.set_ylim(0, 1)
             p.set_xlabel(r"NF$\kappa$B")

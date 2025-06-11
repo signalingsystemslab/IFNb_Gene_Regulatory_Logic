@@ -241,8 +241,9 @@ def make_select_figs(probs_data, contrib_data, figures_dir, more_info=""):
         p.set_xticklabels([0,0.5,1])
         p.set_yticklabels([0,0.5,1])
 
-        ylab_list = ["Probability", r"IFN$\beta$"]
+        ylab_list = ["probability", r"IFN$\beta\ f$"]
         title = [r"$IRF_1& NF\kappa B$", r"$NF\kappa B& p50$", r"$IRF_1& NF\kappa B$", r"$IRF_1& IRF_2& NF\kappa B$"]
+        title = [r"$NF\kappa B& IRF_1$", r"$NF\kappa B& p50$", r"$NF\kappa B& IRF_1$", r"$NF\kappa B& IRF_1& IRF_2$"]
         for i, ax in enumerate(p.axes.flat):
             if i%2 == 0:
                 ax.set_ylabel(ylab_list[i//2])

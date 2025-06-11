@@ -1011,9 +1011,9 @@ def make_state_heatmaps(df, category, cmap, figures_dir, plt_type):
 def make_cbars(df, cmap, figures_dir, plt_type):
     with sns.plotting_context("paper", rc=plot_rc_pars):
         plt_type_dict={
-                "prob": "State probability",
-                "ifnb": r"Max-normalized IFN$\beta$ transcription ($f$)",
-                "t": r"Transcription capability ($t$)"
+                "prob": "state probability",
+                "ifnb": r"IFN$\beta$ $f$",
+                "t": r"transcription capability ($t$)"
             }
 
         if plt_type not in plt_type_dict.keys():

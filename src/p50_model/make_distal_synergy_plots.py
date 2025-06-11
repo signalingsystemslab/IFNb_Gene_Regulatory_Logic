@@ -288,7 +288,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
                           alpha=0.2, jitter=0, dodge=True, legend=False)        
        
         ax[1].set_yscale("log")
-        ax[1].set_ylabel(r"Value (MNU$^{-1}$)")
+        ax[1].set_ylabel(r"value (MNU$^{-1}$)")
 
         if has_c:
             df2 = df_all_k_pars[(df_all_k_pars["Parameter"].isin(["C",r"$C$"]))]
@@ -308,7 +308,7 @@ def plot_parameters_one_plot(pars_1_1, pars_1_3, pars_3_1, pars_3_3, name, figur
 
         ax[1].set_xticklabels(new_xtick_labels)
 
-        ax[0].set_ylabel("Parameter Value")
+        ax[0].set_ylabel("parameter value")
         
         for x in ax[0], ax[1]:
             x.set_xlabel("")
@@ -593,9 +593,39 @@ def make_contribution_plots():
     state_name_dict = get_renaming_dict(results_dir)
     state_names = list(state_name_dict.values())
     contrib_df.rename(columns=state_name_dict, inplace=True)
+    
+    new_state_names = ["unbound",
+    r"$NF\kappa B$",
+    r"$IRF_1$",
+    r"$IRF_2$",
+    r"$p50$",
+    r"$NF\kappa B& p50$",
+    r"$p50& IRF_2$",
+    r"$NF\kappa B& IRF_1$",
+    r"$NF\kappa B& IRF_2$",
+    r"$IRF_1& IRF_2$",
+    r"$NF\kappa B& p50& IRF_2$",
+    r"$NF\kappa B& IRF_1& IRF_2$"]
 
-    contrib_df = pd.melt(contrib_df, id_vars=[r"NF$\kappa$B", "IRF", "par_set"], value_vars=state_names, var_name="state", value_name="contribution")
-    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=state_names, ordered=True)
+    old_state_names = ["Unbound",
+    r"$NF\kappa B$",
+    r"$IRF_1$",
+    r"$IRF_2$",
+    r"$p50$",
+    r"$NF\kappa B& p50$",
+    r"$IRF_2& p50$",
+    r"$IRF_1& NF\kappa B$",
+    r"$IRF_2& NF\kappa B$",
+    r"$IRF_1& IRF_2$",
+    r"$IRF_2& NF\kappa B& p50$",
+    r"$IRF_1& IRF_2& NF\kappa B$"]
+
+    state_dict = {k: r"%s" % v for k, v in zip(old_state_names, new_state_names)}
+    contrib_df.rename(columns=state_dict, inplace=True)
+    print(contrib_df.columns)
+
+    contrib_df = pd.melt(contrib_df, id_vars=[r"NF$\kappa$B", "IRF", "par_set"], value_vars=new_state_names, var_name="state", value_name="contribution")
+    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=new_state_names, ordered=True)
     contrib_df = contrib_df.groupby([r"NF$\kappa$B", "IRF", "state"])["contribution"].mean().reset_index()
 
     # print(state_names)
@@ -620,15 +650,23 @@ def make_contribution_plots():
     make_heatmap(contrib_df, cmap, model, "contrib_sweep_WT", figures_dir)
 
     # Filter for four states: IRF1IRF2, IRF1NFkB, IRF1IRF2NFkB, IRF1NFkBp50
-    active_states = [r"$IRF_1& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", 
-                     r"$IRF_2& NF\kappa B$", r"$IRF_1& IRF_2$", r"$IRF_1& IRF_2& NF\kappa B$"]
+   # active_states = [r"$IRF_1& NF\kappa B$", r"$IRF_2& NF\kappa B& p50$", 
+   #                  r"$IRF_2& NF\kappa B$", r"$IRF_1& IRF_2$", r"$IRF_1& IRF_2& NF\kappa B$"]
+    active_states = [r"$NF\kappa B& IRF_1$",
+    r"$NF\kappa B& IRF_2$",
+    r"$IRF_1& IRF_2$",
+    r"$NF\kappa B& p50& IRF_2$",
+    r"$NF\kappa B& IRF_1& IRF_2$"]
+
+
     contrib_df_three = contrib_df.loc[contrib_df["state"].isin(active_states)].copy()
     contrib_df_three["state"] = contrib_df_three["state"].cat.remove_unused_categories()
+    print(contrib_df_three["state"].unique())
 
     contrib_df_other = contrib_df.loc[~contrib_df["state"].isin(active_states)].copy()
     contrib_df_other = contrib_df_other.groupby([r"NF$\kappa$B", "IRF"])["contribution"].sum().reset_index()
-    contrib_df_other["state"] = "Other"
-    contrib_df_other["state"] = pd.Categorical(contrib_df_other["state"], categories=["Other"], ordered=True)
+    contrib_df_other["state"] = "other"
+    contrib_df_other["state"] = pd.Categorical(contrib_df_other["state"], categories=["other"], ordered=True)
     contrib_df_three = pd.concat([contrib_df_three, contrib_df_other], ignore_index=True)
     # print(contrib_df_three)
     make_heatmap(contrib_df_three, cmap, model, "contrib_sweep_WT_four_states", figures_dir)
@@ -662,8 +700,9 @@ def make_contribution_plots():
     ## Make stacked bar plots for LPS/pIC states ##
     contrib_df = pd.read_csv("%s/%s_specific_conds_contributions.csv" % (results_dir, model))
     contrib_df.rename(columns=state_name_dict, inplace=True)
-    contrib_df = pd.melt(contrib_df, id_vars=["stimulus", "genotype", "par_set"], value_vars=state_names, var_name="state", value_name="contribution")
-    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=state_names, ordered=True)
+    contrib_df.rename(columns=state_dict, inplace=True)
+    contrib_df = pd.melt(contrib_df, id_vars=["stimulus", "genotype", "par_set"], value_vars=new_state_names, var_name="state", value_name="contribution")
+    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=new_state_names, ordered=True)
     contrib_df = contrib_df.groupby(["stimulus", "genotype", "state"])["contribution"].mean().reset_index()
     # Remove NaN values
     contrib_df = contrib_df.dropna()
@@ -681,9 +720,9 @@ def make_contribution_plots():
 
     # Contributing states
     contrib_states = active_states
-    # Sum all non-contributing states into "Other"
-    contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "Other")
-    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["Other"], ordered=True)
+    # Sum all non-contributing states into "other"
+    contrib_df["state"] = contrib_df["state"].apply(lambda x: x if x in contrib_states else "other")
+    contrib_df["state"] = pd.Categorical(contrib_df["state"], categories=contrib_states + ["other"], ordered=True)
     contrib_df = contrib_df.groupby(["Condition", "state"])["contribution"].sum().reset_index()
 
     # new_rc_pars = plot_rc_pars.copy()
@@ -695,7 +734,7 @@ def make_contribution_plots():
         fig, ax = plt.subplots(figsize=(2.5,1.7))
         ax = sns.histplot(data=contrib_df, x="Condition", hue="state", weights="contribution", multiple="stack", shrink=0.5,
                           palette=states_colors, ax=ax, linewidth=0.5)
-        ax.set_ylabel("Transcription")
+        ax.set_ylabel("transcription")
         # labels = [item.get_text().replace(" ", "\n") for item in ax.get_xticklabels()]
         # ax.set_xticklabels(labels)
         # ax.set_xticks(ax.get_xticks())
@@ -852,6 +891,36 @@ def make_state_probabilities_plots():
                                         best_fit_parameters.loc["t_6"],
                                         best_fit_parameters.loc["t_6"],
                                         1]})
+    new_state_names = ["unbound",
+    r"$NF\kappa B$",
+    r"$IRF_1$",
+    r"$IRF_2$",
+    r"$p50$",
+    r"$NF\kappa B& p50$",
+    r"$p50& IRF_2$",
+    r"$NF\kappa B& IRF_1$",
+    r"$NF\kappa B& IRF_2$",
+    r"$IRF_1& IRF_2$",
+    r"$NF\kappa B& p50& IRF_2$",
+    r"$NF\kappa B& IRF_1& IRF_2$"]
+
+    old_state_names = ["Unbound",
+    r"$NF\kappa B$",
+    r"$IRF_1$",
+    r"$IRF_2$",
+    r"$p50$",
+    r"$NF\kappa B& p50$",
+    r"$IRF_2& p50$",
+    r"$IRF_1& NF\kappa B$",
+    r"$IRF_2& NF\kappa B$",
+    r"$IRF_1& IRF_2$",
+    r"$IRF_2& NF\kappa B& p50$",
+    r"$IRF_1& IRF_2& NF\kappa B$"]
+
+    state_dict = {k: r"%s" % v for k, v in zip(old_state_names, new_state_names)}
+
+    t_pars_df = t_pars_df.replace({"state": state_dict})
+
     t_pars_df = t_pars_df.set_index("state").T
     # t_pars_df["Condition"] = ["Transcription \n" r"capability ($t$)"]
     t_pars_df["Condition"] = [r"$t$"]
@@ -860,8 +929,20 @@ def make_state_probabilities_plots():
 
     # State probability
     state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=state_probs_df["state"].unique(), ordered=True)
-    state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
+
+    state_probs_df = state_probs_df.replace({"state": state_dict})
+    print(t_pars_df)
+
+    state_probs_df["state"] = pd.Categorical(state_probs_df["state"], categories=new_state_names, ordered=True)
+    state_probs_df.sort_values(by="state", inplace=True)
     print(state_probs_df)
+    print(state_probs_df["state"])
+    
+
+    state_probs_df = state_probs_df.pivot(index="Condition", columns="state", values="Probability")
+
+    #TODO: actually fix the names for the other things as well
+    
 
     # categories dict: NFκB dependence (contains NFκB or WT, LPS or pIC only), IRF dependence (contains IRF, LPS or pIC only),
     # p50 dependence (contains p50, LPS or CpG only), Stimulus Specific (contains WT )
